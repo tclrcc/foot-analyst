@@ -8,10 +8,12 @@ import com.tony.sportsAnalytics.repository.TeamRepository;
 import com.tony.sportsAnalytics.service.TeamStatsService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/references")
@@ -38,13 +40,25 @@ public class ReferenceController {
     }
 
     @PostMapping("/leagues")
-    public ResponseEntity<League> createLeague(@RequestBody League league) {
-        // Idéalement, gérer l'exception si le nom existe déjà
+    public ResponseEntity<?> createLeague(@RequestBody League league) {
+        // 1. Contrôle doublon Championnat
+        if (leagueRepository.findByName(league.getName()).isPresent()) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "Ce championnat existe déjà !"));
+        }
         return ResponseEntity.ok(leagueRepository.save(league));
     }
 
     @PostMapping("/teams")
-    public ResponseEntity<Team> createTeam(@RequestBody CreateTeamRequest request) {
+    public ResponseEntity<?> createTeam(@RequestBody CreateTeamRequest request) {
+        // 2. Contrôle doublon Équipe
+        if (teamRepository.findByName(request.getName()).isPresent()) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "L'équipe '" + request.getName() + "' existe déjà dans la base."));
+        }
+
         League league = leagueRepository.findById(request.getLeagueId())
                 .orElseThrow(() -> new RuntimeException("League not found"));
 

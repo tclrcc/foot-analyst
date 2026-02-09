@@ -2,236 +2,358 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Foot Analyst - Back Office</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Foot Analyst - Back Office Pro</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
   <style>
-    .admin-header { background: #343a40; color: white; }
-    .nav-tabs .nav-link.active { font-weight: bold; border-bottom: 3px solid #0d6efd; }
+    body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .sidebar { min-height: 100vh; background: #212529; color: white; }
+    .nav-pills .nav-link { color: #adb5bd; margin-bottom: 5px; }
+    .nav-pills .nav-link.active { background-color: #0d6efd; color: white; font-weight: 600; }
+    .nav-pills .nav-link:hover:not(.active) { background-color: #343a40; color: white; }
+    .card { border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 10px; }
+    .flag-preview { width: 30px; height: 20px; object-fit: cover; border-radius: 3px; display: none; }
+
+    /* Style pour la liste des équipes existantes */
+    .team-badge { font-size: 0.9rem; padding: 8px 12px; margin: 3px; background-color: #e9ecef; color: #495057; border-radius: 20px; display: inline-block; transition: all 0.2s; }
+    .team-badge:hover { background-color: #dee2e6; transform: translateY(-1px); }
   </style>
 </head>
-<body class="bg-light">
+<body>
 
-<nav class="navbar navbar-dark bg-dark mb-4 shadow-sm">
-  <div class="container">
-    <span class="navbar-brand mb-0 h1">🛠️ Back Office Admin</span>
-    <a href="/" class="btn btn-outline-light btn-sm">Retour App</a>
+<div class="d-flex">
+  <div class="sidebar p-3 d-flex flex-column" style="width: 250px;">
+    <h4 class="mb-4 text-white"><i class="bi bi-shield-lock-fill me-2"></i>Admin Panel</h4>
+    <ul class="nav nav-pills flex-column mb-auto" id="adminTabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link w-100 text-start active" data-bs-toggle="pill" data-bs-target="#league-pane">
+          <i class="bi bi-trophy me-2"></i>Ligues
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link w-100 text-start" data-bs-toggle="pill" data-bs-target="#team-pane">
+          <i class="bi bi-people-fill me-2"></i>Équipes
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link w-100 text-start" data-bs-toggle="pill" data-bs-target="#history-pane">
+          <i class="bi bi-calendar-check me-2"></i>Résultats
+        </button>
+      </li>
+    </ul>
+    <hr>
+    <a href="/" class="btn btn-outline-light w-100"><i class="bi bi-box-arrow-left me-2"></i>Retour App</a>
   </div>
-</nav>
 
-<div class="container">
+  <div class="flex-grow-1 p-4">
 
-  <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
-    <li class="nav-item">
-      <button class="nav-link active" id="league-tab" data-bs-toggle="tab" data-bs-target="#league-pane" type="button">Nouvelle Ligue</button>
-    </li>
-    <li class="nav-item">
-      <button class="nav-link" id="team-tab" data-bs-toggle="tab" data-bs-target="#team-pane" type="button">Nouvelle Équipe</button>
-    </li>
-    <li class="nav-item">
-      <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-pane" type="button">Historique Match</button>
-    </li>
-  </ul>
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
+      <div id="liveToast" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body fw-bold" id="toastMessage"></div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+    </div>
 
-  <div class="tab-content" id="myTabContent">
+    <div class="tab-content">
 
-    <div class="tab-pane fade show active" id="league-pane" role="tabpanel">
-      <div class="card shadow-sm col-md-6">
-        <div class="card-body">
-          <h5 class="card-title mb-3">Ajouter un Championnat</h5>
+      <div class="tab-pane fade show active" id="league-pane">
+        <h3 class="mb-4">Gestion des Championnats</h3>
+        <div class="card p-4 col-lg-8">
           <form id="leagueForm">
-            <div class="mb-3">
-              <label class="form-label">Nom du Championnat</label>
-              <input type="text" class="form-control" id="newLeagueName" placeholder="Ex: Serie A" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Enregistrer</button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="tab-pane fade" id="team-pane" role="tabpanel">
-      <div class="card shadow-sm col-md-6">
-        <div class="card-body">
-          <h5 class="card-title mb-3">Ajouter une Équipe</h5>
-          <form id="teamForm">
-            <div class="mb-3">
-              <label class="form-label">Championnat</label>
-              <select class="form-select league-select" id="teamLeagueSelect" required>
-                <option value="" disabled selected>Chargement...</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Nom de l'équipe</label>
-              <input type="text" class="form-control" id="newTeamName" placeholder="Ex: Juventus" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Enregistrer</button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="tab-pane fade" id="history-pane" role="tabpanel">
-      <div class="card shadow-sm border-warning">
-        <div class="card-header bg-warning text-dark">
-          <strong>Saisie d'un résultat passé</strong> (Pour alimenter la base)
-        </div>
-        <div class="card-body">
-          <form id="historyForm">
-            <div class="mb-3">
-              <label class="form-label">Championnat</label>
-              <select class="form-select league-select" id="historyLeagueSelect" required></select>
-            </div>
-
             <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Pays</label>
+                <div class="input-group">
+                  <span class="input-group-text"><img id="countryFlagPreview" class="flag-preview" src=""></span>
+                  <select class="form-select" id="countrySelect" required>
+                    <option value="" selected disabled>Choisir...</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Nom de la Ligue</label>
+                <input type="text" class="form-control" id="newLeagueName" placeholder="Ex: Serie A" required>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-2"></i>Créer la Ligue</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="team-pane">
+        <h3 class="mb-4">Gestion des Équipes</h3>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="card p-4 h-100">
+              <form id="teamForm">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Championnat</label>
+                  <select class="form-select" id="teamLeagueSelect" required>
+                    <option value="" disabled selected>Chargement...</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Nom de l'équipe</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-shield"></i></span>
+                    <input type="text" class="form-control" id="newTeamName" placeholder="Ex: Juventus" required>
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-success w-100"><i class="bi bi-plus-circle me-2"></i>Ajouter l'équipe</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="card p-4 h-100 bg-light">
+              <h6 class="text-muted text-uppercase mb-3 fw-bold small"><i class="bi bi-list-ul me-2"></i>Équipes déjà présentes</h6>
+              <div id="existingTeamsContainer" class="d-flex flex-wrap align-content-start">
+                <span class="text-muted fst-italic small">Sélectionnez un championnat pour voir les équipes.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="history-pane">
+        <h3 class="mb-4">Saisie de Résultats</h3>
+        <div class="card p-4 border-warning border-2 border-top-0 border-end-0 border-bottom-0">
+          <form id="historyForm">
+            <div class="row mb-4">
+              <div class="col-md-4">
+                <label class="form-label">Date</label>
+                <input type="date" class="form-control" id="histDate" required>
+              </div>
+              <div class="col-md-8">
+                <label class="form-label">Championnat</label>
+                <select class="form-select league-select" id="historyLeagueSelect" required></select>
+              </div>
+            </div>
+
+            <div class="row align-items-end mb-4">
               <div class="col-md-5">
-                <label class="form-label">Domicile</label>
+                <label class="form-label fw-bold text-primary">Domicile</label>
                 <select class="form-select home-team-select" id="histHomeTeam" disabled required></select>
               </div>
-              <div class="col-md-2 text-center align-self-end">
-                <strong>VS</strong>
+              <div class="col-md-2 text-center pb-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm rounded-circle" onclick="swapTeams()"><i class="bi bi-arrow-left-right"></i></button>
               </div>
               <div class="col-md-5">
-                <label class="form-label">Extérieur</label>
+                <label class="form-label fw-bold text-danger">Extérieur</label>
                 <select class="form-select away-team-select" id="histAwayTeam" disabled required></select>
               </div>
             </div>
 
-            <div class="row mb-3 bg-light p-3 rounded">
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Score Domicile</label>
-                <input type="number" class="form-control" id="histHomeScore" required min="0">
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Score Extérieur</label>
-                <input type="number" class="form-control" id="histAwayScore" required min="0">
-              </div>
+            <div class="row mb-4">
+              <div class="col-md-6"><input type="number" class="form-control text-center fw-bold" placeholder="Score Dom." id="histHomeScore" min="0" required></div>
+              <div class="col-md-6"><input type="number" class="form-control text-center fw-bold" placeholder="Score Ext." id="histAwayScore" min="0" required></div>
             </div>
 
-            <p class="text-muted small">Note : Vous pouvez laisser les stats (classement, xG) vides ou les remplir pour améliorer le dataset futur. Ici on met des valeurs par défaut pour valider le formulaire.</p>
-
-            <input type="hidden" id="dummyRank" value="10">
-            <input type="hidden" id="dummyPoints" value="0">
-
-            <button type="submit" class="btn btn-warning w-100">Enregistrer le Résultat</button>
+            <button type="submit" class="btn btn-warning w-100 fw-bold"><i class="bi bi-save me-2"></i>Enregistrer</button>
           </form>
         </div>
       </div>
-    </div>
 
+    </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-  // --- FONCTIONS PARTAGÉES ---
+  const COUNTRIES = [
+    { code: "fr", name: "France", label: "France 🇫🇷" },
+    { code: "gb-eng", name: "England", label: "Angleterre 🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+    { code: "es", name: "Spain", label: "Espagne 🇪🇸" },
+    { code: "de", name: "Germany", label: "Allemagne 🇩🇪" },
+    { code: "it", name: "Italy", label: "Italie 🇮🇹" },
+    { code: "pt", name: "Portugal", label: "Portugal 🇵🇹" },
+    { code: "nl", name: "Netherlands", label: "Pays-Bas 🇳🇱" },
+    { code: "be", name: "Belgium", label: "Belgique 🇧🇪" },
+    { code: "br", name: "Brazil", label: "Brésil 🇧🇷" },
+    { code: "ar", name: "Argentina", label: "Argentine 🇦🇷" },
+    { code: "sa", name: "Saudi Arabia", label: "Arabie Saoudite 🇸🇦" },
+    { code: "us", name: "USA", label: "États-Unis 🇺🇸" }
+  ];
 
+  // --- UX FEEDBACK ---
+  function showToast(message, isError = false) {
+    const toastEl = document.getElementById('liveToast');
+    document.getElementById('toastMessage').innerText = message;
+
+    toastEl.className = `toast align-items-center text-white border-0 ${isError ? 'bg-danger' : 'bg-success'}`;
+    new bootstrap.Toast(toastEl).show();
+  }
+
+  // --- CHARGEMENT DONNÉES ---
   async function loadLeagues() {
     try {
-      const response = await fetch('/api/v1/references/leagues');
-      const leagues = await response.json();
-      const selects = document.querySelectorAll('.league-select');
+      const res = await fetch('/api/v1/references/leagues');
+      const leagues = await res.json();
+
+      // On cible tous les selects de ligues (Création équipe + Historique)
+      const selects = [document.getElementById('teamLeagueSelect'), document.getElementById('historyLeagueSelect')];
 
       selects.forEach(select => {
+        const saveVal = select.value;
         select.innerHTML = '<option value="" selected disabled>Choisir...</option>';
         leagues.forEach(l => {
-          select.innerHTML += `<option value="${l.id}">${l.name}</option>`;
+          select.innerHTML += `<option value="${l.id}">${l.name} (${l.country || '?'})</option>`;
         });
+        if(saveVal) select.value = saveVal;
       });
-    } catch (e) { console.error(e); }
+    } catch(e) { console.error(e); }
   }
 
-  async function loadTeams(leagueId, targetSelects) {
+  // Charge les équipes pour les selects (Historique) ET pour la liste visuelle (Création équipe)
+  async function loadTeams(leagueId) {
+    if (!leagueId) return;
     try {
-      const response = await fetch(`/api/v1/references/leagues/${leagueId}/teams`);
-      const teams = await response.json();
+      const res = await fetch(`/api/v1/references/leagues/${leagueId}/teams`);
+      const teams = await res.json();
 
-      targetSelects.forEach(select => {
-        select.innerHTML = '<option value="" selected disabled>Choisir...</option>';
-        teams.forEach(t => {
-          select.innerHTML += `<option value="${t.name}">${t.name}</option>`;
-        });
-        select.disabled = false;
+      // 1. Remplir les Selects de l'onglet Historique
+      const selects = [document.getElementById('histHomeTeam'), document.getElementById('histAwayTeam')];
+      selects.forEach(sel => {
+        sel.innerHTML = '<option value="" selected disabled>Choisir...</option>';
+        teams.forEach(t => sel.innerHTML += `<option value="${t.name}">${t.name}</option>`);
+        sel.disabled = false;
       });
+
+      // 2. Remplir la liste visuelle de l'onglet Équipe (si on est dessus)
+      const container = document.getElementById('existingTeamsContainer');
+      if (teams.length === 0) {
+        container.innerHTML = '<span class="text-muted small">Aucune équipe dans ce championnat.</span>';
+      } else {
+        container.innerHTML = teams.map(t =>
+                `<span class="team-badge"><i class="bi bi-shield me-1"></i>${t.name}</span>`
+        ).join('');
+      }
+
     } catch (e) { console.error(e); }
   }
 
-  // --- INITIALISATION ---
-  document.addEventListener('DOMContentLoaded', loadLeagues);
+  // --- EVENT LISTENERS ---
 
-  // --- GESTION DES FORMULAIRES ---
+  // 1. Initialisation
+  document.addEventListener('DOMContentLoaded', () => {
+    loadLeagues();
+    // Remplir Pays
+    const cSelect = document.getElementById('countrySelect');
+    COUNTRIES.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.code;
+      opt.setAttribute('data-name', c.name);
+      opt.text = c.label;
+      cSelect.appendChild(opt);
+    });
+    // Date Hier
+    const d = new Date(); d.setDate(d.getDate() - 1);
+    document.getElementById('histDate').valueAsDate = d;
+  });
 
-  // 1. Ajouter Ligue
+  // 2. Preview Drapeau
+  document.getElementById('countrySelect').addEventListener('change', function() {
+    const img = document.getElementById('countryFlagPreview');
+    if(this.value) {
+      img.src = `https://flagcdn.com/40x30/${this.value}.png`;
+      img.style.display = 'inline-block';
+    }
+  });
+
+  // 3. Changement de Ligue (Onglet Équipe) -> Affiche la liste
+  document.getElementById('teamLeagueSelect').addEventListener('change', function() {
+    loadTeams(this.value);
+  });
+
+  // 4. Changement de Ligue (Onglet Historique) -> Remplit les dropdowns
+  document.getElementById('historyLeagueSelect').addEventListener('change', function() {
+    loadTeams(this.value);
+  });
+
+  function swapTeams() {
+    const h = document.getElementById('histHomeTeam');
+    const a = document.getElementById('histAwayTeam');
+    [h.value, a.value] = [a.value, h.value];
+  }
+
+  // --- SOUMISSIONS ---
+
+  // Créer Ligue
   document.getElementById('leagueForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = document.getElementById('newLeagueName').value;
-
-    await fetch('/api/v1/references/leagues', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ name: name })
-    });
-    alert('Ligue ajoutée !');
-    loadLeagues(); // Recharger les listes
-    e.target.reset();
-  });
-
-  // 2. Ajouter Equipe
-  document.getElementById('teamForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = document.getElementById('newTeamName').value;
-    const leagueId = document.getElementById('teamLeagueSelect').value;
-
-    await fetch('/api/v1/references/teams', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ name: name, leagueId: leagueId })
-    });
-    alert('Équipe ajoutée !');
-    e.target.reset();
-  });
-
-  // 3. Logique Historique (Cascade Ligues -> Equipes)
-  document.getElementById('historyLeagueSelect').addEventListener('change', function() {
-    const homeSel = document.getElementById('histHomeTeam');
-    const awaySel = document.getElementById('histAwayTeam');
-    loadTeams(this.value, [homeSel, awaySel]);
-  });
-
-  // 4. Sauvegarder Match Passé
-  document.getElementById('historyForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    // On simule une requête complète, même si on ne remplit pas toutes les stats
-    // L'astuce est d'envoyer la date d'HIER
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    const sel = document.getElementById('countrySelect');
 
     const payload = {
-      leagueNameInput: document.getElementById('historyLeagueSelect').options[document.getElementById('historyLeagueSelect').selectedIndex].text,
-      homeTeamNameInput: document.getElementById('histHomeTeam').value,
-      awayTeamNameInput: document.getElementById('histAwayTeam').value,
-      matchDate: yesterday.toISOString(),
-      homeScore: document.getElementById('histHomeScore').value,
-      awayScore: document.getElementById('histAwayScore').value,
-
-      // On remplit avec des valeurs "dummy" pour passer la validation @NotNull
-      // Dans une vraie app, on saisirait aussi les stats historiques
-      homeStats: { rank: 10, points: 0 },
-      awayStats: { rank: 10, points: 0 }
+      name: document.getElementById('newLeagueName').value,
+      country: sel.options[sel.selectedIndex].getAttribute('data-name'),
+      countryCode: sel.value
     };
 
-    const res = await fetch('/api/v1/analyses', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
+    const res = await fetch('/api/v1/references/leagues', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
     });
 
     if(res.ok) {
-      alert('Match historique enregistré !');
+      showToast('Ligue créée !');
       e.target.reset();
+      document.getElementById('countryFlagPreview').style.display = 'none';
+      loadLeagues();
     } else {
-      alert('Erreur lors de la sauvegarde');
+      const err = await res.json();
+      showToast(err.error || 'Erreur création', true);
+    }
+  });
+
+  // Créer Équipe
+  document.getElementById('teamForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const leagueId = document.getElementById('teamLeagueSelect').value;
+    const name = document.getElementById('newTeamName').value;
+
+    const res = await fetch('/api/v1/references/teams', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name, leagueId })
+    });
+
+    if(res.ok) {
+      showToast('Équipe ajoutée !');
+      document.getElementById('newTeamName').value = '';
+      loadTeams(leagueId); // Rafraichit la liste à droite immédiatement
+    } else {
+      const err = await res.json();
+      showToast(err.error || 'Erreur création', true);
+    }
+  });
+
+  // Créer Résultat
+  document.getElementById('historyForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const leagueSel = document.getElementById('historyLeagueSelect');
+
+    const payload = {
+      leagueNameInput: leagueSel.options[leagueSel.selectedIndex].text,
+      homeTeamNameInput: document.getElementById('histHomeTeam').value,
+      awayTeamNameInput: document.getElementById('histAwayTeam').value,
+      matchDate: new Date(document.getElementById('histDate').value).toISOString(),
+      homeScore: document.getElementById('histHomeScore').value,
+      awayScore: document.getElementById('histAwayScore').value,
+      homeStats: { rank: 10, points: 0 }, awayStats: { rank: 10, points: 0 }
+    };
+
+    const res = await fetch('/api/v1/analyses', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+    });
+
+    if(res.ok) {
+      showToast('Résultat enregistré !');
+      document.getElementById('histHomeScore').value = '';
+      document.getElementById('histAwayScore').value = '';
+    } else {
+      showToast('Erreur enregistrement', true);
     }
   });
 
