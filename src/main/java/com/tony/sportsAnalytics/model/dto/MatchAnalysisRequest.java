@@ -11,11 +11,25 @@ public class MatchAnalysisRequest {
     @NotNull private Long awayTeamId;
     @NotNull private LocalDateTime matchDate;
 
-    // Stats manuelles
+    // --- NOUVEAU : Cotes Bookmakers ---
+    private Double odds1;
+    private Double oddsN;
+    private Double odds2;
+
+    // --- NOUVEAU : Contexte ---
+    private MatchContext context; // Créer une petite classe interne ou dédiée
+
     private TeamStats homeStats;
     private TeamStats awayStats;
 
-    // Résultats (optionnel, pour l'historique)
     private Integer homeScore;
     private Integer awayScore;
+
+    @Data
+    public static class MatchContext {
+        private boolean homeKeyPlayerMissing;
+        private boolean awayKeyPlayerMissing;
+        private boolean homeTired;
+        private boolean awayNewCoach;
+    }
 }

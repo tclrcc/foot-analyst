@@ -113,40 +113,110 @@
                 </tr>
                 </thead>
                 <tbody>
-                <tr>
-                  <td class="text-end fw-bold px-3 text-secondary">Classement</td>
-                  <td><input type="number" class="form-control form-control-sm text-center fw-bold" id="homeRank" required min="1"></td>
-                  <td><input type="number" class="form-control form-control-sm text-center fw-bold" id="awayRank" required min="1"></td>
+                <tr class="table-warning">
+                  <td class="text-end fw-bold px-3 text-dark">Cotes Bookmaker <i class="bi bi-cash-coin"></i></td>
+                  <td><input type="number" step="0.01" class="form-control form-control-sm text-center fw-bold" id="odds1" placeholder="Cote 1" required></td>
+                  <td><input type="number" step="0.01" class="form-control form-control-sm text-center fw-bold" id="odds2" placeholder="Cote 2" required></td>
                 </tr>
-                <tr>
-                  <td class="text-end fw-bold px-3 text-secondary">Points Totaux</td>
-                  <td><input type="number" class="form-control form-control-sm text-center" id="homePoints" required min="0"></td>
-                  <td><input type="number" class="form-control form-control-sm text-center" id="awayPoints" required min="0"></td>
-                </tr>
-
-                <tr>
-                  <td class="text-end fw-bold px-3 text-secondary">Buts Marqués <small>(BP)</small></td>
-                  <td><input type="number" class="form-control form-control-sm text-center" id="homeGF" placeholder="Total"></td>
-                  <td><input type="number" class="form-control form-control-sm text-center" id="awayGF" placeholder="Total"></td>
-                </tr>
-                <tr>
-                  <td class="text-end fw-bold px-3 text-secondary">Buts Encaissés <small>(BC)</small></td>
-                  <td><input type="number" class="form-control form-control-sm text-center" id="homeGA" placeholder="Total"></td>
-                  <td><input type="number" class="form-control form-control-sm text-center" id="awayGA" placeholder="Total"></td>
+                <tr class="table-warning">
+                  <td class="text-end fw-bold px-3 text-dark">Cote Nul (N)</td>
+                  <td colspan="2"><input type="number" step="0.01" class="form-control form-control-sm text-center fw-bold w-50 mx-auto" id="oddsN" placeholder="Cote N" required></td>
                 </tr>
 
                 <tr>
-                  <td class="text-end fw-bold px-3 text-secondary">Forme <small>(5m)</small></td>
-                  <td><input type="number" class="form-control form-control-sm text-center" id="homeForm" placeholder="0-15"></td>
-                  <td><input type="number" class="form-control form-control-sm text-center" id="awayForm" placeholder="0-15"></td>
+                  <td class="text-end fw-bold px-3 text-secondary">Classement & Points</td>
+                  <td>
+                    <div class="input-group input-group-sm">
+                      <input type="number" class="form-control text-center" id="homeRank" placeholder="Pos">
+                      <input type="number" class="form-control text-center" id="homePoints" placeholder="Pts">
+                    </div>
+                  </td>
+                  <td>
+                    <div class="input-group input-group-sm">
+                      <input type="number" class="form-control text-center" id="awayRank" placeholder="Pos">
+                      <input type="number" class="form-control text-center" id="awayPoints" placeholder="Pts">
+                    </div>
+                  </td>
                 </tr>
+
                 <tr>
-                  <td class="text-end fw-bold px-3 text-secondary">xG <small>(Moy/Match)</small></td>
+                  <td class="text-end fw-bold px-3 text-secondary">Total Saison (BP / BC)</td>
+                  <td>
+                    <div class="input-group input-group-sm">
+                      <input type="number" class="form-control text-center" id="homeGF" placeholder="BP">
+                      <input type="number" class="form-control text-center" id="homeGA" placeholder="BC">
+                    </div>
+                  </td>
+                  <td>
+                    <div class="input-group input-group-sm">
+                      <input type="number" class="form-control text-center" id="awayGF" placeholder="BP">
+                      <input type="number" class="form-control text-center" id="awayGA" placeholder="BC">
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td class="text-end fw-bold px-3 text-secondary">Matchs Joués</td>
+                  <td><input type="number" class="form-control form-control-sm text-center" id="homeMj" placeholder="Total MJ"></td>
+                  <td><input type="number" class="form-control form-control-sm text-center" id="awayMj" placeholder="Total MJ"></td>
+                </tr>
+
+                <tr class="bg-light">
+                  <td class="text-end fw-bold px-3 text-secondary">5 Derniers (BP / BC)</td>
+                  <td>
+                    <div class="input-group input-group-sm">
+                      <input type="number" class="form-control text-center border-primary" id="homeGF5" placeholder="BP 5m">
+                      <input type="number" class="form-control text-center border-primary" id="homeGA5" placeholder="BC 5m">
+                    </div>
+                  </td>
+                  <td>
+                    <div class="input-group input-group-sm">
+                      <input type="number" class="form-control text-center border-danger" id="awayGF5" placeholder="BP 5m">
+                      <input type="number" class="form-control text-center border-danger" id="awayGA5" placeholder="BC 5m">
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td class="text-end fw-bold px-3 text-secondary">xG (Moy)</td>
                   <td><input type="number" step="0.01" class="form-control form-control-sm text-center" id="homeXg"></td>
                   <td><input type="number" step="0.01" class="form-control form-control-sm text-center" id="awayXg"></td>
                 </tr>
                 </tbody>
               </table>
+
+              <div class="card bg-light border-0 mb-3">
+                <div class="card-body py-2">
+                  <h6 class="small fw-bold text-uppercase mb-2"><i class="bi bi-sliders me-1"></i>Ajustements Contextuels</h6>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="homeKeyPlayerMissing">
+                        <label class="form-check-label small" for="homeKeyPlayerMissing">Absence Majeure Dom.</label>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="awayKeyPlayerMissing">
+                        <label class="form-check-label small" for="awayKeyPlayerMissing">Absence Majeure Ext.</label>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="homeTired">
+                        <label class="form-check-label small" for="homeTired">Fatigue Domicile (Cpe d'Europe)</label>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="awayNewCoach">
+                        <label class="form-check-label small" for="awayNewCoach">Choc Psychologique (Nouv. Coach)</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
             <button type="submit" class="btn btn-primary w-100 fw-bold py-3 shadow-sm rounded-3">
@@ -340,25 +410,49 @@
 
     const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
 
+    // Dans index.html, partie script submit
     const payload = {
       homeTeamId: document.getElementById('homeTeamSelect').value,
       awayTeamId: document.getElementById('awayTeamSelect').value,
       matchDate: tomorrow.toISOString(),
 
+      // NOUVEAU : Envoi des cotes
+      odds1: parseFloat(document.getElementById('odds1').value) || 1.0,
+      oddsN: parseFloat(document.getElementById('oddsN').value) || 1.0,
+      odds2: parseFloat(document.getElementById('odds2').value) || 1.0,
+
+      // NOUVEAU : Envoi du contexte (Booléens)
+      context: {
+        homeKeyPlayerMissing: document.getElementById('homeKeyPlayerMissing').checked,
+        awayKeyPlayerMissing: document.getElementById('awayKeyPlayerMissing').checked,
+        homeTired: document.getElementById('homeTired').checked,
+        awayNewCoach: document.getElementById('awayNewCoach').checked
+      },
+
       homeStats: {
         rank: document.getElementById('homeRank').value,
         points: document.getElementById('homePoints').value,
+        matchesPlayed: document.getElementById('homeMj').value || 0, // Nouveau
         goalsFor: document.getElementById('homeGF').value || 0,
         goalsAgainst: document.getElementById('homeGA').value || 0,
-        last5MatchesPoints: document.getElementById('homeForm').value || null,
+
+        // NOUVEAU : Stats forme précises
+        goalsForLast5: document.getElementById('homeGF5').value || 0,
+        goalsAgainstLast5: document.getElementById('homeGA5').value || 0,
+
         xG: document.getElementById('homeXg').value || null
       },
       awayStats: {
         rank: document.getElementById('awayRank').value,
         points: document.getElementById('awayPoints').value,
+        matchesPlayed: document.getElementById('awayMj').value || 0, // Nouveau
         goalsFor: document.getElementById('awayGF').value || 0,
         goalsAgainst: document.getElementById('awayGA').value || 0,
-        last5MatchesPoints: document.getElementById('awayForm').value || null,
+
+        // NOUVEAU
+        goalsForLast5: document.getElementById('awayGF5').value || 0,
+        goalsAgainstLast5: document.getElementById('awayGA5').value || 0,
+
         xG: document.getElementById('awayXg').value || null
       }
     };

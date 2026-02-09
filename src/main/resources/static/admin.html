@@ -248,7 +248,6 @@
   function showToast(message, isError = false) {
     const toastEl = document.getElementById('liveToast');
     document.getElementById('toastMessage').innerText = message;
-
     toastEl.className = `toast align-items-center text-white border-0 ${isError ? 'bg-danger' : 'bg-success'}`;
     new bootstrap.Toast(toastEl).show();
   }
@@ -259,10 +258,12 @@
       const res = await fetch('/api/v1/references/leagues');
       const leagues = await res.json();
 
-      // On cible tous les selects de ligues (Création équipe + Historique)
-      const selects = [document.getElementById('teamLeagueSelect'), document.getElementById('historyLeagueSelect')];
+      // Liste des selects à remplir avec les ligues
+      const ids = ['teamLeagueSelect', 'historyLeagueSelect', 'statsLeagueSelect'];
 
-      selects.forEach(select => {
+      ids.forEach(id => {
+        const select = document.getElementById(id);
+        if(!select) return;
         const saveVal = select.value;
         select.innerHTML = '<option value="" selected disabled>Choisir...</option>';
         leagues.forEach(l => {
@@ -273,29 +274,37 @@
     } catch(e) { console.error(e); }
   }
 
-  // Charge les équipes pour les selects (Historique) ET pour la liste visuelle (Création équipe)
-  async function loadTeams(leagueId) {
+  // --- FONCTION CORRIGÉE : CHARGEMENT DES ÉQUIPES ---
+  // targetSelectIds : Tableau des IDs des <select> à remplir (ex: ['histHomeTeam'])
+  async function loadTeams(leagueId, targetSelectIds = []) {
     if (!leagueId) return;
     try {
       const res = await fetch(`/api/v1/references/leagues/${leagueId}/teams`);
       const teams = await res.json();
 
-      // 1. Remplir les Selects de l'onglet Historique
-      const selects = [document.getElementById('histHomeTeam'), document.getElementById('histAwayTeam')];
-      selects.forEach(sel => {
-        sel.innerHTML = '<option value="" selected disabled>Choisir...</option>';
-        teams.forEach(t => sel.innerHTML += `<option value="${t.name}">${t.name}</option>`);
-        sel.disabled = false;
+      // 1. Remplir les Selects demandés (Stats, Historique...)
+      targetSelectIds.forEach(id => {
+        const sel = document.getElementById(id);
+        if(sel) {
+          sel.innerHTML = '<option value="" selected disabled>Choisir...</option>';
+          teams.forEach(t => {
+            // CORRECTION MAJEURE : On met l'ID en value, pas le nom !
+            sel.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+          });
+          sel.disabled = false;
+        }
       });
 
-      // 2. Remplir la liste visuelle de l'onglet Équipe (si on est dessus)
+      // 2. Remplir la liste visuelle (Onglet Équipes uniquement)
       const container = document.getElementById('existingTeamsContainer');
-      if (teams.length === 0) {
-        container.innerHTML = '<span class="text-muted small">Aucune équipe dans ce championnat.</span>';
-      } else {
-        container.innerHTML = teams.map(t =>
-                `<span class="team-badge"><i class="bi bi-shield me-1"></i>${t.name}</span>`
-        ).join('');
+      if (container && document.getElementById('teamLeagueSelect').value == leagueId) {
+        if (teams.length === 0) {
+          container.innerHTML = '<span class="text-muted small">Aucune équipe dans ce championnat.</span>';
+        } else {
+          container.innerHTML = teams.map(t =>
+                  `<span class="team-badge"><i class="bi bi-shield me-1"></i>${t.name}</span>`
+          ).join('');
+        }
       }
 
     } catch (e) { console.error(e); }
@@ -303,10 +312,8 @@
 
   // --- EVENT LISTENERS ---
 
-  // 1. Initialisation
   document.addEventListener('DOMContentLoaded', () => {
     loadLeagues();
-    // Remplir Pays
     const cSelect = document.getElementById('countrySelect');
     COUNTRIES.forEach(c => {
       const opt = document.createElement('option');
@@ -315,12 +322,10 @@
       opt.text = c.label;
       cSelect.appendChild(opt);
     });
-    // Date Hier
     const d = new Date(); d.setDate(d.getDate() - 1);
     document.getElementById('histDate').valueAsDate = d;
   });
 
-  // 2. Preview Drapeau
   document.getElementById('countrySelect').addEventListener('change', function() {
     const img = document.getElementById('countryFlagPreview');
     if(this.value) {
@@ -329,14 +334,19 @@
     }
   });
 
-  // 3. Changement de Ligue (Onglet Équipe) -> Affiche la liste
+  // 1. Onglet ÉQUIPES : Affiche la liste visuelle
   document.getElementById('teamLeagueSelect').addEventListener('change', function() {
-    loadTeams(this.value);
+    loadTeams(this.value); // Pas de select à remplir ici, juste la liste visuelle
   });
 
-  // 4. Changement de Ligue (Onglet Historique) -> Remplit les dropdowns
+  // 2. Onglet HISTORIQUE : Remplit les dropdowns Domicile/Extérieur
   document.getElementById('historyLeagueSelect').addEventListener('change', function() {
-    loadTeams(this.value);
+    loadTeams(this.value, ['histHomeTeam', 'histAwayTeam']);
+  });
+
+  // 3. Onglet CLASSEMENT (Stats) : Remplit le dropdown Équipe
+  document.getElementById('statsLeagueSelect').addEventListener('change', function() {
+    loadTeams(this.value, ['statsTeamSelect']);
   });
 
   function swapTeams() {
@@ -351,25 +361,21 @@
   document.getElementById('leagueForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const sel = document.getElementById('countrySelect');
-
     const payload = {
       name: document.getElementById('newLeagueName').value,
       country: sel.options[sel.selectedIndex].getAttribute('data-name'),
       countryCode: sel.value
     };
-
     const res = await fetch('/api/v1/references/leagues', {
       method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
     });
-
     if(res.ok) {
       showToast('Ligue créée !');
       e.target.reset();
       document.getElementById('countryFlagPreview').style.display = 'none';
       loadLeagues();
     } else {
-      const err = await res.json();
-      showToast(err.error || 'Erreur création', true);
+      showToast('Erreur création', true);
     }
   });
 
@@ -378,34 +384,32 @@
     e.preventDefault();
     const leagueId = document.getElementById('teamLeagueSelect').value;
     const name = document.getElementById('newTeamName').value;
-
     const res = await fetch('/api/v1/references/teams', {
       method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name, leagueId })
     });
-
     if(res.ok) {
       showToast('Équipe ajoutée !');
       document.getElementById('newTeamName').value = '';
-      loadTeams(leagueId); // Rafraichit la liste à droite immédiatement
+      loadTeams(leagueId);
     } else {
-      const err = await res.json();
-      showToast(err.error || 'Erreur création', true);
+      showToast('Erreur création', true);
     }
   });
 
-  // Créer Résultat
+  // Créer Résultat (CORRIGÉ)
   document.getElementById('historyForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const leagueSel = document.getElementById('historyLeagueSelect');
 
+    // On envoie maintenant les IDs (valeurs des selects)
     const payload = {
-      leagueNameInput: leagueSel.options[leagueSel.selectedIndex].text,
-      homeTeamNameInput: document.getElementById('histHomeTeam').value,
-      awayTeamNameInput: document.getElementById('histAwayTeam').value,
+      homeTeamId: document.getElementById('histHomeTeam').value,
+      awayTeamId: document.getElementById('histAwayTeam').value,
       matchDate: new Date(document.getElementById('histDate').value).toISOString(),
       homeScore: document.getElementById('histHomeScore').value,
       awayScore: document.getElementById('histAwayScore').value,
-      homeStats: { rank: 10, points: 0 }, awayStats: { rank: 10, points: 0 }
+      // Stats bidons obligatoires pour passer la validation (si nécessaire)
+      homeStats: { rank: 10, points: 0 },
+      awayStats: { rank: 10, points: 0 }
     };
 
     const res = await fetch('/api/v1/analyses', {
@@ -417,45 +421,17 @@
       document.getElementById('histHomeScore').value = '';
       document.getElementById('histAwayScore').value = '';
     } else {
-      showToast('Erreur enregistrement', true);
+      showToast('Erreur enregistrement (400)', true);
     }
   });
 
-  // Gestion Select Team dans l'onglet Stats
-  document.getElementById('statsLeagueSelect').addEventListener('change', function() {
-    loadTeams(this.value, [document.getElementById('statsTeamSelect')]);
-  });
-
-  // Sauvegarde des stats
+  // Sauvegarde Stats (Snapshot)
   document.getElementById('statsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const teamId = document.getElementById('statsTeamSelect').value; // Attention: il faut que loadTeams mette l'ID en value ici
-
-    // On récupère l'ID en cherchant l'option sélectionnée (si loadTeams met le nom en value par défaut)
-    // Note: Pour V7, il vaut mieux modifier loadTeams pour qu'il mette l'ID en value partout, ou gérer le mapping.
-    // Supposons que loadTeams met le NOM. Il faut récupérer l'ID autrement ou adapter l'API.
-    // Simplification : Dans admin V7, loadTeams doit mettre l'ID en value pour cet onglet.
-    // Pour faire simple ici, on suppose que tu as adapté loadTeams pour mettre l'ID dans value (comme dans index.html V6).
-
-    const payload = {
-      rank: document.getElementById('sRank').value,
-      points: document.getElementById('sPoints').value,
-      xG: document.getElementById('sXg').value,
-      goalsFor: document.getElementById('sGF').value,
-      goalsAgainst: document.getElementById('sGA').value,
-      last5MatchesPoints: document.getElementById('sForm').value,
-      matchesPlayed: document.getElementById('sMjTotal').value,
-      matchesPlayedHome: document.getElementById('sMjHome').value,
-      matchesPlayedAway: document.getElementById('sMjAway').value,
-      venuePoints: document.getElementById('sPtsHome').value // Astuce: On stocke les points domicile ici pour simplifier, ou on crée un champ dédié.
-      // Pour faire propre, il faudrait ajouter pointsAway dans le modèle Java.
-    };
-
-    // Note: Pour stocker distinctement pts home et pts away, il faut modifier TeamStats.java
-    // Ici on envoie au endpoint
-    // Mais teamId est requis. Voir note plus bas sur loadTeams.
+    // Ici, statsTeamSelect contient bien l'ID maintenant
+    // TODO: Ajouter l'appel API PUT pour mettre à jour les stats
+    showToast("Sauvegarde stats: Fonctionnalité à coder côté serveur (PUT /teams/{id}/stats)", true);
   });
-
 </script>
 </body>
 </html>

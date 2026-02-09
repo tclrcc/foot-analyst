@@ -29,15 +29,19 @@ public class MatchAnalysis {
     @AttributeOverrides({
             @AttributeOverride(name = "rank", column = @Column(name = "home_rank")),
             @AttributeOverride(name = "points", column = @Column(name = "home_points")),
-            // --- AJOUTS V7 POUR CORRIGER L'ERREUR ---
             @AttributeOverride(name = "matchesPlayed", column = @Column(name = "home_mj_total")),
             @AttributeOverride(name = "matchesPlayedHome", column = @Column(name = "home_mj_home")),
             @AttributeOverride(name = "matchesPlayedAway", column = @Column(name = "home_mj_away")),
-            // ----------------------------------------
             @AttributeOverride(name = "goalsFor", column = @Column(name = "home_goals_for")),
             @AttributeOverride(name = "goalsAgainst", column = @Column(name = "home_goals_against")),
             @AttributeOverride(name = "xG", column = @Column(name = "home_xg")),
             @AttributeOverride(name = "last5MatchesPoints", column = @Column(name = "home_form_l5")),
+
+            // --- AJOUTS CORRECTIFS V7 ---
+            @AttributeOverride(name = "goalsForLast5", column = @Column(name = "home_goals_for_l5")),
+            @AttributeOverride(name = "goalsAgainstLast5", column = @Column(name = "home_goals_against_l5")),
+            // ----------------------------
+
             @AttributeOverride(name = "venuePoints", column = @Column(name = "home_venue_points")),
             @AttributeOverride(name = "venueMatches", column = @Column(name = "home_venue_matches"))
     })
@@ -48,20 +52,35 @@ public class MatchAnalysis {
     @AttributeOverrides({
             @AttributeOverride(name = "rank", column = @Column(name = "away_rank")),
             @AttributeOverride(name = "points", column = @Column(name = "away_points")),
-            // --- AJOUTS V7 POUR CORRIGER L'ERREUR ---
             @AttributeOverride(name = "matchesPlayed", column = @Column(name = "away_mj_total")),
             @AttributeOverride(name = "matchesPlayedHome", column = @Column(name = "away_mj_home")),
             @AttributeOverride(name = "matchesPlayedAway", column = @Column(name = "away_mj_away")),
-            // ----------------------------------------
             @AttributeOverride(name = "goalsFor", column = @Column(name = "away_goals_for")),
             @AttributeOverride(name = "goalsAgainst", column = @Column(name = "away_goals_against")),
             @AttributeOverride(name = "xG", column = @Column(name = "away_xg")),
             @AttributeOverride(name = "last5MatchesPoints", column = @Column(name = "away_form_l5")),
+
+            // --- AJOUTS CORRECTIFS V7 ---
+            @AttributeOverride(name = "goalsForLast5", column = @Column(name = "away_goals_for_l5")),
+            @AttributeOverride(name = "goalsAgainstLast5", column = @Column(name = "away_goals_against_l5")),
+            // ----------------------------
+
             @AttributeOverride(name = "venuePoints", column = @Column(name = "away_venue_points")),
             @AttributeOverride(name = "venueMatches", column = @Column(name = "away_venue_matches"))
     })
     @Valid
     private TeamStats awayStats;
+
+    // --- NOUVEAU : Cotes Bookmakers (Pour calcul Value / Kelly) ---
+    private Double odds1;
+    private Double oddsN;
+    private Double odds2;
+
+    // --- NOUVEAU : Facteurs Contextuels (Booleans) ---
+    private boolean homeKeyPlayerMissing; // Absence joueur clé Dom
+    private boolean awayKeyPlayerMissing; // Absence joueur clé Ext
+    private boolean homeTired;            // Fatigue Dom
+    private boolean awayNewCoach;         // Choc psycho Ext
 
     private Integer homeScore;
     private Integer awayScore;
