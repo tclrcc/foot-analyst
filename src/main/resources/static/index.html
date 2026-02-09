@@ -6,59 +6,63 @@
   <title>Foot Analyst AI - V5 Pro</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
   <style>
-    body { background-color: #f8f9fa; }
-    .app-header { background: linear-gradient(135deg, #0d6efd, #0a58ca); color: white; padding: 1.5rem 0; }
-    .kpi-card { transition: transform 0.2s; }
+    body { background-color: #f8f9fa; font-family: 'Segoe UI', system-ui, sans-serif; }
+    .app-header { background: linear-gradient(135deg, #0d6efd, #0a58ca); color: white; padding: 1.5rem 0; margin-bottom: 2rem; }
+    .kpi-card { transition: transform 0.2s; border-radius: 10px; }
     .kpi-card:hover { transform: translateY(-5px); }
+    .score-box { font-size: 2.5rem; font-weight: 800; line-height: 1; }
     .auto-filled { border-color: #198754; background-color: #f0fff4; transition: all 0.5s; }
-    .score-box { font-size: 2.5rem; font-weight: 800; }
+    .table-hover tbody tr:hover { background-color: rgba(0,0,0,.02); }
   </style>
 </head>
 <body>
 
-<div class="app-header shadow mb-4">
+<div class="app-header shadow-sm">
   <div class="container d-flex justify-content-between align-items-center">
     <div>
-      <h1 class="h4 mb-0"><i class="bi bi-cpu-fill me-2"></i>Foot Analyst <span class="fw-light">V5</span></h1>
+      <h1 class="h4 mb-0"><i class="bi bi-cpu-fill me-2"></i>Foot Analyst <span class="fw-light">V5.5</span></h1>
+      <small class="opacity-75">Intelligence Artificielle de Prédiction Sportive</small>
     </div>
-    <a href="/admin.html" class="btn btn-outline-light btn-sm"><i class="bi bi-gear-fill me-1"></i> Admin</a>
+    <a href="/admin.html" class="btn btn-outline-light btn-sm rounded-pill px-3">
+      <i class="bi bi-gear-fill me-1"></i> Admin
+    </a>
   </div>
 </div>
 
-<div class="container">
+<div class="container pb-5">
 
-  <div class="row mb-4">
+  <div class="row mb-5 g-3">
     <div class="col-md-3">
-      <div class="card kpi-card shadow-sm border-0 bg-white">
+      <div class="card kpi-card shadow-sm border-0 bg-white h-100">
         <div class="card-body text-center">
-          <h6 class="text-muted text-uppercase small fw-bold">Total Analysé</h6>
+          <h6 class="text-muted text-uppercase small fw-bold mb-2">Total Analysé</h6>
           <h2 class="mb-0 text-dark" id="kpiTotal">0</h2>
         </div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card kpi-card shadow-sm border-0 bg-white">
+      <div class="card kpi-card shadow-sm border-0 bg-white h-100">
         <div class="card-body text-center">
-          <h6 class="text-muted text-uppercase small fw-bold">Matchs Terminés</h6>
+          <h6 class="text-muted text-uppercase small fw-bold mb-2">Matchs Terminés</h6>
           <h2 class="mb-0 text-secondary" id="kpiFinished">0</h2>
         </div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card kpi-card shadow-sm border-0 bg-success text-white">
+      <div class="card kpi-card shadow-sm border-0 bg-success text-white h-100">
         <div class="card-body text-center">
-          <h6 class="text-white-50 text-uppercase small fw-bold">Précision Globale</h6>
+          <h6 class="text-white-50 text-uppercase small fw-bold mb-2">Précision Globale</h6>
           <h2 class="mb-0" id="kpiAccuracy">0%</h2>
         </div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card kpi-card shadow-sm border-0 bg-info text-white">
+      <div class="card kpi-card shadow-sm border-0 bg-info text-white h-100">
         <div class="card-body text-center">
-          <h6 class="text-white-50 text-uppercase small fw-bold">Précision Confiance</h6>
+          <h6 class="text-white-50 text-uppercase small fw-bold mb-2">Confiance > 60%</h6>
           <h2 class="mb-0" id="kpiConfidence">0%</h2>
-          <small style="font-size: 0.7rem;">(Proba > 60%)</small>
         </div>
       </div>
     </div>
@@ -66,65 +70,87 @@
 
   <div class="row g-4">
     <div class="col-lg-7">
-      <div class="card shadow-sm border-0">
-        <div class="card-header bg-white py-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white py-3 border-bottom-0">
           <h5 class="mb-0 text-primary"><i class="bi bi-joystick me-2"></i>Nouvelle Analyse</h5>
         </div>
-        <div class="card-body p-4">
+        <div class="card-body p-4 pt-0">
           <form id="analysisForm">
 
             <div class="mb-4">
-              <label class="form-label fw-bold">Championnat</label>
-              <select class="form-select" id="leagueSelect" required>
-                <option value="" selected disabled>Chargement...</option>
-              </select>
+              <label class="form-label fw-bold text-uppercase small text-muted">Championnat</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-trophy"></i></span>
+                <select class="form-select border-start-0 ps-0" id="leagueSelect" required>
+                  <option value="" selected disabled>Chargement...</option>
+                </select>
+              </div>
             </div>
 
             <div class="row mb-4">
               <div class="col-md-6">
-                <label class="form-label fw-bold text-primary">Domicile</label>
-                <select class="form-select" id="homeTeamSelect" disabled required></select>
+                <label class="form-label fw-bold text-primary text-uppercase small">Domicile</label>
+                <select class="form-select fw-bold" id="homeTeamSelect" disabled required></select>
               </div>
               <div class="col-md-6">
-                <label class="form-label fw-bold text-danger">Extérieur</label>
-                <select class="form-select" id="awayTeamSelect" disabled required></select>
+                <label class="form-label fw-bold text-danger text-uppercase small">Extérieur</label>
+                <select class="form-select fw-bold" id="awayTeamSelect" disabled required></select>
               </div>
             </div>
 
-            <div class="alert alert-info py-2 small" id="autoFillInfo" style="display:none;">
-              <i class="bi bi-magic me-2"></i> Données historiques récupérées.
+            <div class="alert alert-info py-2 small d-flex align-items-center shadow-sm" id="autoFillInfo" style="display:none;">
+              <i class="bi bi-magic me-2 fs-5"></i>
+              <span>Données historiques récupérées et pré-remplies.</span>
             </div>
 
-            <table class="table table-sm align-middle mb-4">
-              <thead class="text-center text-muted small">
-              <tr><th>Stats</th><th class="text-primary">Domicile</th><th class="text-danger">Extérieur</th></tr>
-              </thead>
-              <tbody>
-              <tr>
-                <td class="text-end fw-bold">Rang</td>
-                <td><input type="number" class="form-control form-control-sm text-center" id="homeRank" required min="1"></td>
-                <td><input type="number" class="form-control form-control-sm text-center" id="awayRank" required min="1"></td>
-              </tr>
-              <tr>
-                <td class="text-end fw-bold">Points</td>
-                <td><input type="number" class="form-control form-control-sm text-center" id="homePoints" required min="0"></td>
-                <td><input type="number" class="form-control form-control-sm text-center" id="awayPoints" required min="0"></td>
-              </tr>
-              <tr>
-                <td class="text-end fw-bold">Forme (5m)</td>
-                <td><input type="number" class="form-control form-control-sm text-center" id="homeForm"></td>
-                <td><input type="number" class="form-control form-control-sm text-center" id="awayForm"></td>
-              </tr>
-              <tr>
-                <td class="text-end fw-bold">xG</td>
-                <td><input type="number" step="0.01" class="form-control form-control-sm text-center" id="homeXg"></td>
-                <td><input type="number" step="0.01" class="form-control form-control-sm text-center" id="awayXg"></td>
-              </tr>
-              </tbody>
-            </table>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-4 table-hover border-top">
+                <thead class="text-center text-muted small bg-light">
+                <tr>
+                  <th class="py-2" style="width: 30%">Indicateur</th>
+                  <th class="text-primary w-25">Domicile</th>
+                  <th class="text-danger w-25">Extérieur</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                  <td class="text-end fw-bold px-3 text-secondary">Classement</td>
+                  <td><input type="number" class="form-control form-control-sm text-center fw-bold" id="homeRank" required min="1"></td>
+                  <td><input type="number" class="form-control form-control-sm text-center fw-bold" id="awayRank" required min="1"></td>
+                </tr>
+                <tr>
+                  <td class="text-end fw-bold px-3 text-secondary">Points Totaux</td>
+                  <td><input type="number" class="form-control form-control-sm text-center" id="homePoints" required min="0"></td>
+                  <td><input type="number" class="form-control form-control-sm text-center" id="awayPoints" required min="0"></td>
+                </tr>
 
-            <button type="submit" class="btn btn-primary w-100 fw-bold py-2">
-              <i class="bi bi-lightning-fill me-1"></i> Analyser
+                <tr>
+                  <td class="text-end fw-bold px-3 text-secondary">Buts Marqués <small>(BP)</small></td>
+                  <td><input type="number" class="form-control form-control-sm text-center" id="homeGF" placeholder="Total"></td>
+                  <td><input type="number" class="form-control form-control-sm text-center" id="awayGF" placeholder="Total"></td>
+                </tr>
+                <tr>
+                  <td class="text-end fw-bold px-3 text-secondary">Buts Encaissés <small>(BC)</small></td>
+                  <td><input type="number" class="form-control form-control-sm text-center" id="homeGA" placeholder="Total"></td>
+                  <td><input type="number" class="form-control form-control-sm text-center" id="awayGA" placeholder="Total"></td>
+                </tr>
+
+                <tr>
+                  <td class="text-end fw-bold px-3 text-secondary">Forme <small>(5m)</small></td>
+                  <td><input type="number" class="form-control form-control-sm text-center" id="homeForm" placeholder="0-15"></td>
+                  <td><input type="number" class="form-control form-control-sm text-center" id="awayForm" placeholder="0-15"></td>
+                </tr>
+                <tr>
+                  <td class="text-end fw-bold px-3 text-secondary">xG <small>(Moy/Match)</small></td>
+                  <td><input type="number" step="0.01" class="form-control form-control-sm text-center" id="homeXg"></td>
+                  <td><input type="number" step="0.01" class="form-control form-control-sm text-center" id="awayXg"></td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 fw-bold py-3 shadow-sm rounded-3">
+              <i class="bi bi-lightning-charge-fill me-2"></i>Lancer l'Algorithme V5
             </button>
           </form>
         </div>
@@ -133,30 +159,42 @@
 
     <div class="col-lg-5">
       <div id="resultCard" class="card shadow border-0" style="display: none;">
-        <div class="card-header bg-dark text-white text-center">
-          <h5 class="mb-0">Résultat</h5>
+        <div class="card-header bg-dark text-white text-center py-3">
+          <h5 class="mb-0 text-uppercase ls-1"><i class="bi bi-graph-up-arrow me-2"></i>Résultat</h5>
         </div>
-        <div class="card-body text-center">
-          <h4 class="mb-4" id="matchTitle">Match</h4>
+        <div class="card-body text-center p-4">
+          <h4 class="mb-4 fw-bold" id="matchTitle">Match</h4>
 
-          <div class="row mb-4">
-            <div class="col">
-              <div class="text-muted small uppercase">Power Dom.</div>
+          <div class="row mb-4 g-0 align-items-center">
+            <div class="col border-end">
+              <div class="text-muted small text-uppercase fw-bold mb-1">Force Domicile</div>
               <div class="score-box text-primary" id="homePowerDisplay">0</div>
             </div>
             <div class="col">
-              <div class="text-muted small uppercase">Power Ext.</div>
+              <div class="text-muted small text-uppercase fw-bold mb-1">Force Extérieur</div>
               <div class="score-box text-danger" id="awayPowerDisplay">0</div>
             </div>
           </div>
 
-          <div class="progress" style="height: 30px;">
-            <div id="probBarHome" class="progress-bar bg-primary" role="progressbar" style="width: 0"></div>
-            <div id="probBarDraw" class="progress-bar bg-secondary" role="progressbar" style="width: 0"></div>
-            <div id="probBarAway" class="progress-bar bg-danger" role="progressbar" style="width: 0"></div>
+          <div class="mb-2 text-start">
+            <label class="small fw-bold text-muted text-uppercase">Probabilités calculées</label>
           </div>
-          <div class="d-flex justify-content-between small text-muted mt-1">
-            <span>1</span><span>N</span><span>2</span>
+          <div class="progress shadow-sm" style="height: 35px; font-weight: bold; font-size: 0.9rem;">
+            <div id="probBarHome" class="progress-bar bg-primary progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+            <div id="probBarDraw" class="progress-bar bg-secondary" role="progressbar" style="width: 0%"></div>
+            <div id="probBarAway" class="progress-bar bg-danger progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+          </div>
+          <div class="d-flex justify-content-between small text-muted mt-1 px-1">
+            <span>1 (Dom)</span>
+            <span>N (Nul)</span>
+            <span>2 (Ext)</span>
+          </div>
+
+          <div class="mt-4 pt-3 border-top">
+            <p class="small text-muted mb-0">
+              <i class="bi bi-info-circle me-1"></i>
+              Ce score prend en compte le classement, la forme récente, les xG et la <strong>différence de buts</strong>.
+            </p>
           </div>
         </div>
       </div>
@@ -164,30 +202,56 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
-  // --- DASHBOARD LOADER ---
+  // --- 1. CHARGEMENT DASHBOARD ---
   async function loadDashboard() {
     try {
-      const res = await fetch('/api/v1/analyses/dashboard'); // Endpoint mis à jour
+      // Note: Assure-toi que ton Controller expose bien /api/v1/analyses/dashboard (ou /dashboard suivant ton code)
+      const res = await fetch('/api/v1/analyses/dashboard');
       if(res.ok) {
         const stats = await res.json();
+
+        // Animation simple des chiffres
+        const animateValue = (id, start, end, duration) => {
+          if (start === end) return;
+          const range = end - start;
+          const minTimer = 50;
+          let stepTime = Math.abs(Math.floor(duration / range));
+          stepTime = Math.max(stepTime, minTimer);
+          let startTime = new Date().getTime();
+          let endTime = startTime + duration;
+          let timer;
+
+          function run() {
+            let now = new Date().getTime();
+            let remaining = Math.max((endTime - now) / duration, 0);
+            let value = Math.round(end - (remaining * range));
+            document.getElementById(id).innerText = String(value).includes('.') ? value : value + (id.includes('Accuracy') || id.includes('Confidence') ? '%' : '');
+            if (value == end) clearInterval(timer);
+          }
+          timer = setInterval(run, stepTime);
+          run();
+        };
+
         document.getElementById('kpiTotal').innerText = stats.totalMatches;
         document.getElementById('kpiFinished').innerText = stats.finishedMatches;
         document.getElementById('kpiAccuracy').innerText = stats.globalAccuracy + '%';
         document.getElementById('kpiConfidence').innerText = stats.confidenceAccuracy + '%';
       }
-    } catch(e) { console.warn("Dashboard error", e); }
+    } catch(e) { console.warn("Dashboard error (API pas encore prête ?)", e); }
   }
 
-  // --- LEAGUES & TEAMS ---
+  // --- 2. CHARGEMENT LIGUES & TEAMS ---
   document.addEventListener('DOMContentLoaded', async () => {
-    loadDashboard(); // Charge le ROI au démarrage
+    loadDashboard();
 
     const leagueSelect = document.getElementById('leagueSelect');
     const res = await fetch('/api/v1/references/leagues');
     const leagues = await res.json();
 
-    leagueSelect.innerHTML = '<option value="" selected disabled>Choisir...</option>';
+    leagueSelect.innerHTML = '<option value="" selected disabled>Choisir un championnat...</option>';
     leagues.forEach(l => {
       const opt = document.createElement('option');
       opt.value = l.id;
@@ -199,6 +263,7 @@
   document.getElementById('leagueSelect').addEventListener('change', async function() {
     const homeSelect = document.getElementById('homeTeamSelect');
     const awaySelect = document.getElementById('awayTeamSelect');
+
     homeSelect.innerHTML = '<option>Chargement...</option>';
     homeSelect.disabled = true; awaySelect.disabled = true;
 
@@ -206,10 +271,10 @@
     const teams = await res.json();
 
     const fill = (sel) => {
-      sel.innerHTML = '<option value="" selected disabled>Choisir...</option>';
+      sel.innerHTML = '<option value="" selected disabled>-- Sélectionner --</option>';
       teams.forEach(t => {
         const opt = document.createElement('option');
-        opt.value = t.id; // Feature C: On utilise l'ID !
+        opt.value = t.id; // Feature C: Utilisation des IDs
         opt.text = t.name;
         sel.appendChild(opt);
       });
@@ -218,82 +283,105 @@
     fill(homeSelect); fill(awaySelect);
   });
 
-  // --- AUTO-FILL ---
+  // --- 3. AUTO-FILL INTELLIGENT ---
   async function fetchStats(teamId, prefix) {
     if(!teamId) return;
-    const res = await fetch(`/api/v1/references/teams/${teamId}/suggested-stats`);
-    if(res.ok) {
-      const s = await res.json();
-      if(s) {
-        if(s.rank) document.getElementById(`${prefix}Rank`).value = s.rank;
-        if(s.points) document.getElementById(`${prefix}Points`).value = s.points;
-        if(s.last5MatchesPoints !== null) document.getElementById(`${prefix}Form`).value = s.last5MatchesPoints;
-        if(s.xG) document.getElementById(`${prefix}Xg`).value = s.xG;
-        document.getElementById('autoFillInfo').style.display = 'block';
+    try {
+      const res = await fetch(`/api/v1/references/teams/${teamId}/suggested-stats`);
+      if(res.ok) {
+        const s = await res.json();
+        if(s) {
+          if(s.rank) document.getElementById(`${prefix}Rank`).value = s.rank;
+          if(s.points) document.getElementById(`${prefix}Points`).value = s.points;
+          // Note: Le service suggested-stats ne renvoie pas encore GF/GA,
+          // il faudra mettre à jour TeamStatsService pour les inclure si tu veux l'auto-fill complet.
+          if(s.last5MatchesPoints !== null) document.getElementById(`${prefix}Form`).value = s.last5MatchesPoints;
+          if(s.xG) document.getElementById(`${prefix}Xg`).value = s.xG;
+
+          document.getElementById('autoFillInfo').style.display = 'block';
+        }
       }
-    }
+    } catch(e) { console.log("Pas d'historique"); }
   }
+
   document.getElementById('homeTeamSelect').addEventListener('change', (e) => fetchStats(e.target.value, 'home'));
   document.getElementById('awayTeamSelect').addEventListener('change', (e) => fetchStats(e.target.value, 'away'));
 
-  // --- SUBMIT (Feature C Compliant) ---
+
+  // --- 4. SOUMISSION ---
   document.getElementById('analysisForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
     const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
 
     const payload = {
-      homeTeamId: document.getElementById('homeTeamSelect').value, // Envoi ID
-      awayTeamId: document.getElementById('awayTeamSelect').value, // Envoi ID
+      homeTeamId: document.getElementById('homeTeamSelect').value,
+      awayTeamId: document.getElementById('awayTeamSelect').value,
       matchDate: tomorrow.toISOString(),
+
       homeStats: {
         rank: document.getElementById('homeRank').value,
         points: document.getElementById('homePoints').value,
+        // V5.5 NOUVEAUX CHAMPS
+        goalsFor: document.getElementById('homeGF').value || 0,
+        goalsAgainst: document.getElementById('homeGA').value || 0,
+
         last5MatchesPoints: document.getElementById('homeForm').value || null,
         xG: document.getElementById('homeXg').value || null
       },
       awayStats: {
         rank: document.getElementById('awayRank').value,
         points: document.getElementById('awayPoints').value,
+        // V5.5 NOUVEAUX CHAMPS
+        goalsFor: document.getElementById('awayGF').value || 0,
+        goalsAgainst: document.getElementById('awayGA').value || 0,
+
         last5MatchesPoints: document.getElementById('awayForm').value || null,
         xG: document.getElementById('awayXg').value || null
       }
     };
 
-    const res = await fetch('/api/v1/analyses', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
-    });
+    try {
+      const res = await fetch('/api/v1/analyses', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
 
-    if(res.ok) {
-      const data = await res.json();
-      const p = data.prediction;
+      if(res.ok) {
+        const data = await res.json();
+        const p = data.prediction;
 
-      // Affichage résultats
-      const hName = document.getElementById('homeTeamSelect').options[document.getElementById('homeTeamSelect').selectedIndex].text;
-      const aName = document.getElementById('awayTeamSelect').options[document.getElementById('awayTeamSelect').selectedIndex].text;
+        // Affichage textuel
+        const hName = document.getElementById('homeTeamSelect').options[document.getElementById('homeTeamSelect').selectedIndex].text;
+        const aName = document.getElementById('awayTeamSelect').options[document.getElementById('awayTeamSelect').selectedIndex].text;
+        document.getElementById('matchTitle').innerText = `${hName} vs ${aName}`;
 
-      document.getElementById('matchTitle').innerText = `${hName} vs ${aName}`;
-      document.getElementById('homePowerDisplay').innerText = p.homePowerScore;
-      document.getElementById('awayPowerDisplay').innerText = p.awayPowerScore;
+        // Affichage scores
+        document.getElementById('homePowerDisplay').innerText = p.homePowerScore;
+        document.getElementById('awayPowerDisplay').innerText = p.awayPowerScore;
 
-      const barH = document.getElementById('probBarHome');
-      const barD = document.getElementById('probBarDraw');
-      const barA = document.getElementById('probBarAway');
+        // Affichage barres
+        const setBar = (id, val) => {
+          const el = document.getElementById(id);
+          el.style.width = val + '%';
+          el.innerText = val > 10 ? Math.round(val) + '%' : '';
+        };
+        setBar('probBarHome', p.homeWinProbability);
+        setBar('probBarDraw', p.drawProbability);
+        setBar('probBarAway', p.awayWinProbability);
 
-      barH.style.width = p.homeWinProbability + '%'; barH.innerText = p.homeWinProbability + '%';
-      barD.style.width = p.drawProbability + '%'; barD.innerText = p.drawProbability + '%';
-      barA.style.width = p.awayWinProbability + '%'; barA.innerText = p.awayWinProbability + '%';
+        document.getElementById('resultCard').style.display = 'block';
+        document.getElementById('resultCard').scrollIntoView({behavior: 'smooth'});
 
-      document.getElementById('resultCard').style.display = 'block';
-      document.getElementById('resultCard').scrollIntoView({behavior: 'smooth'});
-
-      // Recharger le dashboard car une nouvelle analyse a été faite
-      await loadDashboard();
-    } else {
-      alert("Erreur technique");
-    }
+        // Rafraîchir les KPIs
+        await loadDashboard();
+      } else {
+        alert("Erreur lors de l'analyse (Vérifiez la console)");
+      }
+    } catch(err) { console.error(err); alert("Erreur technique"); }
   });
 </script>
+
 </body>
 </html>

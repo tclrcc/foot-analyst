@@ -40,7 +40,8 @@ public class DataInitializer implements CommandLineRunner {
             // 3. La Liga (Espagne)
             League liga = leagueRepository.save(new League("La Liga", "Spain", "es"));
             teamRepository.saveAll(Arrays.asList(
-                    new Team("Real Madrid", liga), new Team("Barcelona", liga), new Team("Atletico", liga)
+                    new Team("Real Madrid", liga), new Team("Barcelona", liga), new Team("Atletico", liga),
+                    new Team("Villarreal", liga), new Team("Espanyol", liga)
             ));
 
             System.out.println("✅ Données V3 initialisées !");

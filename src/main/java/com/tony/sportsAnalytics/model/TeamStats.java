@@ -13,9 +13,12 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class TeamStats {
 
-    @NotNull(message = "Le classement est obligatoire") @Min(1) private Integer rank;
+    @NotNull(message = "Le classement est obligatoire")
+    @Min(1)
+    private Integer rank;
 
-    @Min(0) private Integer points;
+    @Min(0)
+    private Integer points;
 
     private Integer goalsFor;
     private Integer goalsAgainst;
@@ -25,4 +28,11 @@ public class TeamStats {
 
     // Forme récente (ex: points sur les 5 derniers matchs)
     private Integer last5MatchesPoints;
+
+    // Pour l'équipe à Domicile : Points gagnés à Domicile
+    // Pour l'équipe à l'Extérieur : Points gagnés à l'Extérieur
+    private Integer venuePoints;
+
+    // Nombre de matchs joués dans ce contexte (pour faire la moyenne)
+    private Integer venueMatches;
 }

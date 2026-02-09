@@ -25,8 +25,6 @@ public class MatchAnalysis {
 
     private LocalDateTime matchDate;
 
-    // @Embedded permet d'aplatir les colonnes dans la table match_analysis
-    // On surcharge les noms de colonnes pour éviter les collisions
     @Embedded
     @AttributeOverrides({
             @AttributeOverride(name = "rank", column = @Column(name = "home_rank")),
@@ -34,9 +32,11 @@ public class MatchAnalysis {
             @AttributeOverride(name = "goalsFor", column = @Column(name = "home_goals_for")),
             @AttributeOverride(name = "goalsAgainst", column = @Column(name = "home_goals_against")),
             @AttributeOverride(name = "xG", column = @Column(name = "home_xg")),
-            @AttributeOverride(name = "last5MatchesPoints", column = @Column(name = "home_form_l5"))
+            @AttributeOverride(name = "last5MatchesPoints", column = @Column(name = "home_form_l5")),
+            @AttributeOverride(name = "venuePoints", column = @Column(name = "home_venue_points")),
+            @AttributeOverride(name = "venueMatches", column = @Column(name = "home_venue_matches"))
     })
-    @Valid // Active la validation imbriquée
+    @Valid
     private TeamStats homeStats;
 
     @Embedded
@@ -46,7 +46,9 @@ public class MatchAnalysis {
             @AttributeOverride(name = "goalsFor", column = @Column(name = "away_goals_for")),
             @AttributeOverride(name = "goalsAgainst", column = @Column(name = "away_goals_against")),
             @AttributeOverride(name = "xG", column = @Column(name = "away_xg")),
-            @AttributeOverride(name = "last5MatchesPoints", column = @Column(name = "away_form_l5"))
+            @AttributeOverride(name = "last5MatchesPoints", column = @Column(name = "away_form_l5")),
+            @AttributeOverride(name = "venuePoints", column = @Column(name = "away_venue_points")),
+            @AttributeOverride(name = "venueMatches", column = @Column(name = "away_venue_matches"))
     })
     @Valid
     private TeamStats awayStats;

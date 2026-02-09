@@ -36,13 +36,44 @@ public class PredictionEngineService {
     }
 
     private double calculateTeamPowerScore(TeamStats stats, boolean isHome) {
-        double score = props.getBaseScore(); // Utilisation de la config
+        double score = props.getBaseScore();
 
-        if (isHome) score += props.getHomeAdvantage();
-        if (stats.getPoints() != null) score += stats.getPoints() * props.getPointsImportance();
-        if (stats.getLast5MatchesPoints() != null) score += stats.getLast5MatchesPoints() * props.getFormImportance();
-        if (stats.getXG() != null) score += stats.getXG() * props.getXgImportance();
-        if (stats.getRank() != null) score += (21 - stats.getRank()) * props.getRankImportance();
+        // 1. Avantage Domicile
+        if (stats.getVenuePoints() != null && stats.getVenueMatches() != null && stats.getVenueMatches() > 0) {
+            double ppgInVenue = (double) stats.getVenuePoints() / stats.getVenueMatches();
+            score += ppgInVenue * props.getVenueImportance();
+        } else {
+            // Fallback si pas de données (ex: début de saison)
+            // On donne un petit avantage par défaut au domicile (2.0 pts/m * poids / 2)
+            if (isHome) score += 5.0;
+        }
+
+        // 2. Points (Réalité comptable)
+        if (stats.getPoints() != null) {
+            score += stats.getPoints() * props.getPointsImportance();
+        }
+
+        // 3. Forme (Dynamique actuelle)
+        if (stats.getLast5MatchesPoints() != null) {
+            score += stats.getLast5MatchesPoints() * props.getFormImportance();
+        }
+
+        // 4. xG (Qualité de la création d'occasions)
+        if (stats.getXG() != null) {
+            score += stats.getXG() * props.getXgImportance();
+        }
+
+        // 5. Classement (Hiérarchie)
+        if (stats.getRank() != null) {
+            score += (21 - stats.getRank()) * props.getRankImportance();
+        }
+
+        // 6. NOUVEAU : Différence de Buts (Force réelle attaque/défense)
+        if (stats.getGoalsFor() != null && stats.getGoalsAgainst() != null) {
+            int goalDiff = stats.getGoalsFor() - stats.getGoalsAgainst();
+            // On ajoute (ou retire) des points basés sur la différence de buts
+            score += goalDiff * props.getGoalDiffImportance();
+        }
 
         return score;
     }
