@@ -47,6 +47,9 @@
           <i class="bi bi-bar-chart-fill me-2"></i>Classement
         </button>
       </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="manage-tab" data-bs-toggle="tab" data-bs-target="#manage-pane" type="button"><i class="bi bi-pencil-square me-2"></i>Gestion Matchs</button>
+      </li>
     </ul>
     <hr>
     <a href="/" class="btn btn-outline-light w-100"><i class="bi bi-box-arrow-left me-2"></i>Retour App</a>
@@ -219,6 +222,93 @@
         </div>
       </div>
 
+      <div class="tab-pane fade" id="manage-pane">
+        <h3 class="mb-4"><i class="bi bi-list-check me-2"></i>Édition des Matchs Enregistrés</h3>
+
+        <div class="card mb-4 border-0 shadow-sm">
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-5">
+                <label class="form-label fw-bold">Championnat</label>
+                <select class="form-select" id="manageLeagueSelect"></select>
+              </div>
+              <div class="col-md-5">
+                <label class="form-label fw-bold">Équipe à gérer</label>
+                <select class="form-select" id="manageTeamSelect" disabled></select>
+              </div>
+              <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100" id="btnLoadMatches" disabled>
+                  <i class="bi bi-search me-2"></i>Voir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive mb-5">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+            <tr>
+              <th>Date</th>
+              <th class="text-end">Domicile</th>
+              <th class="text-center">Score</th>
+              <th>Extérieur</th>
+              <th>xG (D/E)</th>
+              <th class="text-end">Action</th>
+            </tr>
+            </thead>
+            <tbody id="matchesTableBody">
+            <tr><td colspan="6" class="text-center text-muted py-4">Sélectionnez une équipe pour voir ses matchs.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="modal fade" id="editMatchModal" tabindex="-1">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-fill me-2"></i>Modifier le Match</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <form id="editMatchForm">
+                  <input type="hidden" id="editMatchId">
+
+                  <div class="row justify-content-center mb-4 bg-light py-3 rounded mx-0">
+                    <div class="col-5 text-end fw-bold" id="editHomeName">DOM</div>
+                    <div class="col-2"><input type="number" class="form-control text-center fw-bold" id="editHomeScore"></div>
+                    <div class="col-2"><input type="number" class="form-control text-center fw-bold" id="editAwayScore"></div>
+                    <div class="col-5 fw-bold" id="editAwayName">EXT</div>
+                  </div>
+
+                  <h6 class="small fw-bold text-muted border-bottom pb-2 mb-3">Stats Détaillées (xG, Poss, Tirs...)</h6>
+                  <div class="row g-2 mb-2">
+                    <div class="col-2 text-end pt-1"><small>xG</small></div>
+                    <div class="col-4"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="editHxG" placeholder="Dom"></div>
+                    <div class="col-4"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="editAxG" placeholder="Ext"></div>
+                  </div>
+                  <div class="row g-2 mb-2">
+                    <div class="col-2 text-end pt-1"><small>Possession</small></div>
+                    <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editHPoss"></div>
+                    <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editAPoss"></div>
+                  </div>
+                  <div class="row g-2 mb-2">
+                    <div class="col-2 text-end pt-1"><small>Tirs Cadrés</small></div>
+                    <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editHSoT"></div>
+                    <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editASoT"></div>
+                  </div>
+
+                  <div class="mt-4 text-end">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success fw-bold">Enregistrer les modifications</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="tab-pane fade" id="stats-pane">
         <h3 class="mb-4">Mise à jour des Stats Équipe (Snapshot)</h3>
         <div class="card p-4 border-info border-2 border-top-0 border-end-0 border-bottom-0">
@@ -308,6 +398,130 @@
     new bootstrap.Toast(toastEl).show();
   }
 
+  // 1. Initialisation des selects
+  document.getElementById('manageLeagueSelect').addEventListener('change', function() {
+    loadTeams(this.value, ['manageTeamSelect']); // Réutilise ton loadTeams existant
+    document.getElementById('manageTeamSelect').disabled = false;
+  });
+
+  document.getElementById('manageTeamSelect').addEventListener('change', function() {
+    document.getElementById('btnLoadMatches').disabled = false;
+  });
+
+  // 2. Chargement de la liste
+  document.getElementById('btnLoadMatches').addEventListener('click', async () => {
+    const teamId = document.getElementById('manageTeamSelect').value;
+    const tbody = document.getElementById('matchesTableBody');
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border text-primary"></div></td></tr>';
+
+    try {
+      const res = await fetch(`/api/v1/analyses/teams/${teamId}`); // Appel au nouveau endpoint
+      const matches = await res.json();
+
+      if (matches.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Aucun match trouvé pour cette équipe.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = matches.map(m => {
+        const date = new Date(m.matchDate).toLocaleDateString();
+        const isHome = (m.homeTeam.id == teamId);
+        // Affichage intelligent : Opposant en gras
+        const opponent = isHome ? m.awayTeam.name : m.homeTeam.name;
+        const place = isHome ? '<span class="badge bg-light text-dark border">Dom</span>' : '<span class="badge bg-dark">Ext</span>';
+
+        const xGDisplay = (m.homeMatchStats?.xG || '-') + ' / ' + (m.awayMatchStats?.xG || '-');
+
+        return `
+                <tr>
+                    <td><small>${date}</small></td>
+                    <td class="text-end ${isHome ? 'fw-bold' : ''}">${m.homeTeam.name}</td>
+                    <td class="text-center fw-bold bg-light border">${m.homeScore} - ${m.awayScore}</td>
+                    <td class="${!isHome ? 'fw-bold' : ''}">${m.awayTeam.name}</td>
+                    <td class="small text-muted text-center">${xGDisplay}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-warning" onclick='openEditModal(${JSON.stringify(m)})'>
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </td>
+                </tr>
+              `;
+      }).join('');
+
+    } catch (e) {
+      console.error(e);
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Erreur chargement.</td></tr>';
+    }
+  });
+
+  // 3. Ouverture du Modal d'Édition
+  window.openEditModal = (match) => {
+    // Pré-remplissage
+    document.getElementById('editMatchId').value = match.id;
+    document.getElementById('editHomeName').innerText = match.homeTeam.name;
+    document.getElementById('editAwayName').innerText = match.awayTeam.name;
+
+    document.getElementById('editHomeScore').value = match.homeScore;
+    document.getElementById('editAwayScore').value = match.awayScore;
+
+    // Remplissage Stats V10 (si existantes)
+    const h = match.homeMatchStats || {};
+    const a = match.awayMatchStats || {};
+
+    document.getElementById('editHxG').value = h.xG || '';
+    document.getElementById('editAxG').value = a.xG || '';
+    document.getElementById('editHPoss').value = h.possession || '';
+    document.getElementById('editAPoss').value = a.possession || '';
+    document.getElementById('editHSoT').value = h.shotsOnTarget || '';
+    document.getElementById('editASoT').value = a.shotsOnTarget || '';
+
+    // Afficher Modal
+    new bootstrap.Modal(document.getElementById('editMatchModal')).show();
+  };
+
+  // 4. Soumission Modification
+  document.getElementById('editMatchForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const matchId = document.getElementById('editMatchId').value;
+
+    const payload = {
+      homeScore: parseInt(document.getElementById('editHomeScore').value),
+      awayScore: parseInt(document.getElementById('editAwayScore').value),
+      matchDate: new Date().toISOString(), // On garde la date (ou on pourrait la rendre modifiable)
+
+      homeMatchStats: {
+        xG: parseFloat(document.getElementById('editHxG').value) || null,
+        possession: parseInt(document.getElementById('editHPoss').value) || null,
+        shotsOnTarget: parseInt(document.getElementById('editHSoT').value) || null
+      },
+      awayMatchStats: {
+        xG: parseFloat(document.getElementById('editAxG').value) || null,
+        possession: parseInt(document.getElementById('editAPoss').value) || null,
+        shotsOnTarget: parseInt(document.getElementById('editASoT').value) || null
+      }
+      // Note: homeTeamId/awayTeamId ne sont pas nécessaires pour l'update,
+      // mais le DTO pourrait les demander s'ils sont @NotNull.
+      // Si ton DTO valide @NotNull sur les IDs, il faudra les passer.
+      // Dans notre cas V11 updateMatch, on ne lit que les stats, donc ça passe.
+    };
+
+    try {
+      const res = await fetch(`/api/v1/analyses/${matchId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+
+      if(res.ok) {
+        showToast("Match mis à jour !");
+        bootstrap.Modal.getInstance(document.getElementById('editMatchModal')).hide();
+        document.getElementById('btnLoadMatches').click(); // Recharger la liste
+      } else {
+        showToast("Erreur lors de la mise à jour", true);
+      }
+    } catch(err) { console.error(err); }
+  });
+
   // --- CHARGEMENT DONNÉES ---
   async function loadLeagues() {
     try {
@@ -315,7 +529,7 @@
       const leagues = await res.json();
 
       // Liste des selects à remplir avec les ligues
-      const ids = ['teamLeagueSelect', 'historyLeagueSelect', 'statsLeagueSelect'];
+      const ids = ['teamLeagueSelect', 'historyLeagueSelect', 'statsLeagueSelect', 'manageLeagueSelect'];
 
       ids.forEach(id => {
         const select = document.getElementById(id);

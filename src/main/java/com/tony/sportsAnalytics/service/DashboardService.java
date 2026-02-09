@@ -24,15 +24,24 @@ public class DashboardService {
 
         long correct = 0;
         long confidentTotal = 0;
+        int totalMatches = 0;
         long confidentCorrect = 0;
 
         for (MatchAnalysis m : finished) {
+            totalMatches++;
+            if (m.getPrediction() == null) {
+                continue; // On passe au match suivant si pas de prédiction
+            }
+
             int actualResult = Integer.compare(m.getHomeScore(), m.getAwayScore()); // 1 (Home), 0 (Draw), -1 (Away)
 
             // Prédiction de l'algo (celui avec la plus haute proba)
-            double pHome = m.getPrediction().getHomeWinProbability();
-            double pDraw = m.getPrediction().getDrawProbability();
-            double pAway = m.getPrediction().getAwayWinProbability();
+            Double pHome = m.getPrediction().getHomeWinProbability();
+            Double pDraw = m.getPrediction().getDrawProbability();
+            Double pAway = m.getPrediction().getAwayWinProbability();
+
+            // Sécurité supplémentaire sur les champs internes (au cas où ils seraient null aussi)
+            if (pHome == null || pAway == null || pDraw == null) continue;
 
             int predictedResult = 0;
             if (pHome > pDraw && pHome > pAway) predictedResult = 1;

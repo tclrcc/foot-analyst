@@ -313,6 +313,47 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+  // --- NOUVEAU : Remplissage Auto des Stats ---
+  async function fillTeamStats(teamId, side) {
+    if (!teamId) return;
+
+    try {
+      const res = await fetch(`/api/v1/references/teams/${teamId}`);
+      if (!res.ok) return;
+      const team = await res.json();
+      const s = team.currentStats; // L'objet TeamStats
+
+      if (s) {
+        // Remplissage selon le côté (home ou away)
+        // Note: Assure-toi que les IDs de tes inputs correspondent bien (homeRank, awayRank...)
+        document.getElementById(`${side}Rank`).value = s.rank || '';
+        document.getElementById(`${side}Points`).value = s.points || '';
+
+        document.getElementById(`${side}GF`).value = s.goalsFor || '';
+        document.getElementById(`${side}GA`).value = s.goalsAgainst || '';
+
+        document.getElementById(`${side}Mj`).value = s.matchesPlayed || '';
+
+        // Stats Forme (V7)
+        document.getElementById(`${side}GF5`).value = s.goalsForLast5 || '';
+        document.getElementById(`${side}GA5`).value = s.goalsAgainstLast5 || '';
+
+        document.getElementById(`${side}Xg`).value = s.xG || '';
+      }
+    } catch (e) {
+      console.error("Erreur chargement stats équipe", e);
+    }
+  }
+
+  // --- Écouteurs d'événements ---
+  document.getElementById('homeTeamSelect').addEventListener('change', function() {
+    fillTeamStats(this.value, 'home');
+  });
+
+  document.getElementById('awayTeamSelect').addEventListener('change', function() {
+    fillTeamStats(this.value, 'away');
+  });
+
   // --- 1. DASHBOARD ---
   async function loadDashboard() {
     try {

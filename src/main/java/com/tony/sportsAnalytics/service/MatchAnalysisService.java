@@ -88,4 +88,40 @@ public class MatchAnalysisService {
 
         return matchRepository.save(match);
     }
+
+    // ...
+
+    // V11 : Lister les matchs d'une équipe
+    public List<MatchAnalysis> getMatchesByTeam(Long teamId) {
+        return analysisRepository.findByHomeTeamIdOrAwayTeamIdOrderByMatchDateDesc(teamId, teamId);
+    }
+
+    // V11 : Mettre à jour un match existant
+    @Transactional
+    public MatchAnalysis updateMatch(Long matchId, MatchAnalysisRequest request) {
+        MatchAnalysis match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new RuntimeException("Match introuvable ID: " + matchId));
+
+        // Mise à jour des infos de base
+        match.setMatchDate(request.getMatchDate());
+        match.setHomeScore(request.getHomeScore());
+        match.setAwayScore(request.getAwayScore());
+
+        // Mise à jour des stats détaillées (V10)
+        if (request.getHomeMatchStats() != null) match.setHomeMatchStats(request.getHomeMatchStats());
+        if (request.getAwayMatchStats() != null) match.setAwayMatchStats(request.getAwayMatchStats());
+
+        // Mise à jour du Contexte (Blessures...) - Si présent dans la request
+        if (request.getContext() != null) {
+            match.setHomeKeyPlayerMissing(request.getContext().isHomeKeyPlayerMissing());
+            match.setAwayKeyPlayerMissing(request.getContext().isAwayKeyPlayerMissing());
+            match.setHomeTired(request.getContext().isHomeTired());
+            match.setAwayNewCoach(request.getContext().isAwayNewCoach());
+        }
+
+        // Note : On ne recalcule pas l'ELO ici pour éviter de casser l'historique complet.
+        // On suppose que c'est une correction de données (stats, xG...).
+
+        return matchRepository.save(match);
+    }
 }

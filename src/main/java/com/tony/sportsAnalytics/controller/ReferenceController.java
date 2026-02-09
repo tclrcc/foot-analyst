@@ -76,6 +76,13 @@ public class ReferenceController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/teams/{id}")
+    public ResponseEntity<Team> getTeamDetails(@PathVariable Long id) {
+        return teamRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     // Petit DTO interne pour simplifier la requête JSON de création d'équipe
     @Data
     public static class CreateTeamRequest {

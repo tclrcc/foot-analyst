@@ -35,4 +35,16 @@ public class MatchAnalysisController {
     public ResponseEntity<DashboardStats> getDashboardStats() {
         return ResponseEntity.ok(dashboardService.getKpi());
     }
+
+    // V11 : Get matchs d'une équipe
+    @GetMapping("/teams/{teamId}")
+    public List<MatchAnalysis> getTeamMatches(@PathVariable Long teamId) {
+        return matchAnalysisService.getMatchesByTeam(teamId);
+    }
+
+    // V11 : Update match
+    @PutMapping("/{id}")
+    public ResponseEntity<MatchAnalysis> updateMatch(@PathVariable Long id, @RequestBody MatchAnalysisRequest request) {
+        return ResponseEntity.ok(matchAnalysisService.updateMatch(id, request));
+    }
 }
