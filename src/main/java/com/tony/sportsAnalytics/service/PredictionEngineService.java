@@ -1,7 +1,10 @@
 package com.tony.sportsAnalytics.service;
 
 import com.tony.sportsAnalytics.config.PredictionProperties;
-import com.tony.sportsAnalytics.model.*;
+import com.tony.sportsAnalytics.model.MatchAnalysis;
+import com.tony.sportsAnalytics.model.MatchDetailStats;
+import com.tony.sportsAnalytics.model.PredictionResult;
+import com.tony.sportsAnalytics.model.Team;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -13,90 +16,188 @@ public class PredictionEngineService {
 
     private final PredictionProperties props;
 
-    private double getEloImpact(int attackerElo, int defenderElo) {
-        // Différence de points
-        int diff = attackerElo - defenderElo;
+    /**
+     * Algorithme V14 : Performance-Based Predictive Model (xG + Control + Efficiency)
+     */
+    public PredictionResult calculateMatchPrediction(MatchAnalysis match,
+            List<MatchAnalysis> h2hHistory,
+            List<MatchAnalysis> homeLastMatches,
+            List<MatchAnalysis> awayLastMatches,
+            double leagueAvgGoals) {
 
-        // Chaque 100 points d'écart augmente l'espérance de buts de ~10%
-        // Formule sigmoidale pour lisser les écarts extrêmes
-        return 1.0 + (diff * 0.001);
-    }
+        // 1. ANALYSE DE FORME AVANCÉE (xG & xGA)
+        // On calcule la force offensive et défensive basée sur les stats détaillées des 10 derniers matchs
+        TeamPerformance homePerf = analyzeTeamPerformance(match.getHomeTeam(), homeLastMatches, leagueAvgGoals, true);
+        TeamPerformance awayPerf = analyzeTeamPerformance(match.getAwayTeam(), awayLastMatches, leagueAvgGoals, false);
 
-    // Méthode utilitaire à appeler si h2hHistory contient des stats détaillées
-    private double calculateEfficiencyBonus(Team team, List<MatchAnalysis> history) {
-        double totalXg = 0.0;
-        double totalGoals = 0.0;
-        int count = 0;
+        // 2. CALCUL DES LAMBDAS (Espérance de buts)
+        // Formule : (Attaque Dom * Défense Ext * Moyenne Ligue) corrigé par le réalisme
+        double rawHomeXg = homePerf.attackStrength * awayPerf.defenseWeakness * leagueAvgGoals;
+        double rawAwayXg = awayPerf.attackStrength * homePerf.defenseWeakness * leagueAvgGoals;
 
-        for(MatchAnalysis m : history) {
-            // Vérifier si c'est l'équipe Home ou Away et si les stats existent
-            if(m.getHomeTeam().equals(team) && m.getHomeMatchStats() != null && m.getHomeMatchStats().getXG() != null) {
-                totalXg += m.getHomeMatchStats().getXG();
-                totalGoals += m.getHomeScore();
-                count++;
-            } else if (m.getAwayTeam().equals(team) && m.getAwayMatchStats() != null && m.getAwayMatchStats().getXG() != null) {
-                totalXg += m.getAwayMatchStats().getXG();
-                totalGoals += m.getAwayScore();
-                count++;
-            }
+        // 3. FACTEUR DE RÉALISME (Conversion Rate)
+        // Si une équipe surperforme ses xG régulièrement (Real Madrid), on booste son espérance
+        double homeLambda = rawHomeXg * homePerf.finishingEfficiency;
+        double awayLambda = rawAwayXg * awayPerf.finishingEfficiency;
+
+        // 4. FACTEURS CONTEXTUELS
+        // Avantage Domicile (renforcé par le public/voyage)
+        homeLambda *= 1.20;
+        awayLambda *= 0.85;
+
+        // Ajustement ELO (Écart de niveau pur)
+        double eloFactor = getEloImpact(match.getHomeTeam().getEloRating(), match.getAwayTeam().getEloRating());
+        homeLambda *= eloFactor; // Si Dom est plus fort, lambda augmente. Sinon il baisse (géré par getEloImpact modifié)
+
+        // Ajustement Tactique (Possession/Contrôle)
+        // Si une équipe prive l'autre de ballon, l'autre marquera moins (réduction du lambda adverse)
+        if (homePerf.avgPossession > 60.0 && awayPerf.avgPossession < 45.0) {
+            awayLambda *= 0.90; // Domination stérile de Dom, mais prive Ext de ballons
+        } else if (awayPerf.avgPossession > 60.0) {
+            homeLambda *= 0.90;
         }
 
-        if(count < 3 || totalXg == 0) return 1.0;
-
-        // Ratio Efficacité : Buts Réels / xG
-        // Si > 1.0 : Tueurs devant le but. Si < 1.0 : Maladroits.
-        double ratio = totalGoals / totalXg;
-
-        // On lisse le ratio pour éviter les extrêmes (max +10% ou -10%)
-        return Math.max(0.9, Math.min(1.1, ratio));
-    }
-
-    /**
-     * Calcule les probabilités du match en utilisant la Loi de Poisson ajustée (Dixon-Coles)
-     * et une pondération temporelle (Saison vs Forme).
-     */
-    public PredictionResult calculateMatchPrediction(MatchAnalysis match, List<MatchAnalysis> h2hHistory,
-            List<MatchAnalysis> homeLastMatches, List<MatchAnalysis> awayLastMatches, double leagueAvg) {
-        // 1. Calcul des Espérances de Buts (Lambda/Mu) avec Pondération Temporelle (Point 4)
-        double homeLambda = calculateExpectedGoals(match.getHomeStats(), match.getAwayStats(), true,
-                match.getHomeTeam(), match.getAwayTeam(), leagueAvg);
-        double awayLambda = calculateExpectedGoals(match.getAwayStats(), match.getHomeStats(), false,
-                match.getAwayTeam(), match.getHomeTeam(), leagueAvg);
-
+        // Ajustement Blessures / Fatigue (Saisie manuelle)
         homeLambda = applyContextualFactors(homeLambda, true, match);
         awayLambda = applyContextualFactors(awayLambda, false, match);
 
-        // Si on a de l'historique H2H avec des stats xG, on s'en sert pour affiner
+        // Ajustement H2H (Bête noire)
         if (h2hHistory != null && !h2hHistory.isEmpty()) {
-            // Calcul du réalisme offensif
-            double homeEfficiency = calculateEfficiencyBonus(match.getHomeTeam(), h2hHistory);
-            double awayEfficiency = calculateEfficiencyBonus(match.getAwayTeam(), h2hHistory);
-
-            // Application du correctif
-            homeLambda *= homeEfficiency;
-            awayLambda *= awayEfficiency;
-
-            // Logique H2H psychologique existante (Bonus victoire)
             double h2hFactor = calculateH2HFactor(match.getHomeTeam().getName(), h2hHistory);
-            if (h2hFactor > 0) homeLambda *= (1.0 + h2hFactor);
-            else awayLambda *= (1.0 + Math.abs(h2hFactor));
+            homeLambda *= (1.0 + h2hFactor);
+            // L'inverse est appliqué à l'extérieur implicitement par le ratio de force
         }
 
-        // On analyse la "Dangerosité Réelle" des 5-10 derniers matchs
-        double homeTacticalBoost = calculateTacticalBonus(match.getHomeTeam(), homeLastMatches);
-        double awayTacticalBoost = calculateTacticalBonus(match.getAwayTeam(), awayLastMatches);
+        // 5. SIMULATION (Loi de Poisson Bivariée / Dixon-Coles)
+        return simulateMatch(homeLambda, awayLambda, match.getOdds1(), match.getOddsN(), match.getOdds2());
+    }
 
-        homeLambda *= homeTacticalBoost;
-        awayLambda *= awayTacticalBoost;
+    // --- STRUCTURES INTERNES ---
 
-        // 3. Matrice de Poisson & Dixon-Coles
+    private record TeamPerformance(
+            double attackStrength,      // Capacité à créer des xG
+            double defenseWeakness,     // Tendance à concéder des xG
+            double finishingEfficiency, // Ratio Buts/xG (Tueur vs Maladroit)
+            double defensiveLuck,       // Ratio ButsEncaissés/xGA (Bon gardien vs Passoire)
+            double avgPossession
+    ) {}
+
+    // --- ANALYSEUR STATISTIQUE ---
+
+    private TeamPerformance analyzeTeamPerformance(Team team, List<MatchAnalysis> history, double leagueAvg, boolean isHomeAnalysis) {
+        if (history == null || history.isEmpty()) {
+            return new TeamPerformance(1.0, 1.0, 1.0, 1.0, 50.0);
+        }
+
+        double totalXgFor = 0.0;
+        double totalXgAgainst = 0.0;
+        double totalGoalsFor = 0.0;
+        double totalGoalsAgainst = 0.0;
+        double totalPossession = 0.0;
+
+        // Variables Tirs
+        double totalShots = 0.0;
+        double totalShotsOnTarget = 0.0;
+
+        int count = 0;
+        double currentWeight = 1.0;
+        double weightSum = 0.0;
+
+        for (MatchAnalysis m : history) {
+            boolean wasHome = m.getHomeTeam().equals(team);
+
+            MatchDetailStats myStats = wasHome ? m.getHomeMatchStats() : m.getAwayMatchStats();
+            MatchDetailStats oppStats = wasHome ? m.getAwayMatchStats() : m.getHomeMatchStats();
+
+            Integer homeScoreObj = m.getHomeScore();
+            Integer awayScoreObj = m.getAwayScore();
+
+            int scoreHome = (homeScoreObj != null) ? homeScoreObj : 0;
+            int scoreAway = (awayScoreObj != null) ? awayScoreObj : 0;
+
+            int myGoals = wasHome ? scoreHome : scoreAway;
+            int oppGoals = wasHome ? scoreAway : scoreHome;
+
+            double xgFor = (myStats != null && myStats.getXG() != null) ? myStats.getXG() : (myGoals * 0.8);
+            double xgAgainst = (oppStats != null && oppStats.getXG() != null) ? oppStats.getXG() : (oppGoals * 0.8);
+            double poss = (myStats != null && myStats.getPossession() != null) ? myStats.getPossession() : 50.0;
+
+            // Pondération Contexte (Dom/Ext)
+            double contextFactor = (wasHome == isHomeAnalysis) ? 1.10 : 0.90;
+            double finalWeight = currentWeight * contextFactor;
+
+            // Cumul des Stats
+            totalXgFor += xgFor * finalWeight;
+            totalXgAgainst += xgAgainst * finalWeight;
+            totalGoalsFor += myGoals * finalWeight;
+            totalGoalsAgainst += oppGoals * finalWeight;
+            totalPossession += poss * finalWeight;
+
+            // Cumul des Tirs (Avec sécurité null)
+            if (myStats != null) {
+                if (myStats.getShots() != null) {
+                    totalShots += myStats.getShots() * finalWeight;
+                }
+                if (myStats.getShotsOnTarget() != null) {
+                    totalShotsOnTarget += myStats.getShotsOnTarget() * finalWeight;
+                }
+            }
+
+            weightSum += finalWeight;
+            count++;
+
+            currentWeight *= 0.9;
+            if (count >= 10) break;
+        }
+
+        if (weightSum == 0) return new TeamPerformance(1.0, 1.0, 1.0, 1.0, 50.0);
+
+        // Moyennes
+        double avgXgFor = totalXgFor / weightSum;
+        double avgXgAgainst = totalXgAgainst / weightSum;
+        double avgGoalsFor = totalGoalsFor / weightSum;
+        double avgGoalsAgainst = totalGoalsAgainst / weightSum;
+        double avgPoss = totalPossession / weightSum;
+
+        // --- CORRECTION : UTILISATION DES VARIABLES DE TIRS ---
+        // On calcule la précision moyenne (Cadrés / Totaux)
+        double shotAccuracy = (totalShots > 0) ? (totalShotsOnTarget / totalShots) : 0.33; // 33% par défaut
+
+        // Calcul Ratios
+        double attackStrength = (leagueAvg > 0) ? (avgXgFor / leagueAvg) : 1.0;
+        double defenseWeakness = (leagueAvg > 0) ? (avgXgAgainst / leagueAvg) : 1.0;
+
+        // Efficacité (Finition) de base : Buts / xG
+        double finishing = (avgXgFor > 0.1) ? (avgGoalsFor / avgXgFor) : 1.0;
+
+        // BONUS/MALUS PRÉCISION
+        // Si l'équipe cadre plus de 40% de ses tirs, elle est chirurgicale -> Bonus +5% finition
+        if (shotAccuracy > 0.40) finishing *= 1.05;
+            // Si l'équipe cadre moins de 28% de ses tirs, elle est maladroite -> Malus -5% finition
+        else if (shotAccuracy < 0.28) finishing *= 0.95;
+
+        // Bornage final pour éviter les extrêmes
+        finishing = Math.max(0.75, Math.min(1.30, finishing));
+
+        double defLuck = (avgXgAgainst > 0.1) ? (avgGoalsAgainst / avgXgAgainst) : 1.0;
+        defLuck = Math.max(0.80, Math.min(1.40, defLuck));
+
+        return new TeamPerformance(attackStrength, defenseWeakness, finishing, defLuck, avgPoss);
+    }
+
+    // --- SIMULATION & RÉSULTATS ---
+
+    private PredictionResult simulateMatch(double lambdaHome, double lambdaAway, Double odds1, Double oddsN, Double odds2) {
         double probHomeWin = 0.0, probDraw = 0.0, probAwayWin = 0.0;
         double probOver2_5 = 0.0, probBTTS = 0.0;
 
-        for (int h = 0; h <= 7; h++) {
-            for (int a = 0; a <= 7; a++) {
-                double probability = poisson(h, homeLambda) * poisson(a, awayLambda);
-                probability = applyDixonColes(probability, h, a, homeLambda, awayLambda);
+        // Matrice de Poisson (jusqu'à 9 buts pour précision)
+        for (int h = 0; h <= 9; h++) {
+            for (int a = 0; a <= 9; a++) {
+                double probability = poisson(h, lambdaHome) * poisson(a, lambdaAway);
+
+                // Correction Dixon-Coles (Dépendance des scores faibles)
+                probability = applyDixonColes(probability, h, a, lambdaHome, lambdaAway);
 
                 if (h > a) probHomeWin += probability;
                 else if (h == a) probDraw += probability;
@@ -107,200 +208,45 @@ public class PredictionEngineService {
             }
         }
 
-        // Normalisation
+        // Normalisation (Total ~ 1.0)
         double totalProb = probHomeWin + probDraw + probAwayWin;
-        if(totalProb == 0) totalProb = 1.0;
-
         probHomeWin = (probHomeWin / totalProb) * 100;
         probDraw = (probDraw / totalProb) * 100;
         probAwayWin = (probAwayWin / totalProb) * 100;
         probOver2_5 = (probOver2_5 / totalProb) * 100;
         probBTTS = (probBTTS / totalProb) * 100;
 
+        // Double Chance
         double dc1N = probHomeWin + probDraw;
         double dcN2 = probDraw + probAwayWin;
         double dc12 = probHomeWin + probAwayWin;
 
-        // Kelly & Value (V9)
-        double kellyHome = calculateKelly(probHomeWin / 100.0, match.getOdds1());
-        double kellyDraw = calculateKelly(probDraw / 100.0, match.getOddsN());
-        double kellyAway = calculateKelly(probAwayWin / 100.0, match.getOdds2());
+        // Kelly Criterion
+        double kellyHome = calculateKelly(probHomeWin / 100.0, odds1);
+        double kellyDraw = calculateKelly(probDraw / 100.0, oddsN);
+        double kellyAway = calculateKelly(probAwayWin / 100.0, odds2);
 
         String valueSide = null;
         if (kellyHome > 0) valueSide = "HOME";
         else if (kellyAway > 0) valueSide = "AWAY";
         else if (kellyDraw > 0) valueSide = "DRAW";
 
-        // Scores Legacy
-        double homePower = calculateLegacyPowerScore(match.getHomeStats(), true);
-        double awayPower = calculateLegacyPowerScore(match.getAwayStats(), false);
+        // Scores de Puissance (Esthétique)
+        double homePower = Math.min(99, lambdaHome * 25);
+        double awayPower = Math.min(99, lambdaAway * 25);
 
         return new PredictionResult(
                 round(probHomeWin), round(probDraw), round(probAwayWin),
                 round(homePower), round(awayPower),
-                round(homeLambda), round(awayLambda),
+                round(lambdaHome), round(lambdaAway),
                 round(probOver2_5), round(100.0 - probOver2_5),
                 round(probBTTS),
                 round(dc1N), round(dcN2), round(dc12),
-                // Champs V9 Value/Kelly
                 kellyHome, kellyDraw, kellyAway, valueSide
         );
     }
 
-    /**
-     * V12 : Calcule un multiplicateur basé sur les stats avancées.
-     */
-    private double calculateTacticalBonus(Team team, List<MatchAnalysis> history) {
-        if (history == null || history.isEmpty()) return 1.0;
-
-        double totalXgot = 0.0;
-        double totalBigChances = 0.0;
-        double totalShots = 0.0;
-        double totalShotsOnTarget = 0.0;
-        double totalDominance = 0.0;
-        int count = 0;
-
-        for (MatchAnalysis m : history) {
-            MatchDetailStats stats = null;
-            if (m.getHomeTeam().equals(team)) stats = m.getHomeMatchStats();
-            else if (m.getAwayTeam().equals(team)) stats = m.getAwayMatchStats();
-
-            if (stats != null) {
-                totalXgot += (stats.getXGOT() != null) ? stats.getXGOT() : (stats.getXG() != null ? stats.getXG() : 0);
-                totalBigChances += (stats.getBigChances() != null) ? stats.getBigChances() : 0;
-
-                totalShots += (stats.getShots() != null) ? stats.getShots() : 0;
-                totalShotsOnTarget += (stats.getShotsOnTarget() != null) ? stats.getShotsOnTarget() : 0;
-
-                double poss = (stats.getPossession() != null) ? stats.getPossession() : 50.0;
-                double passAcc = stats.getPassAccuracy();
-                totalDominance += (poss * passAcc);
-
-                count++;
-            }
-        }
-
-        if (count < 3) return 1.0;
-
-        double avgXgot = totalXgot / count;
-        double avgBigChances = totalBigChances / count;
-        double avgDominance = totalDominance / count;
-
-        // Ratio de précision : Tirs Cadrés / Tirs Totaux
-        double shotAccuracy = (totalShots > 0) ? (totalShotsOnTarget / totalShots) : 0.33;
-
-        double bonus = 1.0;
-
-        // 1. Facteur "Tueur" (xGOT élevé)
-        if (avgXgot > 1.5) bonus += 0.05;
-        if (avgXgot > 2.0) bonus += 0.05;
-
-        // 2. Facteur "Création" (Big Chances)
-        if (avgBigChances >= 3.0) bonus += 0.05;
-
-        // 3. Facteur "Contrôle" (Domination)
-        if (avgDominance > 45.0) bonus += 0.03;
-
-        // 4. Facteur "Précision" (Nouveau - Utilise shotAccuracy)
-        // Si plus de 40% des tirs sont cadrés, c'est une attaque chirurgicale
-        if (shotAccuracy > 0.40) bonus += 0.04;
-
-        return bonus;
-    }
-
-    /**
-     * Point 4 : Calcul de la force offensive/défensive avec pondération (Saison vs Last 5).
-     * Point 2 : Avantage Domicile Dynamique.
-     */
-    private double calculateExpectedGoals(TeamStats attacker, TeamStats defender, boolean isHome,
-            Team attackerTeam, Team defenderTeam, double leagueAvg) {
-        double attackStrength = calculateWeightedStrength(attacker.getGoalsFor(), attacker.getMatchesPlayed(), attacker.getGoalsForLast5(), 5, leagueAvg);
-        double defenseWeakness = calculateWeightedStrength(defender.getGoalsAgainst(), defender.getMatchesPlayed(), defender.getGoalsAgainstLast5(), 5, leagueAvg);
-
-        double expected = attackStrength * defenseWeakness * leagueAvg;
-
-        // Correction ELO
-        if (attackerTeam != null && defenderTeam != null) {
-            double eloFactor = getEloImpact(attackerTeam.getEloRating(), defenderTeam.getEloRating());
-            expected *= eloFactor;
-        }
-
-        // Avantage Domicile
-        if (isHome) {
-            double homeAdvantage = 1.20;
-            if (attacker.getVenuePoints() != null && attacker.getVenueMatches() != null && attacker.getVenueMatches() > 0) {
-                double ppgHome = (double) attacker.getVenuePoints() / attacker.getVenueMatches();
-                double ppgGlobal = (double) attacker.getPoints() / Math.max(1, attacker.getMatchesPlayed());
-                if (ppgHome > ppgGlobal) homeAdvantage += 0.1;
-            }
-            expected *= homeAdvantage;
-        } else {
-            expected *= 0.85;
-        }
-
-        // xG Context
-        if (attacker.getXG() != null && attacker.getXG() > 0) {
-            double xGFactor = attacker.getXG() / leagueAvg;
-            expected = (expected * 0.7) + (xGFactor * leagueAvg * 0.3);
-        }
-
-        return expected;
-    }
-
-    /**
-     * Calcule une force relative (Ratio par rapport à la moyenne) en mixant Saison et Forme.
-     */
-    private double calculateWeightedStrength(Integer seasonGoals, Integer seasonMatches,
-            Integer formGoals, Integer formMatches,
-            double leagueAvg) {
-        if (seasonMatches == null || seasonMatches == 0) return 1.0;
-
-        // 1. Moyenne Saison
-        double avgSeason = (double) seasonGoals / seasonMatches;
-
-        // 2. Moyenne Forme (Last 5)
-        // Si pas de données forme, on prend la saison
-        double avgForm = avgSeason;
-        if (formGoals != null && formMatches != null && formMatches > 0) {
-            avgForm = (double) formGoals / formMatches;
-        }
-
-        // 3. Moyenne Pondérée
-        double weightedAvg = (avgSeason * props.getSeasonWeight()) + (avgForm * props.getFormWeight());
-
-        // 4. Force Relative
-        return weightedAvg / leagueAvg;
-    }
-
-    private double calculateKelly(double trueProb, Double odds) {
-        if (odds == null || odds <= 1.0) return 0.0;
-        double b = odds - 1.0;
-        double q = 1.0 - trueProb;
-        double f = ((b * trueProb) - q) / b;
-        return f > 0 ? (f * 0.25) * 100.0 : 0.0;
-    }
-
-    /**
-     * Applique le correctif de Dixon-Coles pour ajuster les probabilités des scores faibles.
-     */
-    private double applyDixonColes(double prob, int h, int a, double lambda, double mu) {
-        double rho = props.getRho(); // ex: -0.13
-        double correction = 1.0;
-
-        if (h == 0 && a == 0) {
-            correction = 1.0 - (lambda * mu * rho);
-        } else if (h == 0 && a == 1) {
-            correction = 1.0 + (lambda * rho);
-        } else if (h == 1 && a == 0) {
-            correction = 1.0 + (mu * rho);
-        } else if (h == 1 && a == 1) {
-            correction = 1.0 - rho;
-        }
-
-        return prob * correction;
-    }
-
-    // --- Helpers (H2H, Poisson, Legacy) ---
+    // --- HELPERS MATHÉMATIQUES ---
 
     private double poisson(int k, double lambda) {
         return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
@@ -313,45 +259,56 @@ public class PredictionEngineService {
         return fact;
     }
 
-    private double calculateH2HFactor(String homeTeamName, List<MatchAnalysis> h2h) {
-        // Simplification pour l'exemple : +5% par victoire dans les 5 derniers H2H
+    private double applyDixonColes(double prob, int h, int a, double lambda, double mu) {
+        double rho = props.getRho(); // Ex: -0.13
+        double correction = 1.0;
+        if (h == 0 && a == 0) correction = 1.0 - (lambda * mu * rho);
+        else if (h == 0 && a == 1) correction = 1.0 + (lambda * rho);
+        else if (h == 1 && a == 0) correction = 1.0 + (mu * rho);
+        else if (h == 1 && a == 1) correction = 1.0 - rho;
+        return Math.max(0, prob * correction);
+    }
+
+    private double calculateKelly(double trueProb, Double odds) {
+        if (odds == null || odds <= 1.0) return 0.0;
+        double b = odds - 1.0;
+        double q = 1.0 - trueProb;
+        double f = ((b * trueProb) - q) / b;
+        return f > 0 ? round((f * 0.25) * 100.0) : 0.0; // Kelly Fractionnaire 1/4
+    }
+
+    private double getEloImpact(int homeElo, int awayElo) {
+        // Formule ELO standard : P(Win) = 1 / (1 + 10^((Away-Home)/400))
+        // Ici on l'adapte pour un multiplicateur de buts
+        double diff = homeElo - awayElo;
+        // Pour chaque 100 points d'écart, l'équipe forte marque ~15% de plus
+        return Math.pow(10, diff / 800.0);
+    }
+
+    private double calculateH2HFactor(String homeName, List<MatchAnalysis> h2h) {
         double factor = 0.0;
-        int count = 0;
-        for (MatchAnalysis m : h2h) {
-            if (m.getHomeScore() == null || m.getAwayScore() == null) continue;
-            // Logique basique : Si Home a gagné ce match passé
-            boolean isHomeWin = (m.getHomeTeam().getName().equals(homeTeamName) && m.getHomeScore() > m.getAwayScore()) ||
-                    (m.getAwayTeam().getName().equals(homeTeamName) && m.getAwayScore() > m.getHomeScore());
+        int limit = Math.min(h2h.size(), 5);
+        for (int i = 0; i < limit; i++) {
+            MatchAnalysis m = h2h.get(i);
+            if (m.getHomeScore() == null) continue;
 
-            if (isHomeWin) factor += 0.05;
-            else factor -= 0.02; // Défaite pèse moins lourd que victoire
-
-            if (++count >= 5) break;
+            boolean homeWon = (m.getHomeTeam().getName().equals(homeName) && m.getHomeScore() > m.getAwayScore()) ||
+                    (m.getAwayTeam().getName().equals(homeName) && m.getAwayScore() > m.getHomeScore());
+            if (homeWon) factor += 0.05;
+            else factor -= 0.03;
         }
         return factor;
     }
 
-    // Gardé pour rétrocompatibilité UI
-    private double calculateLegacyPowerScore(TeamStats stats, boolean isHome) {
-        return props.getBaseScore() + (isHome ? 5 : 0) + (stats.getPoints() != null ? stats.getPoints() : 0);
-    }
-
     private double applyContextualFactors(double lambda, boolean isHome, MatchAnalysis match) {
         double factor = 1.0;
-
         if (isHome) {
-            // Si le joueur clé à domicile est absent -> L'attaque chute
-            if (match.isHomeKeyPlayerMissing()) factor -= 0.15; // -15%
-            // Si l'équipe à domicile est fatiguée -> Performance baisse
-            if (match.isHomeTired()) factor -= 0.10; // -10%
+            if (match.isHomeKeyPlayerMissing()) factor -= 0.12;
+            if (match.isHomeTired()) factor -= 0.08;
         } else {
-            // Si le joueur clé extérieur est absent
-            if (match.isAwayKeyPlayerMissing()) factor -= 0.15;
-            // Choc psychologique (Nouvel entraîneur) -> Boost temporaire
-            if (match.isAwayNewCoach()) factor += 0.10; // +10%
+            if (match.isAwayKeyPlayerMissing()) factor -= 0.12;
+            if (match.isAwayNewCoach()) factor += 0.05; // Choc psychologique positif
         }
-
-        // On applique le facteur au lambda (nombre de buts attendus)
         return lambda * factor;
     }
 
