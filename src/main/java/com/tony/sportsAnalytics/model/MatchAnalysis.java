@@ -116,6 +116,16 @@ public class MatchAnalysis {
     private Double oddsN;
     private Double odds2;
 
+    // --- V15 : COTES MARCHÉS SECONDAIRES ---
+    @Column(name = "odds_over_1_5")
+    private Double oddsOver15;
+
+    @Column(name = "odds_over_2_5")
+    private Double oddsOver25;
+
+    @Column(name = "odds_btts_yes")
+    private Double oddsBTTSYes;
+
     // --- NOUVEAU : Facteurs Contextuels (Booleans) ---
     private boolean homeKeyPlayerMissing; // Absence joueur clé Dom
     private boolean awayKeyPlayerMissing; // Absence joueur clé Ext

@@ -25,5 +25,5 @@ public interface MatchAnalysisRepository extends JpaRepository<MatchAnalysis, Lo
     List<MatchAnalysis> findByHomeTeamIdOrAwayTeamIdOrderByMatchDateDesc(Long homeId, Long awayId);
 
     @Query("SELECT m FROM MatchAnalysis m WHERE m.homeTeam.id = :teamId OR m.awayTeam.id = :teamId ORDER BY m.matchDate DESC")
-    List<MatchAnalysis> findLastMatchesByTeam(@Param("teamId") Long teamId, Pageable pageable);
+    List<MatchAnalysis> findLastMatchesByTeam(@Param("teamId") Long teamId);
 }

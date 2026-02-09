@@ -21,55 +21,85 @@ public class PredictionEngineService {
      */
     public PredictionResult calculateMatchPrediction(MatchAnalysis match,
             List<MatchAnalysis> h2hHistory,
-            List<MatchAnalysis> homeLastMatches,
-            List<MatchAnalysis> awayLastMatches,
+            List<MatchAnalysis> homeHistory, // Historique complet (Saison)
+            List<MatchAnalysis> awayHistory, // Historique complet (Saison)
             double leagueAvgGoals) {
 
-        // 1. ANALYSE DE FORME AVANCÉE (xG & xGA)
-        // On calcule la force offensive et défensive basée sur les stats détaillées des 10 derniers matchs
-        TeamPerformance homePerf = analyzeTeamPerformance(match.getHomeTeam(), homeLastMatches, leagueAvgGoals, true);
-        TeamPerformance awayPerf = analyzeTeamPerformance(match.getAwayTeam(), awayLastMatches, leagueAvgGoals, false);
+        // 1. ANALYSE DE FORME (Base V14)
+        // On prend les 10 derniers matchs pour la forme récente
+        TeamPerformance homePerf = analyzeTeamPerformance(match.getHomeTeam(), getLastN(homeHistory, 10), leagueAvgGoals, true);
+        TeamPerformance awayPerf = analyzeTeamPerformance(match.getAwayTeam(), getLastN(awayHistory, 10), leagueAvgGoals, false);
 
-        // 2. CALCUL DES LAMBDAS (Espérance de buts)
-        // Formule : (Attaque Dom * Défense Ext * Moyenne Ligue) corrigé par le réalisme
+        // 2. CALCUL LAMBDAS BASE
         double rawHomeXg = homePerf.attackStrength * awayPerf.defenseWeakness * leagueAvgGoals;
         double rawAwayXg = awayPerf.attackStrength * homePerf.defenseWeakness * leagueAvgGoals;
 
-        // 3. FACTEUR DE RÉALISME (Conversion Rate)
-        // Si une équipe surperforme ses xG régulièrement (Real Madrid), on booste son espérance
-        double homeLambda = rawHomeXg * homePerf.finishingEfficiency;
-        double awayLambda = rawAwayXg * awayPerf.finishingEfficiency;
+        // 3. EFFICACITÉ & CONTEXTE
+        double homeLambda = rawHomeXg * homePerf.finishingEfficiency * 1.20; // +Avantage Dom
+        double awayLambda = rawAwayXg * awayPerf.finishingEfficiency * 0.85; // -Désavantage Ext
 
-        // 4. FACTEURS CONTEXTUELS
-        // Avantage Domicile (renforcé par le public/voyage)
-        homeLambda *= 1.20;
-        awayLambda *= 0.85;
+        // ELO
+        homeLambda *= getEloImpact(match.getHomeTeam().getEloRating(), match.getAwayTeam().getEloRating());
 
-        // Ajustement ELO (Écart de niveau pur)
-        double eloFactor = getEloImpact(match.getHomeTeam().getEloRating(), match.getAwayTeam().getEloRating());
-        homeLambda *= eloFactor; // Si Dom est plus fort, lambda augmente. Sinon il baisse (géré par getEloImpact modifié)
+        // Tactique (Possession)
+        if (homePerf.avgPossession > 60.0 && awayPerf.avgPossession < 45.0) awayLambda *= 0.90;
+        else if (awayPerf.avgPossession > 60.0) homeLambda *= 0.90;
 
-        // Ajustement Tactique (Possession/Contrôle)
-        // Si une équipe prive l'autre de ballon, l'autre marquera moins (réduction du lambda adverse)
-        if (homePerf.avgPossession > 60.0 && awayPerf.avgPossession < 45.0) {
-            awayLambda *= 0.90; // Domination stérile de Dom, mais prive Ext de ballons
-        } else if (awayPerf.avgPossession > 60.0) {
-            homeLambda *= 0.90;
-        }
+        // --- V15 : BONUS DE SIMILITUDE ---
+        // Comment Home joue contre des équipes du niveau de Away ?
+        double homeSimBonus = calculateSimilarityBonus(match.getHomeTeam(), match.getAwayTeam(), homeHistory);
+        // Comment Away joue contre des équipes du niveau de Home ?
+        double awaySimBonus = calculateSimilarityBonus(match.getAwayTeam(), match.getHomeTeam(), awayHistory);
 
-        // Ajustement Blessures / Fatigue (Saisie manuelle)
+        homeLambda *= homeSimBonus;
+        awayLambda *= awaySimBonus;
+        // --------------------------------
+
         homeLambda = applyContextualFactors(homeLambda, true, match);
         awayLambda = applyContextualFactors(awayLambda, false, match);
 
-        // Ajustement H2H (Bête noire)
         if (h2hHistory != null && !h2hHistory.isEmpty()) {
             double h2hFactor = calculateH2HFactor(match.getHomeTeam().getName(), h2hHistory);
             homeLambda *= (1.0 + h2hFactor);
-            // L'inverse est appliqué à l'extérieur implicitement par le ratio de force
         }
 
-        // 5. SIMULATION (Loi de Poisson Bivariée / Dixon-Coles)
-        return simulateMatch(homeLambda, awayLambda, match.getOdds1(), match.getOddsN(), match.getOdds2());
+        // 4. SIMULATION COMPLÈTE
+        return simulateMatch(homeLambda, awayLambda, match);
+    }
+
+    private double calculateSimilarityBonus(Team team, Team opponent, List<MatchAnalysis> history) {
+        if (history == null || history.isEmpty()) return 1.0;
+
+        int targetElo = opponent.getEloRating();
+        int tolerance = 100; // On cherche des adversaires à +/- 100 points ELO
+
+        double goalsScoredSum = 0.0;
+        double expectedGoalsSum = 0.0; // Basé sur la moyenne globale de l'équipe
+        int count = 0;
+
+        for (MatchAnalysis m : history) {
+            boolean isHome = m.getHomeTeam().equals(team);
+            Team adv = isHome ? m.getAwayTeam() : m.getHomeTeam();
+
+            // Si l'adversaire était "similaire" au futur adversaire
+            if (Math.abs(adv.getEloRating() - targetElo) <= tolerance) {
+                int scored = isHome ? (m.getHomeScore() != null ? m.getHomeScore() : 0) : (m.getAwayScore() != null ? m.getAwayScore() : 0);
+                goalsScoredSum += scored;
+                count++;
+            }
+        }
+
+        if (count < 3) return 1.0; // Pas assez d'échantillon
+
+        double avgScoredAgainstSimilar = goalsScoredSum / count;
+
+        // Si contre ce type d'équipe, ils marquent 2.0 buts alors que leur moyenne habituelle est 1.5 -> Bonus
+        // Pour simplifier, on compare à un standard arbitraire (1.35) ou à la performance attendue
+        // Ici : simple boost si moyenne > 1.5, malus si < 0.8
+        if (avgScoredAgainstSimilar > 1.8) return 1.10; // Performent bien contre ce tier
+        if (avgScoredAgainstSimilar < 0.8) return 0.90; // Galèrent contre ce tier
+
+        return 1.0;
     }
 
     // --- STRUCTURES INTERNES ---
@@ -187,62 +217,89 @@ public class PredictionEngineService {
 
     // --- SIMULATION & RÉSULTATS ---
 
-    private PredictionResult simulateMatch(double lambdaHome, double lambdaAway, Double odds1, Double oddsN, Double odds2) {
+    private PredictionResult simulateMatch(double lambdaHome, double lambdaAway, MatchAnalysis match) {
         double probHomeWin = 0.0, probDraw = 0.0, probAwayWin = 0.0;
-        double probOver2_5 = 0.0, probBTTS = 0.0;
+        double probOver1_5 = 0.0, probOver2_5 = 0.0, probBTTS = 0.0;
 
-        // Matrice de Poisson (jusqu'à 9 buts pour précision)
+        // V15 : Team Goals
+        double probHomeOver05 = 0.0, probHomeOver15 = 0.0;
+        double probAwayOver05 = 0.0, probAwayOver15 = 0.0;
+
+        // V15 : Score Exact
+        double maxProb = -1.0;
+        String exactScore = "0-0";
+
         for (int h = 0; h <= 9; h++) {
             for (int a = 0; a <= 9; a++) {
-                double probability = poisson(h, lambdaHome) * poisson(a, lambdaAway);
+                double prob = poisson(h, lambdaHome) * poisson(a, lambdaAway);
+                prob = applyDixonColes(prob, h, a, lambdaHome, lambdaAway);
 
-                // Correction Dixon-Coles (Dépendance des scores faibles)
-                probability = applyDixonColes(probability, h, a, lambdaHome, lambdaAway);
+                // 1N2
+                if (h > a) probHomeWin += prob;
+                else if (h == a) probDraw += prob;
+                else probAwayWin += prob;
 
-                if (h > a) probHomeWin += probability;
-                else if (h == a) probDraw += probability;
-                else probAwayWin += probability;
+                // Goals Market
+                if ((h + a) > 1.5) probOver1_5 += prob;
+                if ((h + a) > 2.5) probOver2_5 += prob;
+                if (h > 0 && a > 0) probBTTS += prob;
 
-                if ((h + a) > 2.5) probOver2_5 += probability;
-                if (h > 0 && a > 0) probBTTS += probability;
+                // Team Goals Market
+                if (h > 0) probHomeOver05 += prob;
+                if (h > 1) probHomeOver15 += prob;
+                if (a > 0) probAwayOver05 += prob;
+                if (a > 1) probAwayOver15 += prob;
+
+                // Exact Score Tracking
+                if (prob > maxProb) {
+                    maxProb = prob;
+                    exactScore = h + "-" + a;
+                }
             }
         }
 
-        // Normalisation (Total ~ 1.0)
+        // Normalisation 1N2
         double totalProb = probHomeWin + probDraw + probAwayWin;
         probHomeWin = (probHomeWin / totalProb) * 100;
         probDraw = (probDraw / totalProb) * 100;
         probAwayWin = (probAwayWin / totalProb) * 100;
-        probOver2_5 = (probOver2_5 / totalProb) * 100;
-        probBTTS = (probBTTS / totalProb) * 100;
 
-        // Double Chance
-        double dc1N = probHomeWin + probDraw;
-        double dcN2 = probDraw + probAwayWin;
-        double dc12 = probHomeWin + probAwayWin;
+        // Normalisation autres (simplifiée, suppose totalProb ~ 1.0)
+        probOver1_5 *= 100; probOver2_5 *= 100; probBTTS *= 100;
+        probHomeOver05 *= 100; probHomeOver15 *= 100;
+        probAwayOver05 *= 100; probAwayOver15 *= 100;
+        double exactScoreProb = maxProb * 100;
 
-        // Kelly Criterion
-        double kellyHome = calculateKelly(probHomeWin / 100.0, odds1);
-        double kellyDraw = calculateKelly(probDraw / 100.0, oddsN);
-        double kellyAway = calculateKelly(probAwayWin / 100.0, odds2);
+        // Kelly 1N2
+        double kellyHome = calculateKelly(probHomeWin / 100.0, match.getOdds1());
+        double kellyDraw = calculateKelly(probDraw / 100.0, match.getOddsN());
+        double kellyAway = calculateKelly(probAwayWin / 100.0, match.getOdds2());
+
+        // V15 : Kelly Markets Secondaires
+        double kellyOver15 = calculateKelly(probOver1_5 / 100.0, match.getOddsOver15());
+        double kellyOver25 = calculateKelly(probOver2_5 / 100.0, match.getOddsOver25());
+        double kellyBTTS = calculateKelly(probBTTS / 100.0, match.getOddsBTTSYes());
 
         String valueSide = null;
         if (kellyHome > 0) valueSide = "HOME";
         else if (kellyAway > 0) valueSide = "AWAY";
         else if (kellyDraw > 0) valueSide = "DRAW";
 
-        // Scores de Puissance (Esthétique)
-        double homePower = Math.min(99, lambdaHome * 25);
-        double awayPower = Math.min(99, lambdaAway * 25);
+        double homePower = Math.min(99, lambdaHome * 30); // Echelle ajustée
+        double awayPower = Math.min(99, lambdaAway * 30);
 
         return new PredictionResult(
                 round(probHomeWin), round(probDraw), round(probAwayWin),
                 round(homePower), round(awayPower),
                 round(lambdaHome), round(lambdaAway),
-                round(probOver2_5), round(100.0 - probOver2_5),
-                round(probBTTS),
-                round(dc1N), round(dcN2), round(dc12),
-                kellyHome, kellyDraw, kellyAway, valueSide
+                round(probOver2_5), round(100.0 - probOver2_5), round(probBTTS),
+                round(probHomeWin + probDraw), round(probDraw + probAwayWin), round(probHomeWin + probAwayWin),
+                kellyHome, kellyDraw, kellyAway, valueSide,
+                // CHAMPS V15
+                round(probHomeOver05), round(probHomeOver15),
+                round(probAwayOver05), round(probAwayOver15),
+                kellyOver15, kellyOver25, kellyBTTS,
+                exactScore, round(exactScoreProb)
         );
     }
 
@@ -274,7 +331,12 @@ public class PredictionEngineService {
         double b = odds - 1.0;
         double q = 1.0 - trueProb;
         double f = ((b * trueProb) - q) / b;
-        return f > 0 ? round((f * 0.25) * 100.0) : 0.0; // Kelly Fractionnaire 1/4
+        return f > 0 ? round((f * 0.25) * 100.0) : 0.0;
+    }
+
+    private List<MatchAnalysis> getLastN(List<MatchAnalysis> list, int n) {
+        if (list == null) return List.of();
+        return list.stream().limit(n).toList();
     }
 
     private double getEloImpact(int homeElo, int awayElo) {
@@ -291,11 +353,9 @@ public class PredictionEngineService {
         for (int i = 0; i < limit; i++) {
             MatchAnalysis m = h2h.get(i);
             if (m.getHomeScore() == null) continue;
-
             boolean homeWon = (m.getHomeTeam().getName().equals(homeName) && m.getHomeScore() > m.getAwayScore()) ||
                     (m.getAwayTeam().getName().equals(homeName) && m.getAwayScore() > m.getHomeScore());
-            if (homeWon) factor += 0.05;
-            else factor -= 0.03;
+            if (homeWon) factor += 0.05; else factor -= 0.03;
         }
         return factor;
     }
@@ -307,7 +367,7 @@ public class PredictionEngineService {
             if (match.isHomeTired()) factor -= 0.08;
         } else {
             if (match.isAwayKeyPlayerMissing()) factor -= 0.12;
-            if (match.isAwayNewCoach()) factor += 0.05; // Choc psychologique positif
+            if (match.isAwayNewCoach()) factor += 0.05;
         }
         return lambda * factor;
     }

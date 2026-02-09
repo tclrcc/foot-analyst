@@ -1,37 +1,54 @@
 package com.tony.sportsAnalytics.model.dto;
 
 import com.tony.sportsAnalytics.model.MatchDetailStats;
-import com.tony.sportsAnalytics.model.TeamStats;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
 public class MatchAnalysisRequest {
-    @NotNull private Long homeTeamId;
-    @NotNull private Long awayTeamId;
-    @NotNull private LocalDateTime matchDate;
+    private Long homeTeamId;
+    private Long awayTeamId;
+    private LocalDateTime matchDate;
     private String season;
 
-    // --- NOUVEAU : Cotes Bookmakers ---
+    // Cotes 1N2
     private Double odds1;
     private Double oddsN;
     private Double odds2;
 
-    // --- NOUVEAU : Contexte ---
-    private MatchContext context; // Créer une petite classe interne ou dédiée
+    // --- AJOUT V15 : Cotes Marchés Secondaires ---
+    private Double oddsOver15;
+    private Double oddsOver25;
+    private Double oddsBTTSYes;
+    // ---------------------------------------------
 
-    private TeamStats homeStats;
-    private TeamStats awayStats;
-
+    // Champs existants...
     private Integer homeScore;
     private Integer awayScore;
-
+    private TeamStatsRequest homeStats;
+    private TeamStatsRequest awayStats;
+    private MatchContextRequest context;
     private MatchDetailStats homeMatchStats;
     private MatchDetailStats awayMatchStats;
 
     @Data
-    public static class MatchContext {
+    public static class TeamStatsRequest {
+        private Integer rank;
+        private Integer points;
+        private Double xG;
+        private Integer goalsFor;
+        private Integer goalsAgainst;
+        private Integer last5MatchesPoints;
+        private Integer goalsForLast5;
+        private Integer goalsAgainstLast5;
+        private Integer matchesPlayed;
+        private Integer matchesPlayedHome;
+        private Integer matchesPlayedAway;
+        private Integer venuePoints;
+    }
+
+    @Data
+    public static class MatchContextRequest {
         private boolean homeKeyPlayerMissing;
         private boolean awayKeyPlayerMissing;
         private boolean homeTired;
