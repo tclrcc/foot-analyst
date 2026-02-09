@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -34,6 +35,14 @@ public class MatchAnalysisService {
         match.setHomeTeam(homeTeam);
         match.setAwayTeam(awayTeam);
         match.setMatchDate(request.getMatchDate());
+
+        // --- V13 : GESTION SAISON ---
+        if (request.getSeason() != null && !request.getSeason().isEmpty()) {
+            match.setSeason(request.getSeason());
+        } else {
+            // Déduction automatique si non fourni (ex: aout 2025 -> saison 2025-2026)
+            match.setSeason(calculateSeason(request.getMatchDate()));
+        }
 
         // Mapping Stats
         match.setHomeStats(request.getHomeStats());
@@ -106,7 +115,16 @@ public class MatchAnalysisService {
         return savedMatch;
     }
 
-    // ...
+    private String calculateSeason(LocalDateTime date) {
+        int year = date.getYear();
+        // Si on est en juillet ou après, c'est le début d'une nouvelle saison (ex: 2025-2026)
+        // Sinon (janvier-juin), on est dans la fin de la saison précédente (ex: 2024-2025)
+        if (date.getMonthValue() >= 7) {
+            return year + "-" + (year + 1);
+        } else {
+            return (year - 1) + "-" + year;
+        }
+    }
 
     // V11 : Lister les matchs d'une équipe
     public List<MatchAnalysis> getMatchesByTeam(Long teamId) {

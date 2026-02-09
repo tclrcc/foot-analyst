@@ -87,21 +87,31 @@ public class TeamStatsService {
     public void recalculateTeamStats(Long teamId) {
         Team team = teamRepository.findById(teamId).orElseThrow();
 
-        // 1. Récupérer tous les matchs joués (exclure les futurs)
-        List<MatchAnalysis> matches = matchRepository.findByHomeTeamIdOrAwayTeamIdOrderByMatchDateDesc(teamId, teamId)
-                .stream()
-                .filter(m -> m.getHomeScore() != null && m.getAwayScore() != null) // Seulement matchs finis
+        // 1. Récupérer TOUS les matchs (Triés du plus récent au plus ancien)
+        List<MatchAnalysis> allMatches = matchRepository.findByHomeTeamIdOrAwayTeamIdOrderByMatchDateDesc(teamId, teamId);
+
+        if (allMatches.isEmpty()) return;
+
+        // 2. Identifier la saison "active" (la plus récente trouvée dans l'historique)
+        // On prend le premier match (le plus récent) pour définir la saison en cours
+        String currentSeason = allMatches.getFirst().getSeason();
+
+        if (currentSeason == null) return; // Sécurité
+
+        // 3. Filtrer pour ne garder que les matchs de CETTE saison et TERMINÉS pour le classement
+        List<MatchAnalysis> seasonMatches = allMatches.stream()
+                .filter(m -> currentSeason.equals(m.getSeason()))
+                .filter(m -> m.getHomeScore() != null && m.getAwayScore() != null)
                 .toList();
 
-        if (matches.isEmpty()) return;
+        if (seasonMatches.isEmpty()) return;
 
         TeamStats stats = new TeamStats();
 
-        // --- STATS SAISON (GLOBAL) ---
+        // --- VARIABLES CUMULATIVES ---
         int points = 0;
         int goalsFor = 0;
         int goalsAgainst = 0;
-        int wins = 0, draws = 0, losses = 0;
         double totalXg = 0.0;
         int xgCount = 0;
 
@@ -115,8 +125,11 @@ public class TeamStatsService {
         int formPoints = 0;
         int matchesCounter = 0;
 
-        for (MatchAnalysis m : matches) {
+        // On parcourt les matchs de la saison (Triés DESC : du plus récent au plus vieux)
+        for (MatchAnalysis m : seasonMatches) {
             boolean isHome = m.getHomeTeam().getId().equals(teamId);
+
+            // Récupération des scores du point de vue de l'équipe
             int scoreF = isHome ? m.getHomeScore() : m.getAwayScore();
             int scoreA = isHome ? m.getAwayScore() : m.getHomeScore();
             MatchDetailStats detail = isHome ? m.getHomeMatchStats() : m.getAwayMatchStats();
@@ -126,9 +139,13 @@ public class TeamStatsService {
             goalsAgainst += scoreA;
 
             int pts = 0;
-            if (scoreF > scoreA) { pts = 3; wins++; }
-            else if (scoreF == scoreA) { pts = 1; draws++; }
-            else { losses++; }
+            if (scoreF > scoreA) {
+                pts = 3;
+            } else if (scoreF == scoreA) {
+                pts = 1;
+            }
+            // else défaite = 0 pts
+
             points += pts;
 
             // Stats Domicile (si l'équipe jouait à domicile ce match-là)
@@ -137,14 +154,13 @@ public class TeamStatsService {
                 venuePoints += pts;
             }
 
-            // xG Moyen
+            // Cumul xG pour la moyenne
             if (detail != null && detail.getXG() != null) {
                 totalXg += detail.getXG();
                 xgCount++;
             }
 
             // Cumul Forme (5 derniers matchs seulement)
-            // Comme la liste est triée par date décroissante (DESC), les 5 premiers sont les plus récents
             if (matchesCounter < 5) {
                 formGF += scoreF;
                 formGA += scoreA;
@@ -154,7 +170,7 @@ public class TeamStatsService {
         }
 
         // --- MAPPING VERS L'OBJET ---
-        stats.setMatchesPlayed(matches.size());
+        stats.setMatchesPlayed(seasonMatches.size());
         stats.setPoints(points);
         stats.setGoalsFor(goalsFor);
         stats.setGoalsAgainst(goalsAgainst);
@@ -171,18 +187,18 @@ public class TeamStatsService {
         stats.setGoalsAgainstLast5(formGA);
         stats.setLast5MatchesPoints(formPoints);
 
-        // Stats Venue (Domicile) - Tu pourrais stocker Extérieur aussi si besoin
+        // Stats Venue (Domicile vs Extérieur)
         stats.setVenueMatches(venuePlayed);
         stats.setVenuePoints(venuePoints);
 
-        // Mise à jour simplifiée des MJ Domicile/Extérieur (approx)
+        // Mise à jour des MJ Domicile/Extérieur
         stats.setMatchesPlayedHome(venuePlayed);
-        stats.setMatchesPlayedAway(matches.size() - venuePlayed);
+        stats.setMatchesPlayedAway(seasonMatches.size() - venuePlayed);
 
         // Sauvegarde
         team.setCurrentStats(stats);
         teamRepository.save(team);
 
-        System.out.println("✅ Stats recalculées pour : " + team.getName());
+        System.out.println("✅ Stats recalculées pour : " + team.getName() + " (Saison " + currentSeason + ")");
     }
 }

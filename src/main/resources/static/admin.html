@@ -144,6 +144,15 @@
                   <input type="date" class="form-control" id="histDate" required>
                 </div>
                 <div class="col-md-3">
+                  <label class="form-label small">Saison</label>
+                  <select class="form-select" id="histSeason">
+                    <option value="2025-2026" selected>2025-2026</option>
+                    <option value="2024-2025">2024-2025</option>
+                    <option value="2023-2024">2023-2024</option>
+                    <option value="2022-2023">2022-2023</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
                   <label class="form-label small">Championnat</label>
                   <select class="form-select league-select" id="historyLeagueSelect" required></select>
                 </div>
@@ -649,6 +658,7 @@
       homeTeamId: document.getElementById('histHomeTeam').value,
       awayTeamId: document.getElementById('histAwayTeam').value,
       matchDate: new Date(document.getElementById('histDate').value).toISOString(),
+      season: document.getElementById('histSeason').value,
       homeScore: getInt('histHomeScore'),
       awayScore: getInt('histAwayScore'),
       homeStats: {rank:0}, awayStats: {rank:0}, // Mock

@@ -11,6 +11,7 @@ public class MatchAnalysisRequest {
     @NotNull private Long homeTeamId;
     @NotNull private Long awayTeamId;
     @NotNull private LocalDateTime matchDate;
+    private String season;
 
     // --- NOUVEAU : Cotes Bookmakers ---
     private Double odds1;

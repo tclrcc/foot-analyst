@@ -1,5 +1,6 @@
 package com.tony.sportsAnalytics.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -29,6 +30,7 @@ public class TeamStats {
     private Integer goalsForLast5;      // Buts marqués sur les 5 derniers
     private Integer goalsAgainstLast5;  // Buts encaissés sur les 5 derniers
 
+    @JsonProperty("xG")
     private Double xG; // Expected Goals (Global ou Moyen)
 
     // --- STATS CONTEXTUELLES ---

@@ -23,7 +23,11 @@ public class MatchAnalysis {
     @JoinColumn(name = "away_team_id")
     private Team awayTeam;
 
+    @Column(nullable = false)
     private LocalDateTime matchDate;
+
+    @Column(length = 9) // Ex: "2025-2026"
+    private String season;
 
     @Embedded
     @AttributeOverrides({

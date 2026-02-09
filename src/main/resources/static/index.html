@@ -313,7 +313,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-  // --- NOUVEAU : Remplissage Auto des Stats ---
+  // --- Remplissage Auto des Stats (CORRIGÉ V13) ---
   async function fillTeamStats(teamId, side) {
     if (!teamId) return;
 
@@ -323,22 +323,36 @@
       const team = await res.json();
       const s = team.currentStats; // L'objet TeamStats
 
+      console.log(`Stats reçues pour ${side}:`, s); // DEBUG : Vérifie la console du navigateur
+
       if (s) {
-        // Remplissage selon le côté (home ou away)
-        // Note: Assure-toi que les IDs de tes inputs correspondent bien (homeRank, awayRank...)
-        document.getElementById(`${side}Rank`).value = s.rank || '';
-        document.getElementById(`${side}Points`).value = s.points || '';
+        // Champs de base
+        document.getElementById(`${side}Rank`).value = s.rank || 0;
+        document.getElementById(`${side}Points`).value = s.points || 0;
+        document.getElementById(`${side}GF`).value = s.goalsFor || 0;
+        document.getElementById(`${side}GA`).value = s.goalsAgainst || 0;
+        document.getElementById(`${side}Mj`).value = s.matchesPlayed || 0;
 
-        document.getElementById(`${side}GF`).value = s.goalsFor || '';
-        document.getElementById(`${side}GA`).value = s.goalsAgainst || '';
+        // --- CORRECTION DES CHAMPS FORME & xG ---
+        // Vérifie bien que les IDs HTML correspondent à ceux-là :
+        // homeGF5, homeGA5, homexG (ou homeXg selon ton HTML)
 
-        document.getElementById(`${side}Mj`).value = s.matchesPlayed || '';
+        // 1. Forme (5 derniers matchs)
+        // Attention : tes IDs HTML sont 'homeGF5' et 'homeGA5' ? Vérifie plus bas dans le HTML.
+        const gf5Field = document.getElementById(`${side}GF5`);
+        const ga5Field = document.getElementById(`${side}GA5`);
 
-        // Stats Forme (V7)
-        document.getElementById(`${side}GF5`).value = s.goalsForLast5 || '';
-        document.getElementById(`${side}GA5`).value = s.goalsAgainstLast5 || '';
+        if (gf5Field) gf5Field.value = s.goalsForLast5 || 0;
+        if (ga5Field) ga5Field.value = s.goalsAgainstLast5 || 0;
 
-        document.getElementById(`${side}Xg`).value = s.xG || '';
+        // 2. xG Moyen
+        // Attention à la casse JSON : Jackson renvoie souvent "xg" ou "xG" selon l'annotation.
+        // On essaie les deux cas pour être sûr.
+        const xgValue = s.xG !== undefined ? s.xG : (s.xg !== undefined ? s.xg : 0.0);
+
+        const xgField = document.getElementById(`${side}Xg`); // Note le 'Xg' majuscule dans l'ID HTML habituel
+        if (xgField) xgField.value = xgValue;
+
       }
     } catch (e) {
       console.error("Erreur chargement stats équipe", e);
