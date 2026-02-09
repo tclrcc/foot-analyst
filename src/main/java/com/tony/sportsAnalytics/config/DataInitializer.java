@@ -21,57 +21,29 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) throws Exception {
         // On ne remplit que si la base est vide
         if (leagueRepository.count() == 0) {
-            System.out.println("🌱 Initialisation des données de référence...");
+            System.out.println("🌱 Initialisation V3 avec drapeaux...");
 
-            // 1. Création Ligue 1
-            League ligue1 = leagueRepository.save(new League("Ligue 1"));
+            // 1. Ligue 1 (France)
+            League l1 = leagueRepository.save(new League("Ligue 1", "France", "fr"));
             teamRepository.saveAll(Arrays.asList(
-                    new Team("PSG", ligue1),
-                    new Team("Lens", ligue1),
-                    new Team("Lyon", ligue1),
-                    new Team("Marseille", ligue1),
-                    new Team("Lille", ligue1),
-                    new Team("Rennes", ligue1),
-                    new Team("Strasbourg", ligue1),
-                    new Team("Toulouse", ligue1),
-                    new Team("Angers", ligue1),
-                    new Team("Monaco", ligue1),
-                    new Team("Lorient", ligue1),
-                    new Team("Brest", ligue1),
-                    new Team("Le Havre", ligue1),
-                    new Team("Nice", ligue1),
-                    new Team("Paris FC", ligue1),
-                    new Team("Auxerre", ligue1),
-                    new Team("Nantes", ligue1),
-                    new Team("Metz", ligue1)
+                    new Team("PSG", l1), new Team("OM", l1), new Team("Lyon", l1),
+                    new Team("Lens", l1), new Team("Monaco", l1), new Team("Lille", l1)
             ));
 
-            // 2. Création Premier League
-            League pl = leagueRepository.save(new League("Premier League"));
+            // 2. Premier League (Angleterre - utilise 'gb-eng' ou 'gb' pour le drapeau)
+            League pl = leagueRepository.save(new League("Premier League", "England", "gb"));
             teamRepository.saveAll(Arrays.asList(
-                    new Team("Arsenal", pl),
-                    new Team("Manchester City", pl),
-                    new Team("Aston Villa", pl),
-                    new Team("Manchester United", pl),
-                    new Team("Chelsea", pl),
-                    new Team("Liverpool", pl),
-                    new Team("Brentford", pl),
-                    new Team("Everton", pl),
-                    new Team("Sunderland", pl),
-                    new Team("Fulham", pl),
-                    new Team("Bournemouth", pl),
-                    new Team("Newcastle", pl),
-                    new Team("Crystal Palace", pl),
-                    new Team("Brighton", pl),
-                    new Team("Tottenham", pl),
-                    new Team("Leeds", pl),
-                    new Team("Nottingham", pl),
-                    new Team("West Ham", pl),
-                    new Team("Burnley", pl),
-                    new Team("Wolves", pl)
+                    new Team("Man City", pl), new Team("Arsenal", pl),
+                    new Team("Liverpool", pl), new Team("Chelsea", pl)
             ));
 
-            System.out.println("✅ Données initialisées !");
+            // 3. La Liga (Espagne)
+            League liga = leagueRepository.save(new League("La Liga", "Spain", "es"));
+            teamRepository.saveAll(Arrays.asList(
+                    new Team("Real Madrid", liga), new Team("Barcelona", liga), new Team("Atletico", liga)
+            ));
+
+            System.out.println("✅ Données V3 initialisées !");
         }
     }
 }

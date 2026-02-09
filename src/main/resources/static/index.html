@@ -3,91 +3,109 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Foot Analyst AI - V3</title>
+  <title>Foot Analyst AI - V3 Pro</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
   <style>
-    .stats-input { font-size: 0.9rem; }
-    .prediction-card { display: none; transition: all 0.3s ease; }
-    .score-box { font-size: 2rem; font-weight: bold; }
-    .win-prob { height: 25px; }
+    body { background-color: #f8f9fa; }
+    .app-header { background: linear-gradient(135deg, #0d6efd, #0a58ca); color: white; padding: 1.5rem 0; }
+    .flag-icon { width: 20px; height: 15px; margin-right: 8px; object-fit: cover; border-radius: 2px; box-shadow: 0 0 2px rgba(0,0,0,0.3); }
+    .stats-input { font-size: 0.95rem; font-weight: 500; }
+    .score-box { font-size: 2.5rem; font-weight: 800; }
+    .auto-filled { border-color: #198754; background-color: #f0fff4; transition: all 0.5s; }
+    .card { border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
   </style>
 </head>
-<body class="bg-light">
+<body>
 
-<nav class="navbar navbar-dark bg-primary mb-4 shadow-sm">
-  <div class="container d-flex justify-content-between">
-    <span class="navbar-brand mb-0 h1">⚽ Foot Analyst Architect <span class="badge bg-white text-primary fs-6">V3</span></span>
-    <a href="/admin.html" class="btn btn-outline-light btn-sm">⚙️ Admin</a>
+<div class="app-header shadow mb-4">
+  <div class="container d-flex justify-content-between align-items-center">
+    <div>
+      <h1 class="h4 mb-0"><i class="bi bi-cpu-fill me-2"></i>Foot Analyst <span class="fw-light">Architect</span></h1>
+      <small class="opacity-75">Intelligence Artificielle de Prédiction Sportive</small>
+    </div>
+    <a href="/admin.html" class="btn btn-outline-light btn-sm"><i class="bi bi-gear-fill me-1"></i> Admin</a>
   </div>
-</nav>
+</div>
 
 <div class="container">
-  <div class="row">
+  <div class="row g-4">
+
     <div class="col-lg-7">
-      <div class="card shadow-sm mb-4 border-0">
-        <div class="card-header bg-white py-3">
-          <h5 class="mb-0 text-primary">📝 Nouvelle Analyse</h5>
+      <div class="card">
+        <div class="card-header bg-white py-3 border-bottom-0">
+          <h5 class="mb-0 text-primary"><i class="bi bi-pencil-square me-2"></i>Nouvelle Analyse</h5>
         </div>
         <div class="card-body p-4">
           <form id="analysisForm">
 
             <div class="mb-4">
-              <label class="form-label fw-bold">Championnat</label>
-              <select class="form-select" id="leagueSelect" required>
-                <option value="" selected disabled>Chargement des ligues...</option>
-              </select>
+              <label class="form-label text-muted small fw-bold text-uppercase">Compétition</label>
+              <div class="input-group">
+                <span class="input-group-text bg-white"><i class="bi bi-trophy"></i></span>
+                <select class="form-select" id="leagueSelect" required>
+                  <option value="" selected disabled>Chargement...</option>
+                </select>
+              </div>
               <input type="hidden" id="leagueName">
             </div>
 
             <div class="row mb-4">
-              <div class="col">
-                <label class="form-label fw-bold">Domicile</label>
-                <select class="form-select" id="homeTeamSelect" disabled required>
-                  <option value="" selected disabled>Choisir ligue d'abord</option>
+              <div class="col-md-6">
+                <label class="form-label text-muted small fw-bold text-uppercase">Domicile</label>
+                <select class="form-select form-select-lg fw-bold text-primary" id="homeTeamSelect" disabled required>
+                  <option value="" selected disabled>--</option>
                 </select>
               </div>
-              <div class="col">
-                <label class="form-label fw-bold">Extérieur</label>
-                <select class="form-select" id="awayTeamSelect" disabled required>
-                  <option value="" selected disabled>Choisir ligue d'abord</option>
+              <div class="col-md-6">
+                <label class="form-label text-muted small fw-bold text-uppercase">Extérieur</label>
+                <select class="form-select form-select-lg fw-bold text-danger" id="awayTeamSelect" disabled required>
+                  <option value="" selected disabled>--</option>
                 </select>
               </div>
             </div>
 
-            <hr class="my-4">
-
-            <div class="row g-2 align-items-center mb-3">
-              <div class="col-2 text-center small text-muted text-uppercase">Statistique</div>
-              <div class="col-5 text-center text-primary fw-bold">Domicile</div>
-              <div class="col-5 text-center text-danger fw-bold">Extérieur</div>
+            <div class="alert alert-info py-2 small d-flex align-items-center" id="autoFillInfo" style="display:none !important;">
+              <i class="bi bi-magic me-2"></i> Données historiques récupérées et pré-remplies.
             </div>
 
-            <div class="row g-2 mb-3">
-              <div class="col-2 text-end align-self-center"><small>Classement</small></div>
-              <div class="col-5"><input type="number" class="form-control stats-input" id="homeRank" required min="1" max="50"></div>
-              <div class="col-5"><input type="number" class="form-control stats-input" id="awayRank" required min="1" max="50"></div>
+            <div class="table-responsive">
+              <table class="table table-borderless align-middle">
+                <thead class="text-center text-muted small text-uppercase">
+                <tr>
+                  <th style="width: 20%">Statistique</th>
+                  <th style="width: 40%" class="text-primary">Domicile</th>
+                  <th style="width: 40%" class="text-danger">Extérieur</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                  <td class="text-end fw-bold text-secondary">Rang</td>
+                  <td><input type="number" class="form-control stats-input text-center" id="homeRank" required min="1"></td>
+                  <td><input type="number" class="form-control stats-input text-center" id="awayRank" required min="1"></td>
+                </tr>
+                <tr>
+                  <td class="text-end fw-bold text-secondary">Points</td>
+                  <td><input type="number" class="form-control stats-input text-center" id="homePoints" required min="0"></td>
+                  <td><input type="number" class="form-control stats-input text-center" id="awayPoints" required min="0"></td>
+                </tr>
+                <tr>
+                  <td class="text-end fw-bold text-secondary">Forme <small>(5m)</small></td>
+                  <td><input type="number" class="form-control stats-input text-center" id="homeForm" placeholder="0-15"></td>
+                  <td><input type="number" class="form-control stats-input text-center" id="awayForm" placeholder="0-15"></td>
+                </tr>
+                <tr>
+                  <td class="text-end fw-bold text-secondary">xG <small>Moy.</small></td>
+                  <td><input type="number" step="0.01" class="form-control stats-input text-center" id="homeXg"></td>
+                  <td><input type="number" step="0.01" class="form-control stats-input text-center" id="awayXg"></td>
+                </tr>
+                </tbody>
+              </table>
             </div>
 
-            <div class="row g-2 mb-3">
-              <div class="col-2 text-end align-self-center"><small>Points</small></div>
-              <div class="col-5"><input type="number" class="form-control stats-input" id="homePoints" required min="0"></div>
-              <div class="col-5"><input type="number" class="form-control stats-input" id="awayPoints" required min="0"></div>
-            </div>
-
-            <div class="row g-2 mb-3">
-              <div class="col-2 text-end align-self-center"><small>Forme (5m)</small></div>
-              <div class="col-5"><input type="number" class="form-control stats-input" id="homeForm" placeholder="Pts (0-15)"></div>
-              <div class="col-5"><input type="number" class="form-control stats-input" id="awayForm" placeholder="Pts (0-15)"></div>
-            </div>
-
-            <div class="row g-2 mb-4">
-              <div class="col-2 text-end align-self-center"><small>xG Moyen</small></div>
-              <div class="col-5"><input type="number" step="0.01" class="form-control stats-input" id="homeXg" placeholder="Ex: 1.85"></div>
-              <div class="col-5"><input type="number" step="0.01" class="form-control stats-input" id="awayXg" placeholder="Ex: 0.90"></div>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow-sm">
-              Lancer l'Algorithme 🚀
+            <button type="submit" class="btn btn-primary w-100 py-3 fw-bold mt-2 shadow-sm">
+              <i class="bi bi-robot me-2"></i> Lancer la Prédiction
             </button>
           </form>
         </div>
@@ -95,30 +113,48 @@
     </div>
 
     <div class="col-lg-5">
-      <div id="resultCard" class="card shadow prediction-card border-0">
-        <div class="card-header bg-success text-white text-center py-3">
-          <h4 class="mb-0">🔮 Prédiction Générée</h4>
+      <div id="resultCard" class="card shadow border-0" style="display: none;">
+        <div class="card-header bg-success text-white text-center py-4">
+          <h5 class="mb-0 text-uppercase ls-1">Résultat de l'analyse</h5>
         </div>
         <div class="card-body text-center p-4">
-          <h5 class="text-muted mb-4" id="matchTitle">...</h5>
+          <h3 class="mb-4 fw-bold" id="matchTitle">PSG vs OM</h3>
 
-          <div class="row mb-4">
-            <div class="col">
-              <div class="text-primary fw-bold text-uppercase small">Force Domicile</div>
+          <div class="row mb-4 g-0">
+            <div class="col border-end">
+              <small class="text-muted text-uppercase fw-bold">Power Domicile</small>
               <div class="score-box text-primary" id="homePowerDisplay">0</div>
             </div>
             <div class="col">
-              <div class="text-danger fw-bold text-uppercase small">Force Ext.</div>
+              <small class="text-muted text-uppercase fw-bold">Power Ext.</small>
               <div class="score-box text-danger" id="awayPowerDisplay">0</div>
             </div>
           </div>
 
-          <label class="form-label text-start w-100 fw-bold mb-2">Probabilités de victoire</label>
-          <div class="progress win-prob mb-3 shadow-sm" style="height: 35px;">
-            <div id="probBarHome" class="progress-bar bg-primary" role="progressbar" style="width: 0%">0%</div>
-            <div id="probBarDraw" class="progress-bar bg-secondary" role="progressbar" style="width: 0%">Nul</div>
-            <div id="probBarAway" class="progress-bar bg-danger" role="progressbar" style="width: 0%">0%</div>
+          <div class="text-start mb-2">
+            <label class="fw-bold small text-muted text-uppercase">Probabilités</label>
           </div>
+          <div class="progress" style="height: 40px; font-size: 1rem; font-weight: bold;">
+            <div id="probBarHome" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
+            <div id="probBarDraw" class="progress-bar bg-secondary" role="progressbar" style="width: 0%"></div>
+            <div id="probBarAway" class="progress-bar bg-danger" role="progressbar" style="width: 0%"></div>
+          </div>
+          <div class="d-flex justify-content-between mt-1 small text-muted">
+            <span id="labelHome">Domicile</span>
+            <span id="labelDraw">Nul</span>
+            <span id="labelAway">Extérieur</span>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="card mt-4 bg-white border-0">
+        <div class="card-body">
+          <h6 class="fw-bold"><i class="bi bi-info-circle-fill text-info me-2"></i>Comment ça marche ?</h6>
+          <p class="small text-muted mb-0">
+            L'algorithme V3 combine la forme récente (calculée dynamiquement), les Expected Goals (xG) et l'avantage du terrain.
+            Les données historiques sont automatiquement récupérées si disponibles.
+          </p>
         </div>
       </div>
     </div>
@@ -126,80 +162,108 @@
 </div>
 
 <script>
-  // --- 1. CHARGEMENT DES DONNÉES AU DÉMARRAGE ---
+  // --- 1. CHARGEMENT INITIAL (Avec Drapeaux) ---
   document.addEventListener('DOMContentLoaded', async () => {
     const leagueSelect = document.getElementById('leagueSelect');
-
     try {
       const response = await fetch('/api/v1/references/leagues');
       const leagues = await response.json();
 
       leagueSelect.innerHTML = '<option value="" selected disabled>Choisir un championnat</option>';
-      leagues.forEach(league => {
-        // On stocke l'ID dans value, et le Nom en texte
+      leagues.forEach(l => {
+        // Utilisation de flagcdn pour les drapeaux
+        const flagUrl = l.countryCode ? `https://flagcdn.com/20x15/${l.countryCode}.png` : '';
+        // Note: Dans un select standard, on ne peut pas mettre d'img facilement.
+        // On met le nom, et on pourra afficher le drapeau à côté via JS si on veut complexifier.
+        // Pour l'instant, on reste simple.
         const option = document.createElement('option');
-        option.value = league.id;
-        option.text = league.name;
+        option.value = l.id;
+        option.text = `${l.name} (${l.country})`;
         leagueSelect.appendChild(option);
       });
-    } catch (e) {
-      console.error("Erreur chargement ligues", e);
-      leagueSelect.innerHTML = '<option disabled>Erreur API</option>';
-    }
+    } catch(e) { console.error(e); }
   });
 
-  // --- 2. LOGIQUE CASCADE (Quand on change de ligue) ---
+  // --- 2. GESTION DU CHANGEMENT DE LIGUE ---
   document.getElementById('leagueSelect').addEventListener('change', async function() {
-    const leagueId = this.value; // C'est l'ID (Long)
-    const leagueName = this.options[this.selectedIndex].text; // C'est le nom (String)
-
-    // On met à jour le champ caché pour l'envoi au backend
+    const leagueId = this.value;
+    const leagueName = this.options[this.selectedIndex].text;
     document.getElementById('leagueName').value = leagueName;
 
     const homeSelect = document.getElementById('homeTeamSelect');
     const awaySelect = document.getElementById('awayTeamSelect');
 
-    // Reset des dropdowns
+    homeSelect.disabled = true; awaySelect.disabled = true;
     homeSelect.innerHTML = '<option>Chargement...</option>';
-    awaySelect.innerHTML = '<option>Chargement...</option>';
-    homeSelect.disabled = true;
-    awaySelect.disabled = true;
 
     try {
       const response = await fetch(`/api/v1/references/leagues/${leagueId}/teams`);
       const teams = await response.json();
 
-      const fillOptions = (select) => {
-        select.innerHTML = '<option value="" selected disabled>Choisir équipe</option>';
-        teams.forEach(team => {
-          const option = document.createElement('option');
-          option.value = team.name; // On utilise le NOM comme valeur pour le backend existant
-          option.text = team.name;
-          select.appendChild(option);
+      const fill = (sel) => {
+        sel.innerHTML = '<option value="" selected disabled>Choisir...</option>';
+        teams.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t.id; // !!! V3 : On utilise l'ID pour pouvoir fetcher les stats
+          opt.setAttribute('data-name', t.name); // On garde le nom en data
+          opt.text = t.name;
+          sel.appendChild(opt);
         });
-        select.disabled = false;
+        sel.disabled = false;
       };
-
-      fillOptions(homeSelect);
-      fillOptions(awaySelect);
-
-    } catch (e) {
-      console.error("Erreur chargement équipes", e);
-    }
+      fill(homeSelect);
+      fill(awaySelect);
+    } catch(e) { console.error(e); }
   });
 
-  // --- 3. SOUMISSION DU FORMULAIRE ---
+  // --- 3. AUTO-FILL INTELLIGENT ---
+  async function fetchAndFillStats(teamId, prefix) {
+    if(!teamId) return;
+    try {
+      const response = await fetch(`/api/v1/references/teams/${teamId}/suggested-stats`);
+      if (response.status === 200) {
+        const stats = await response.json();
+        if (stats) {
+          // Animation visuelle
+          const inputs = [`${prefix}Rank`, `${prefix}Points`, `${prefix}Form`, `${prefix}Xg`];
+
+          if(stats.rank) document.getElementById(`${prefix}Rank`).value = stats.rank;
+          if(stats.points) document.getElementById(`${prefix}Points`).value = stats.points;
+          if(stats.last5MatchesPoints !== null) document.getElementById(`${prefix}Form`).value = stats.last5MatchesPoints;
+          if(stats.xG) document.getElementById(`${prefix}Xg`).value = stats.xG;
+
+          inputs.forEach(id => {
+            const el = document.getElementById(id);
+            el.classList.add('auto-filled');
+            setTimeout(() => el.classList.remove('auto-filled'), 1000);
+          });
+
+          document.getElementById('autoFillInfo').style.display = 'block';
+        }
+      }
+    } catch(e) { console.log("Pas d'historique pour cette équipe"); }
+  }
+
+  document.getElementById('homeTeamSelect').addEventListener('change', (e) => fetchAndFillStats(e.target.value, 'home'));
+  document.getElementById('awayTeamSelect').addEventListener('change', (e) => fetchAndFillStats(e.target.value, 'away'));
+
+
+  // --- 4. SOUMISSION (Adaptée pour V3) ---
   document.getElementById('analysisForm').addEventListener('submit', async function(e) {
     e.preventDefault();
+
+    const homeSelect = document.getElementById('homeTeamSelect');
+    const awaySelect = document.getElementById('awayTeamSelect');
+    const homeName = homeSelect.options[homeSelect.selectedIndex].getAttribute('data-name');
+    const awayName = awaySelect.options[awaySelect.selectedIndex].getAttribute('data-name');
 
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const payload = {
-      // On récupère les valeurs des SELECT (qui sont les Noms des équipes)
       leagueNameInput: document.getElementById('leagueName').value,
-      homeTeamNameInput: document.getElementById('homeTeamSelect').value,
-      awayTeamNameInput: document.getElementById('awayTeamSelect').value,
+      homeTeamNameInput: homeName, // On renvoie le NOM comme attendu par le service existant
+      awayTeamNameInput: awayName,
       matchDate: tomorrow.toISOString(),
 
       homeStats: {
@@ -224,18 +288,13 @@
       });
 
       if (!response.ok) {
-        const errorJson = await response.json();
-        alert("Erreur de validation !\n" + JSON.stringify(errorJson, null, 2));
+        const err = await response.json();
+        alert("Erreur: " + JSON.stringify(err));
         return;
       }
-
       const data = await response.json();
       displayResult(data);
-
-    } catch (error) {
-      console.error('Erreur technique:', error);
-      alert("Erreur technique");
-    }
+    } catch (error) { console.error(error); alert("Erreur technique"); }
   });
 
   function displayResult(data) {
@@ -247,18 +306,19 @@
     document.getElementById('homePowerDisplay').innerText = p.homePowerScore;
     document.getElementById('awayPowerDisplay').innerText = p.awayPowerScore;
 
-    const barHome = document.getElementById('probBarHome');
-    const barDraw = document.getElementById('probBarDraw');
-    const barAway = document.getElementById('probBarAway');
+    const setBar = (id, val, text) => {
+      const el = document.getElementById(id);
+      el.style.width = `${val}%`;
+      el.innerText = val > 10 ? `${val}%` : ''; // Cache le texte si trop petit
+    };
 
-    barHome.style.width = `${p.homeWinProbability}%`;
-    barHome.innerText = `${p.homeWinProbability}%`;
-    barDraw.style.width = `${p.drawProbability}%`;
-    barDraw.innerText = `Nul ${p.drawProbability}%`;
-    barAway.style.width = `${p.awayWinProbability}%`;
-    barAway.innerText = `${p.awayWinProbability}%`;
+    setBar('probBarHome', p.homeWinProbability);
+    setBar('probBarDraw', p.drawProbability);
+    setBar('probBarAway', p.awayWinProbability);
 
     document.getElementById('resultCard').style.display = 'block';
+    // Scroll vers le résultat
+    document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
   }
 </script>
 

@@ -2,8 +2,10 @@ package com.tony.sportsAnalytics.controller;
 
 import com.tony.sportsAnalytics.model.League;
 import com.tony.sportsAnalytics.model.Team;
+import com.tony.sportsAnalytics.model.TeamStats;
 import com.tony.sportsAnalytics.repository.LeagueRepository;
 import com.tony.sportsAnalytics.repository.TeamRepository;
+import com.tony.sportsAnalytics.service.TeamStatsService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,7 @@ public class ReferenceController {
 
     private final LeagueRepository leagueRepository;
     private final TeamRepository teamRepository;
+    private final TeamStatsService teamStatsService;
 
     @GetMapping("/leagues")
     public ResponseEntity<List<League>> getAllLeagues() {
@@ -27,6 +30,11 @@ public class ReferenceController {
     @GetMapping("/leagues/{leagueId}/teams")
     public ResponseEntity<List<Team>> getTeamsByLeague(@PathVariable Long leagueId) {
         return ResponseEntity.ok(teamRepository.findByLeagueId(leagueId));
+    }
+
+    @GetMapping("/teams/{teamId}/suggested-stats")
+    public ResponseEntity<TeamStats> getSuggestedStats(@PathVariable Long teamId) {
+        return ResponseEntity.ofNullable(teamStatsService.getSuggestedStats(teamId));
     }
 
     @PostMapping("/leagues")

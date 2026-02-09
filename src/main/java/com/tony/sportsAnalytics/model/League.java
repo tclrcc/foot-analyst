@@ -17,7 +17,16 @@ public class League {
 
     private String country; // Optionnel : "France", "England"
 
+    // Code ISO pour le drapeau (ex: "fr", "gb", "es")
+    private String countryCode;
+
     public League(String name) {
         this.name = name;
+    }
+
+    public League(String name, String country, String countryCode) {
+        this.name = name;
+        this.country = country;
+        this.countryCode = countryCode;
     }
 }
