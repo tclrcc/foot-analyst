@@ -4,6 +4,7 @@ import com.tony.sportsAnalytics.model.League;
 import com.tony.sportsAnalytics.model.Team;
 import com.tony.sportsAnalytics.repository.LeagueRepository;
 import com.tony.sportsAnalytics.repository.TeamRepository;
+import com.tony.sportsAnalytics.service.TeamStatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -16,6 +17,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final LeagueRepository leagueRepository;
     private final TeamRepository teamRepository;
+    private final TeamStatsService teamStatsService;
 
     @Override
     public void run(String... args) throws Exception {
@@ -46,5 +48,11 @@ public class DataInitializer implements CommandLineRunner {
 
             System.out.println("✅ Données V3 initialisées !");
         }
+
+        System.out.println("🔄 Recalcul de toutes les stats d'équipes basé sur l'historique...");
+        teamRepository.findAll().forEach(team -> {
+            teamStatsService.recalculateTeamStats(team.getId());
+        });
+        System.out.println("✅ Recalcul terminé.");
     }
 }

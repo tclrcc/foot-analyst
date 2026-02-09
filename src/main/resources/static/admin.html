@@ -15,8 +15,6 @@
     .nav-pills .nav-link:hover:not(.active) { background-color: #343a40; color: white; }
     .card { border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 10px; }
     .flag-preview { width: 30px; height: 20px; object-fit: cover; border-radius: 3px; display: none; }
-
-    /* Style pour la liste des équipes existantes */
     .team-badge { font-size: 0.9rem; padding: 8px 12px; margin: 3px; background-color: #e9ecef; color: #495057; border-radius: 20px; display: inline-block; transition: all 0.2s; }
     .team-badge:hover { background-color: #dee2e6; transform: translateY(-1px); }
   </style>
@@ -39,16 +37,18 @@
       </li>
       <li class="nav-item">
         <button class="nav-link w-100 text-start" data-bs-toggle="pill" data-bs-target="#history-pane">
-          <i class="bi bi-calendar-check me-2"></i>Résultats
+          <i class="bi bi-plus-circle me-2"></i>Nouveau Match
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link w-100 text-start" data-bs-toggle="pill" data-bs-target="#manage-pane">
+          <i class="bi bi-pencil-square me-2"></i>Gestion Matchs
         </button>
       </li>
       <li class="nav-item">
         <button class="nav-link w-100 text-start" data-bs-toggle="pill" data-bs-target="#stats-pane">
-          <i class="bi bi-bar-chart-fill me-2"></i>Classement
+          <i class="bi bi-bar-chart-fill me-2"></i>Stats Saison
         </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="manage-tab" data-bs-toggle="tab" data-bs-target="#manage-pane" type="button"><i class="bi bi-pencil-square me-2"></i>Gestion Matchs</button>
       </li>
     </ul>
     <hr>
@@ -175,37 +175,86 @@
 
               <div class="d-grid gap-2 mb-3">
                 <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#advancedStatsCollapse">
-                  <i class="bi bi-bar-chart-steps me-2"></i>Ajouter Stats Détaillées (xG, Possession...)
+                  <i class="bi bi-bar-chart-steps me-2"></i>Saisir Stats Avancées (V12)
                 </button>
               </div>
 
               <div class="collapse" id="advancedStatsCollapse">
                 <div class="card card-body bg-light border-0 mb-4">
+
                   <div class="row text-center mb-2">
                     <div class="col-5 fw-bold text-primary">Domicile</div>
-                    <div class="col-2 text-muted small">Métrique</div>
+                    <div class="col-2 text-muted small">Stats</div>
                     <div class="col-5 fw-bold text-danger">Extérieur</div>
                   </div>
 
-                  <div class="row g-2 mb-2 align-items-center">
-                    <div class="col-5"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="hxG" placeholder="xG Dom"></div>
+                  <div class="text-center small text-uppercase fw-bold text-muted my-2">-- Menace Offensive --</div>
+
+                  <div class="row g-1 mb-2 align-items-center">
+                    <div class="col-5"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="hxG" placeholder="xG"></div>
                     <div class="col-2 text-center small fw-bold">xG</div>
-                    <div class="col-5"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="axG" placeholder="xG Ext"></div>
+                    <div class="col-5"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="axG" placeholder="xG"></div>
                   </div>
 
-                  <div class="row g-2 mb-2 align-items-center">
+                  <div class="row g-1 mb-2 align-items-center">
+                    <div class="col-5"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="hxGOT" placeholder="xGOT"></div>
+                    <div class="col-2 text-center small fw-bold">xGOT</div>
+                    <div class="col-5"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="axGOT" placeholder="xGOT"></div>
+                  </div>
+
+                  <div class="row g-1 mb-2 align-items-center">
+                    <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="hBigChances"></div>
+                    <div class="col-2 text-center small fw-bold">Grosses Occas.</div>
+                    <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="aBigChances"></div>
+                  </div>
+
+                  <div class="row g-1 mb-2 align-items-center">
+                    <div class="col-5">
+                      <div class="input-group input-group-sm">
+                        <input type="number" class="form-control text-center" id="hShots" placeholder="Tot">
+                        <input type="number" class="form-control text-center" id="hSoT" placeholder="Cadr">
+                      </div>
+                    </div>
+                    <div class="col-2 text-center small fw-bold">Tirs (Tot/Cad)</div>
+                    <div class="col-5">
+                      <div class="input-group input-group-sm">
+                        <input type="number" class="form-control text-center" id="aShots" placeholder="Tot">
+                        <input type="number" class="form-control text-center" id="aSoT" placeholder="Cadr">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="text-center small text-uppercase fw-bold text-muted my-2">-- Construction --</div>
+
+                  <div class="row g-1 mb-2 align-items-center">
                     <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="hPoss" placeholder="%"></div>
-                    <div class="col-2 text-center small fw-bold">Poss.</div>
+                    <div class="col-2 text-center small fw-bold">Possession</div>
                     <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="aPoss" placeholder="%"></div>
                   </div>
 
-                  <div class="row g-2 mb-2 align-items-center">
-                    <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="hSoT" placeholder="Tirs C."></div>
-                    <div class="col-2 text-center small fw-bold">Tirs Cadrés</div>
-                    <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="aSoT" placeholder="Tirs C."></div>
+                  <div class="row g-1 mb-2 align-items-center">
+                    <div class="col-5">
+                      <div class="input-group input-group-sm">
+                        <input type="number" class="form-control text-center" id="hPassTot" placeholder="Tot">
+                        <input type="number" class="form-control text-center" id="hPassOk" placeholder="Ok">
+                      </div>
+                    </div>
+                    <div class="col-2 text-center small fw-bold">Passes</div>
+                    <div class="col-5">
+                      <div class="input-group input-group-sm">
+                        <input type="number" class="form-control text-center" id="aPassTot" placeholder="Tot">
+                        <input type="number" class="form-control text-center" id="aPassOk" placeholder="Ok">
+                      </div>
+                    </div>
                   </div>
 
-                  <div class="row g-2 mb-2 align-items-center">
+                  <div class="row g-1 mb-2 align-items-center">
+                    <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="hCross"></div>
+                    <div class="col-2 text-center small fw-bold">Centres</div>
+                    <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="aCross"></div>
+                  </div>
+
+                  <div class="row g-1 mb-2 align-items-center">
                     <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="hCorn"></div>
                     <div class="col-2 text-center small fw-bold">Corners</div>
                     <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="aCorn"></div>
@@ -253,7 +302,7 @@
               <th class="text-end">Domicile</th>
               <th class="text-center">Score</th>
               <th>Extérieur</th>
-              <th>xG (D/E)</th>
+              <th>xG</th>
               <th class="text-end">Action</th>
             </tr>
             </thead>
@@ -273,6 +322,7 @@
               <div class="modal-body">
                 <form id="editMatchForm">
                   <input type="hidden" id="editMatchId">
+                  <input type="hidden" id="editMatchDate">
 
                   <div class="row justify-content-center mb-4 bg-light py-3 rounded mx-0">
                     <div class="col-5 text-end fw-bold" id="editHomeName">DOM</div>
@@ -281,24 +331,77 @@
                     <div class="col-5 fw-bold" id="editAwayName">EXT</div>
                   </div>
 
-                  <h6 class="small fw-bold text-muted border-bottom pb-2 mb-3">Stats Détaillées (xG, Poss, Tirs...)</h6>
-                  <div class="row g-2 mb-2">
+                  <div class="text-center small text-uppercase fw-bold text-muted my-2 border-bottom pb-1">-- Menace Offensive --</div>
+
+                  <div class="row g-1 mb-1 align-items-center">
                     <div class="col-2 text-end pt-1"><small>xG</small></div>
                     <div class="col-4"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="editHxG" placeholder="Dom"></div>
                     <div class="col-4"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="editAxG" placeholder="Ext"></div>
                   </div>
-                  <div class="row g-2 mb-2">
+                  <div class="row g-1 mb-1 align-items-center">
+                    <div class="col-2 text-end pt-1"><small>xGOT</small></div>
+                    <div class="col-4"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="editHxGOT"></div>
+                    <div class="col-4"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="editAxGOT"></div>
+                  </div>
+
+                  <div class="row g-1 mb-1 align-items-center">
+                    <div class="col-2 text-end pt-1"><small>Big Ch.</small></div>
+                    <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editHBigChances"></div>
+                    <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editABigChances"></div>
+                  </div>
+
+                  <div class="row g-1 mb-3 align-items-center">
+                    <div class="col-2 text-end pt-1"><small>Tirs (T/C)</small></div>
+                    <div class="col-4">
+                      <div class="input-group input-group-sm">
+                        <input type="number" class="form-control text-center px-1" id="editHShots" placeholder="T">
+                        <input type="number" class="form-control text-center px-1" id="editHSoT" placeholder="C">
+                      </div>
+                    </div>
+                    <div class="col-4">
+                      <div class="input-group input-group-sm">
+                        <input type="number" class="form-control text-center px-1" id="editAShots" placeholder="T">
+                        <input type="number" class="form-control text-center px-1" id="editASoT" placeholder="C">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="text-center small text-uppercase fw-bold text-muted my-2 border-bottom pb-1">-- Construction --</div>
+
+                  <div class="row g-1 mb-1 align-items-center">
                     <div class="col-2 text-end pt-1"><small>Possession</small></div>
                     <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editHPoss"></div>
                     <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editAPoss"></div>
                   </div>
-                  <div class="row g-2 mb-2">
-                    <div class="col-2 text-end pt-1"><small>Tirs Cadrés</small></div>
-                    <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editHSoT"></div>
-                    <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editASoT"></div>
+
+                  <div class="row g-1 mb-1 align-items-center">
+                    <div class="col-2 text-end pt-1"><small>Passes</small></div>
+                    <div class="col-4">
+                      <div class="input-group input-group-sm">
+                        <input type="number" class="form-control text-center px-1" id="editHPassTot" placeholder="T">
+                        <input type="number" class="form-control text-center px-1" id="editHPassOk" placeholder="Ok">
+                      </div>
+                    </div>
+                    <div class="col-4">
+                      <div class="input-group input-group-sm">
+                        <input type="number" class="form-control text-center px-1" id="editAPassTot" placeholder="T">
+                        <input type="number" class="form-control text-center px-1" id="editAPassOk" placeholder="Ok">
+                      </div>
+                    </div>
                   </div>
 
-                  <div class="mt-4 text-end">
+                  <div class="row g-1 mb-1 align-items-center">
+                    <div class="col-2 text-end pt-1"><small>Centres</small></div>
+                    <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editHCross"></div>
+                    <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editACross"></div>
+                  </div>
+                  <div class="row g-1 mb-2 align-items-center">
+                    <div class="col-2 text-end pt-1"><small>Corners</small></div>
+                    <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editHCorn"></div>
+                    <div class="col-4"><input type="number" class="form-control form-control-sm text-center" id="editACorn"></div>
+                  </div>
+
+                  <div class="mt-4 text-end border-top pt-3">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                     <button type="submit" class="btn btn-success fw-bold">Enregistrer les modifications</button>
                   </div>
@@ -310,11 +413,11 @@
       </div>
 
       <div class="tab-pane fade" id="stats-pane">
-        <h3 class="mb-4">Mise à jour des Stats Équipe (Snapshot)</h3>
+        <h3 class="mb-4">Mise à jour des Stats Saison</h3>
         <div class="card p-4 border-info border-2 border-top-0 border-end-0 border-bottom-0">
           <div class="alert alert-info small">
             <i class="bi bi-info-circle me-2"></i>
-            Ces données seront pré-remplies automatiquement lors de vos futures analyses.
+            Snapshot de saison (Classement, BP, BC) utilisé pour les stats globales.
           </div>
 
           <form id="statsForm">
@@ -329,8 +432,6 @@
               </div>
             </div>
 
-            <hr>
-
             <div class="row g-2 mb-3">
               <div class="col-md-2"><label>Rang</label><input type="number" class="form-control" id="sRank" required></div>
               <div class="col-md-2"><label>Points</label><input type="number" class="form-control" id="sPoints" required></div>
@@ -340,30 +441,7 @@
               <div class="col-md-2"><label>Forme (5m)</label><input type="number" class="form-control" id="sForm"></div>
             </div>
 
-            <h6 class="text-muted mt-3">Détail Matchs Joués</h6>
-            <div class="row g-2 mb-3">
-              <div class="col-md-4">
-                <div class="input-group input-group-sm">
-                  <span class="input-group-text">Total</span>
-                  <input type="number" class="form-control" id="sMjTotal" placeholder="MJ">
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="input-group input-group-sm">
-                  <span class="input-group-text">Domicile</span>
-                  <input type="number" class="form-control" id="sMjHome" placeholder="MJ">
-                  <input type="number" class="form-control" id="sPtsHome" placeholder="Pts">
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="input-group input-group-sm">
-                  <span class="input-group-text">Extérieur</span>
-                  <input type="number" class="form-control" id="sMjAway" placeholder="MJ">
-                  <input type="number" class="form-control" id="sPtsAway" placeholder="Pts"> </div>
-              </div>
-            </div>
-
-            <button type="submit" class="btn btn-info text-white w-100 fw-bold">Sauvegarder l'État</button>
+            <button type="submit" class="btn btn-info text-white w-100 fw-bold">Sauvegarder</button>
           </form>
         </div>
       </div>
@@ -375,22 +453,15 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+  // CONFIG & HELPERS
   const COUNTRIES = [
     { code: "fr", name: "France", label: "France 🇫🇷" },
     { code: "gb-eng", name: "England", label: "Angleterre 🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
     { code: "es", name: "Spain", label: "Espagne 🇪🇸" },
     { code: "de", name: "Germany", label: "Allemagne 🇩🇪" },
-    { code: "it", name: "Italy", label: "Italie 🇮🇹" },
-    { code: "pt", name: "Portugal", label: "Portugal 🇵🇹" },
-    { code: "nl", name: "Netherlands", label: "Pays-Bas 🇳🇱" },
-    { code: "be", name: "Belgium", label: "Belgique 🇧🇪" },
-    { code: "br", name: "Brazil", label: "Brésil 🇧🇷" },
-    { code: "ar", name: "Argentina", label: "Argentine 🇦🇷" },
-    { code: "sa", name: "Saudi Arabia", label: "Arabie Saoudite 🇸🇦" },
-    { code: "us", name: "USA", label: "États-Unis 🇺🇸" }
+    { code: "it", name: "Italy", label: "Italie 🇮🇹" }
   ];
 
-  // --- UX FEEDBACK ---
   function showToast(message, isError = false) {
     const toastEl = document.getElementById('liveToast');
     document.getElementById('toastMessage').innerText = message;
@@ -398,9 +469,15 @@
     new bootstrap.Toast(toastEl).show();
   }
 
-  // 1. Initialisation des selects
+  const getVal = (id) => document.getElementById(id).value ? parseFloat(document.getElementById(id).value) : null;
+  const getInt = (id) => document.getElementById(id).value ? parseInt(document.getElementById(id).value) : null;
+
+
+  // --- LOGIQUE METIER ---
+
+  // 1. GESTION LIGUES & EQUIPES
   document.getElementById('manageLeagueSelect').addEventListener('change', function() {
-    loadTeams(this.value, ['manageTeamSelect']); // Réutilise ton loadTeams existant
+    loadTeams(this.value, ['manageTeamSelect']);
     document.getElementById('manageTeamSelect').disabled = false;
   });
 
@@ -408,28 +485,24 @@
     document.getElementById('btnLoadMatches').disabled = false;
   });
 
-  // 2. Chargement de la liste
+  // 2. LISTE MATCHS
   document.getElementById('btnLoadMatches').addEventListener('click', async () => {
     const teamId = document.getElementById('manageTeamSelect').value;
     const tbody = document.getElementById('matchesTableBody');
     tbody.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border text-primary"></div></td></tr>';
 
     try {
-      const res = await fetch(`/api/v1/analyses/teams/${teamId}`); // Appel au nouveau endpoint
+      const res = await fetch(`/api/v1/analyses/teams/${teamId}`);
       const matches = await res.json();
 
       if (matches.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Aucun match trouvé pour cette équipe.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Aucun match trouvé.</td></tr>';
         return;
       }
 
       tbody.innerHTML = matches.map(m => {
         const date = new Date(m.matchDate).toLocaleDateString();
         const isHome = (m.homeTeam.id == teamId);
-        // Affichage intelligent : Opposant en gras
-        const opponent = isHome ? m.awayTeam.name : m.homeTeam.name;
-        const place = isHome ? '<span class="badge bg-light text-dark border">Dom</span>' : '<span class="badge bg-dark">Ext</span>';
-
         const xGDisplay = (m.homeMatchStats?.xG || '-') + ' / ' + (m.awayMatchStats?.xG || '-');
 
         return `
@@ -444,319 +517,180 @@
                             <i class="bi bi-pencil"></i>
                         </button>
                     </td>
-                </tr>
-              `;
+                </tr>`;
       }).join('');
-
-    } catch (e) {
-      console.error(e);
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Erreur chargement.</td></tr>';
-    }
+    } catch (e) { console.error(e); }
   });
 
-  // 3. Ouverture du Modal d'Édition
+  // 3. MODAL EDIT
   window.openEditModal = (match) => {
-    // Pré-remplissage
     document.getElementById('editMatchId').value = match.id;
+    document.getElementById('editMatchDate').value = match.matchDate;
     document.getElementById('editHomeName').innerText = match.homeTeam.name;
     document.getElementById('editAwayName').innerText = match.awayTeam.name;
-
     document.getElementById('editHomeScore').value = match.homeScore;
     document.getElementById('editAwayScore').value = match.awayScore;
 
-    // Remplissage Stats V10 (si existantes)
+    // Helpers pour éviter les crashs si stats null
     const h = match.homeMatchStats || {};
     const a = match.awayMatchStats || {};
 
+    // Remplissage Domicile
     document.getElementById('editHxG').value = h.xG || '';
-    document.getElementById('editAxG').value = a.xG || '';
-    document.getElementById('editHPoss').value = h.possession || '';
-    document.getElementById('editAPoss').value = a.possession || '';
+    document.getElementById('editHxGOT').value = h.xGOT || '';
+    document.getElementById('editHBigChances').value = h.bigChances || '';
+    document.getElementById('editHShots').value = h.shots || '';
     document.getElementById('editHSoT').value = h.shotsOnTarget || '';
-    document.getElementById('editASoT').value = a.shotsOnTarget || '';
+    document.getElementById('editHPoss').value = h.possession || '';
+    document.getElementById('editHPassTot').value = h.passesTotal || '';
+    document.getElementById('editHPassOk').value = h.passesCompleted || '';
+    document.getElementById('editHCross').value = h.crosses || '';
+    document.getElementById('editHCorn').value = h.corners || '';
 
-    // Afficher Modal
+    // Remplissage Extérieur
+    document.getElementById('editAxG').value = a.xG || '';
+    document.getElementById('editAxGOT').value = a.xGOT || '';
+    document.getElementById('editABigChances').value = a.bigChances || '';
+    document.getElementById('editAShots').value = a.shots || '';
+    document.getElementById('editASoT').value = a.shotsOnTarget || '';
+    document.getElementById('editAPoss').value = a.possession || '';
+    document.getElementById('editAPassTot').value = a.passesTotal || '';
+    document.getElementById('editAPassOk').value = a.passesCompleted || '';
+    document.getElementById('editACross').value = a.crosses || '';
+    document.getElementById('editACorn').value = a.corners || '';
+
     new bootstrap.Modal(document.getElementById('editMatchModal')).show();
   };
 
-  // 4. Soumission Modification
   document.getElementById('editMatchForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const matchId = document.getElementById('editMatchId').value;
 
     const payload = {
-      homeScore: parseInt(document.getElementById('editHomeScore').value),
-      awayScore: parseInt(document.getElementById('editAwayScore').value),
-      matchDate: new Date().toISOString(), // On garde la date (ou on pourrait la rendre modifiable)
+      homeScore: getInt('editHomeScore'),
+      awayScore: getInt('editAwayScore'),
+      matchDate: document.getElementById('editMatchDate').value || new Date().toISOString(),
 
       homeMatchStats: {
-        xG: parseFloat(document.getElementById('editHxG').value) || null,
-        possession: parseInt(document.getElementById('editHPoss').value) || null,
-        shotsOnTarget: parseInt(document.getElementById('editHSoT').value) || null
+        xG: getVal('editHxG'), xGOT: getVal('editHxGOT'), bigChances: getInt('editHBigChances'),
+        shots: getInt('editHShots'), shotsOnTarget: getInt('editHSoT'),
+        possession: getInt('editHPoss'),
+        passesTotal: getInt('editHPassTot'), passesCompleted: getInt('editHPassOk'),
+        crosses: getInt('editHCross'), corners: getInt('editHCorn')
       },
       awayMatchStats: {
-        xG: parseFloat(document.getElementById('editAxG').value) || null,
-        possession: parseInt(document.getElementById('editAPoss').value) || null,
-        shotsOnTarget: parseInt(document.getElementById('editASoT').value) || null
+        xG: getVal('editAxG'), xGOT: getVal('editAxGOT'), bigChances: getInt('editABigChances'),
+        shots: getInt('editAShots'), shotsOnTarget: getInt('editASoT'),
+        possession: getInt('editAPoss'),
+        passesTotal: getInt('editAPassTot'), passesCompleted: getInt('editAPassOk'),
+        crosses: getInt('editACross'), corners: getInt('editACorn')
       }
-      // Note: homeTeamId/awayTeamId ne sont pas nécessaires pour l'update,
-      // mais le DTO pourrait les demander s'ils sont @NotNull.
-      // Si ton DTO valide @NotNull sur les IDs, il faudra les passer.
-      // Dans notre cas V11 updateMatch, on ne lit que les stats, donc ça passe.
     };
 
-    try {
-      const res = await fetch(`/api/v1/analyses/${matchId}`, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-      });
+    const res = await fetch(`/api/v1/analyses/${matchId}`, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+    });
 
-      if(res.ok) {
-        showToast("Match mis à jour !");
-        bootstrap.Modal.getInstance(document.getElementById('editMatchModal')).hide();
-        document.getElementById('btnLoadMatches').click(); // Recharger la liste
-      } else {
-        showToast("Erreur lors de la mise à jour", true);
-      }
-    } catch(err) { console.error(err); }
+    if(res.ok) {
+      showToast("Match complet mis à jour !");
+      bootstrap.Modal.getInstance(document.getElementById('editMatchModal')).hide();
+      document.getElementById('btnLoadMatches').click(); // Rafraîchir la liste
+    } else {
+      showToast("Erreur lors de la mise à jour", true);
+    }
   });
 
-  // --- CHARGEMENT DONNÉES ---
+  // 4. CHARGEMENT
   async function loadLeagues() {
-    try {
-      const res = await fetch('/api/v1/references/leagues');
-      const leagues = await res.json();
-
-      // Liste des selects à remplir avec les ligues
-      const ids = ['teamLeagueSelect', 'historyLeagueSelect', 'statsLeagueSelect', 'manageLeagueSelect'];
-
-      ids.forEach(id => {
-        const select = document.getElementById(id);
-        if(!select) return;
-        const saveVal = select.value;
-        select.innerHTML = '<option value="" selected disabled>Choisir...</option>';
-        leagues.forEach(l => {
-          select.innerHTML += `<option value="${l.id}">${l.name} (${l.country || '?'})</option>`;
-        });
-        if(saveVal) select.value = saveVal;
-      });
-    } catch(e) { console.error(e); }
-  }
-
-  // --- FONCTION CORRIGÉE : CHARGEMENT DES ÉQUIPES ---
-  // targetSelectIds : Tableau des IDs des <select> à remplir (ex: ['histHomeTeam'])
-  async function loadTeams(leagueId, targetSelectIds = []) {
-    if (!leagueId) return;
-    try {
-      const res = await fetch(`/api/v1/references/leagues/${leagueId}/teams`);
-      const teams = await res.json();
-
-      // 1. Remplir les Selects demandés (Stats, Historique...)
-      targetSelectIds.forEach(id => {
-        const sel = document.getElementById(id);
-        if(sel) {
-          sel.innerHTML = '<option value="" selected disabled>Choisir...</option>';
-          teams.forEach(t => {
-            // CORRECTION MAJEURE : On met l'ID en value, pas le nom !
-            sel.innerHTML += `<option value="${t.id}">${t.name}</option>`;
-          });
-          sel.disabled = false;
-        }
-      });
-
-      // 2. Remplir la liste visuelle (Onglet Équipes uniquement)
-      const container = document.getElementById('existingTeamsContainer');
-      if (container && document.getElementById('teamLeagueSelect').value == leagueId) {
-        if (teams.length === 0) {
-          container.innerHTML = '<span class="text-muted small">Aucune équipe dans ce championnat.</span>';
-        } else {
-          container.innerHTML = teams.map(t =>
-                  `<span class="team-badge"><i class="bi bi-shield me-1"></i>${t.name}</span>`
-          ).join('');
-        }
+    const res = await fetch('/api/v1/references/leagues');
+    const leagues = await res.json();
+    ['teamLeagueSelect', 'historyLeagueSelect', 'statsLeagueSelect', 'manageLeagueSelect'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) {
+        el.innerHTML = '<option value="" selected disabled>Choisir...</option>' + leagues.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
       }
-
-    } catch (e) { console.error(e); }
+    });
   }
 
-  // --- EVENT LISTENERS ---
+  async function loadTeams(leagueId, targets = []) {
+    if (!leagueId) return;
+    const res = await fetch(`/api/v1/references/leagues/${leagueId}/teams`);
+    const teams = await res.json();
 
+    targets.forEach(id => {
+      const el = document.getElementById(id);
+      if(el) {
+        el.innerHTML = '<option value="" selected disabled>Choisir...</option>' + teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        el.disabled = false;
+      }
+    });
+
+    const container = document.getElementById('existingTeamsContainer');
+    if (container && document.getElementById('teamLeagueSelect').value == leagueId) {
+      container.innerHTML = teams.length ? teams.map(t => `<span class="team-badge">${t.name}</span>`).join('') : 'Aucune équipe.';
+    }
+  }
+
+  // 5. EVENT LISTENERS GLOBAUX
   document.addEventListener('DOMContentLoaded', () => {
     loadLeagues();
     const cSelect = document.getElementById('countrySelect');
-    COUNTRIES.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.code;
-      opt.setAttribute('data-name', c.name);
-      opt.text = c.label;
-      cSelect.appendChild(opt);
-    });
-    const d = new Date(); d.setDate(d.getDate() - 1);
-    document.getElementById('histDate').valueAsDate = d;
+    COUNTRIES.forEach(c => cSelect.innerHTML += `<option value="${c.code}" data-name="${c.name}">${c.label}</option>`);
+    document.getElementById('histDate').valueAsDate = new Date();
   });
 
-  document.getElementById('countrySelect').addEventListener('change', function() {
-    const img = document.getElementById('countryFlagPreview');
-    if(this.value) {
-      img.src = `https://flagcdn.com/40x30/${this.value}.png`;
-      img.style.display = 'inline-block';
-    }
-  });
+  document.getElementById('teamLeagueSelect').addEventListener('change', function() { loadTeams(this.value); });
+  document.getElementById('historyLeagueSelect').addEventListener('change', function() { loadTeams(this.value, ['histHomeTeam', 'histAwayTeam']); });
+  document.getElementById('statsLeagueSelect').addEventListener('change', function() { loadTeams(this.value, ['statsTeamSelect']); });
 
-  // 1. Onglet ÉQUIPES : Affiche la liste visuelle
-  document.getElementById('teamLeagueSelect').addEventListener('change', function() {
-    loadTeams(this.value); // Pas de select à remplir ici, juste la liste visuelle
-  });
-
-  // 2. Onglet HISTORIQUE : Remplit les dropdowns Domicile/Extérieur
-  document.getElementById('historyLeagueSelect').addEventListener('change', function() {
-    loadTeams(this.value, ['histHomeTeam', 'histAwayTeam']);
-  });
-
-  // 3. Onglet CLASSEMENT (Stats) : Remplit le dropdown Équipe
-  document.getElementById('statsLeagueSelect').addEventListener('change', function() {
-    loadTeams(this.value, ['statsTeamSelect']);
-  });
-
-  function swapTeams() {
-    const h = document.getElementById('histHomeTeam');
-    const a = document.getElementById('histAwayTeam');
-    [h.value, a.value] = [a.value, h.value];
-  }
-
-  // --- SOUMISSIONS ---
-
-  // Créer Ligue
-  document.getElementById('leagueForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const sel = document.getElementById('countrySelect');
-    const payload = {
-      name: document.getElementById('newLeagueName').value,
-      country: sel.options[sel.selectedIndex].getAttribute('data-name'),
-      countryCode: sel.value
-    };
-    const res = await fetch('/api/v1/references/leagues', {
-      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
-    });
-    if(res.ok) {
-      showToast('Ligue créée !');
-      e.target.reset();
-      document.getElementById('countryFlagPreview').style.display = 'none';
-      loadLeagues();
-    } else {
-      showToast('Erreur création', true);
-    }
-  });
-
-  // Créer Équipe
-  document.getElementById('teamForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const leagueId = document.getElementById('teamLeagueSelect').value;
-    const name = document.getElementById('newTeamName').value;
-    const res = await fetch('/api/v1/references/teams', {
-      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name, leagueId })
-    });
-    if(res.ok) {
-      showToast('Équipe ajoutée !');
-      document.getElementById('newTeamName').value = '';
-      loadTeams(leagueId);
-    } else {
-      showToast('Erreur création', true);
-    }
-  });
-
-  // Créer Résultat Complet (V10)
   document.getElementById('historyForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-
     const payload = {
       homeTeamId: document.getElementById('histHomeTeam').value,
       awayTeamId: document.getElementById('histAwayTeam').value,
       matchDate: new Date(document.getElementById('histDate').value).toISOString(),
-      homeScore: document.getElementById('histHomeScore').value,
-      awayScore: document.getElementById('histAwayScore').value,
+      homeScore: getInt('histHomeScore'),
+      awayScore: getInt('histAwayScore'),
+      homeStats: {rank:0}, awayStats: {rank:0}, // Mock
 
-      // Stats obligatoires pour le modèle (mock si pas de stats détaillées)
-      homeStats: { rank: 0, points: 0 },
-      awayStats: { rank: 0, points: 0 },
-
-      // --- V10 : Stats Détaillées ---
+      // V12 Full Payload
       homeMatchStats: {
-        xG: document.getElementById('hxG').value || null,
-        possession: document.getElementById('hPoss').value || null,
-        shotsOnTarget: document.getElementById('hSoT').value || null,
-        corners: document.getElementById('hCorn').value || null
+        xG: getVal('hxG'), xGOT: getVal('hxGOT'), bigChances: getInt('hBigChances'),
+        shots: getInt('hShots'), shotsOnTarget: getInt('hSoT'),
+        possession: getInt('hPoss'), passesTotal: getInt('hPassTot'), passesCompleted: getInt('hPassOk'),
+        crosses: getInt('hCross'), corners: getInt('hCorn')
       },
       awayMatchStats: {
-        xG: document.getElementById('axG').value || null,
-        possession: document.getElementById('aPoss').value || null,
-        shotsOnTarget: document.getElementById('aSoT').value || null,
-        corners: document.getElementById('aCorn').value || null
+        xG: getVal('axG'), xGOT: getVal('axGOT'), bigChances: getInt('aBigChances'),
+        shots: getInt('aShots'), shotsOnTarget: getInt('aSoT'),
+        possession: getInt('aPoss'), passesTotal: getInt('aPassTot'), passesCompleted: getInt('aPassOk'),
+        crosses: getInt('aCross'), corners: getInt('aCorn')
       }
     };
 
     const res = await fetch('/api/v1/analyses', {
       method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
     });
-
     if(res.ok) {
-      showToast('Match enregistré avec succès !');
-      // Reset partiel
-      document.getElementById('histHomeScore').value = '';
-      document.getElementById('histAwayScore').value = '';
-      // Reset stats avancées
-      document.querySelectorAll('#advancedStatsCollapse input').forEach(i => i.value = '');
-    } else {
-      showToast('Erreur enregistrement (Vérifiez les IDs)', true);
+      showToast('Match complet enregistré !');
+      e.target.reset();
+      document.getElementById('histDate').valueAsDate = new Date();
     }
   });
 
-  // Sauvegarde Stats (Snapshot) - CORRIGÉ
   document.getElementById('statsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-
-    // Récupération de l'ID de l'équipe (Assure-toi que loadTeams met bien l'ID en value !)
     const teamId = document.getElementById('statsTeamSelect').value;
-
-    if (!teamId) {
-      showToast("Erreur : Aucune équipe sélectionnée", true);
-      return;
-    }
-
     const payload = {
-      rank: parseInt(document.getElementById('sRank').value) || 0,
-      points: parseInt(document.getElementById('sPoints').value) || 0,
-      xG: parseFloat(document.getElementById('sXg').value) || 0.0,
-      goalsFor: parseInt(document.getElementById('sGF').value) || 0,
-      goalsAgainst: parseInt(document.getElementById('sGA').value) || 0,
-      last5MatchesPoints: parseInt(document.getElementById('sForm').value) || 0,
-
-      // Stats détaillées
-      matchesPlayed: parseInt(document.getElementById('sMjTotal').value) || 0,
-      matchesPlayedHome: parseInt(document.getElementById('sMjHome').value) || 0,
-      matchesPlayedAway: parseInt(document.getElementById('sMjAway').value) || 0,
-      venuePoints: parseInt(document.getElementById('sPtsHome').value) || 0
-      // Note : Tu pourras ajouter venueMatches si tu l'ajoutes au formulaire HTML
+      rank: getInt('sRank'), points: getInt('sPoints'), xG: getVal('sXg'),
+      goalsFor: getInt('sGF'), goalsAgainst: getInt('sGA'), last5MatchesPoints: getInt('sForm')
     };
-
-    try {
-      const res = await fetch(`/api/v1/references/teams/${teamId}/stats`, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-      });
-
-      if(res.ok) {
-        showToast("Stats mises à jour avec succès !");
-      } else {
-        showToast("Erreur serveur lors de la sauvegarde", true);
-      }
-    } catch (err) {
-      console.error(err);
-      showToast("Erreur technique", true);
-    }
+    const res = await fetch(`/api/v1/references/teams/${teamId}/stats`, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+    });
+    if(res.ok) showToast("Stats mises à jour !");
   });
+
 </script>
 </body>
 </html>

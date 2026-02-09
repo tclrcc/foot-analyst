@@ -1,10 +1,7 @@
 package com.tony.sportsAnalytics.service;
 
 import com.tony.sportsAnalytics.config.PredictionProperties;
-import com.tony.sportsAnalytics.model.MatchAnalysis;
-import com.tony.sportsAnalytics.model.PredictionResult;
-import com.tony.sportsAnalytics.model.Team;
-import com.tony.sportsAnalytics.model.TeamStats;
+import com.tony.sportsAnalytics.model.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -58,7 +55,8 @@ public class PredictionEngineService {
      * Calcule les probabilités du match en utilisant la Loi de Poisson ajustée (Dixon-Coles)
      * et une pondération temporelle (Saison vs Forme).
      */
-    public PredictionResult calculateMatchPrediction(MatchAnalysis match, List<MatchAnalysis> h2hHistory, double leagueAvg) {
+    public PredictionResult calculateMatchPrediction(MatchAnalysis match, List<MatchAnalysis> h2hHistory,
+            List<MatchAnalysis> homeLastMatches, List<MatchAnalysis> awayLastMatches, double leagueAvg) {
         // 1. Calcul des Espérances de Buts (Lambda/Mu) avec Pondération Temporelle (Point 4)
         double homeLambda = calculateExpectedGoals(match.getHomeStats(), match.getAwayStats(), true,
                 match.getHomeTeam(), match.getAwayTeam(), leagueAvg);
@@ -83,6 +81,13 @@ public class PredictionEngineService {
             if (h2hFactor > 0) homeLambda *= (1.0 + h2hFactor);
             else awayLambda *= (1.0 + Math.abs(h2hFactor));
         }
+
+        // On analyse la "Dangerosité Réelle" des 5-10 derniers matchs
+        double homeTacticalBoost = calculateTacticalBonus(match.getHomeTeam(), homeLastMatches);
+        double awayTacticalBoost = calculateTacticalBonus(match.getAwayTeam(), awayLastMatches);
+
+        homeLambda *= homeTacticalBoost;
+        awayLambda *= awayTacticalBoost;
 
         // 3. Matrice de Poisson & Dixon-Coles
         double probHomeWin = 0.0, probDraw = 0.0, probAwayWin = 0.0;
@@ -140,6 +145,67 @@ public class PredictionEngineService {
                 // Champs V9 Value/Kelly
                 kellyHome, kellyDraw, kellyAway, valueSide
         );
+    }
+
+    /**
+     * V12 : Calcule un multiplicateur basé sur les stats avancées.
+     */
+    private double calculateTacticalBonus(Team team, List<MatchAnalysis> history) {
+        if (history == null || history.isEmpty()) return 1.0;
+
+        double totalXgot = 0.0;
+        double totalBigChances = 0.0;
+        double totalShots = 0.0;
+        double totalShotsOnTarget = 0.0;
+        double totalDominance = 0.0;
+        int count = 0;
+
+        for (MatchAnalysis m : history) {
+            MatchDetailStats stats = null;
+            if (m.getHomeTeam().equals(team)) stats = m.getHomeMatchStats();
+            else if (m.getAwayTeam().equals(team)) stats = m.getAwayMatchStats();
+
+            if (stats != null) {
+                totalXgot += (stats.getXGOT() != null) ? stats.getXGOT() : (stats.getXG() != null ? stats.getXG() : 0);
+                totalBigChances += (stats.getBigChances() != null) ? stats.getBigChances() : 0;
+
+                totalShots += (stats.getShots() != null) ? stats.getShots() : 0;
+                totalShotsOnTarget += (stats.getShotsOnTarget() != null) ? stats.getShotsOnTarget() : 0;
+
+                double poss = (stats.getPossession() != null) ? stats.getPossession() : 50.0;
+                double passAcc = stats.getPassAccuracy();
+                totalDominance += (poss * passAcc);
+
+                count++;
+            }
+        }
+
+        if (count < 3) return 1.0;
+
+        double avgXgot = totalXgot / count;
+        double avgBigChances = totalBigChances / count;
+        double avgDominance = totalDominance / count;
+
+        // Ratio de précision : Tirs Cadrés / Tirs Totaux
+        double shotAccuracy = (totalShots > 0) ? (totalShotsOnTarget / totalShots) : 0.33;
+
+        double bonus = 1.0;
+
+        // 1. Facteur "Tueur" (xGOT élevé)
+        if (avgXgot > 1.5) bonus += 0.05;
+        if (avgXgot > 2.0) bonus += 0.05;
+
+        // 2. Facteur "Création" (Big Chances)
+        if (avgBigChances >= 3.0) bonus += 0.05;
+
+        // 3. Facteur "Contrôle" (Domination)
+        if (avgDominance > 45.0) bonus += 0.03;
+
+        // 4. Facteur "Précision" (Nouveau - Utilise shotAccuracy)
+        // Si plus de 40% des tirs sont cadrés, c'est une attaque chirurgicale
+        if (shotAccuracy > 0.40) bonus += 0.04;
+
+        return bonus;
     }
 
     /**

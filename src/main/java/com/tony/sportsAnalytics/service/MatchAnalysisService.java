@@ -5,6 +5,7 @@ import com.tony.sportsAnalytics.model.dto.MatchAnalysisRequest;
 import com.tony.sportsAnalytics.repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,10 +15,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MatchAnalysisService {
 
-    private final MatchAnalysisRepository matchRepository;
+    private final MatchAnalysisRepository matchAnalysisRepository;
     private final TeamRepository teamRepository;
     private final EloService eloService;
-    private final MatchAnalysisRepository analysisRepository;
+    private final TeamStatsService teamStatsService;
     private final PredictionEngineService predictionEngine;
 
     @Transactional
@@ -66,10 +67,18 @@ public class MatchAnalysisService {
         double leagueAvg = homeTeam.getLeague().getAverageGoalsPerTeam();
 
         // Calcul Prédictif
-        List<MatchAnalysis> historiqueH2H = analysisRepository.findH2H(homeTeam, awayTeam, null);
+        List<MatchAnalysis> h2h = matchAnalysisRepository.findH2H(homeTeam, awayTeam, null);
+
+        // --- V12 : RÉCUPÉRATION DE LA FORME RÉCENTE (LAST 10) ---
+        // On utilise la méthode repository existante (ou on crée une variante avec Pageable pour limiter à 10)
+        // Pour simplifier, assumons qu'on prend tout et qu'on stream limit, ou mieux, on crée une requête repository.
+        List<MatchAnalysis> homeLast10 = matchAnalysisRepository.findLastMatchesByTeam(homeTeam.getId(), PageRequest.of(0,10));
+        List<MatchAnalysis> awayLast10 = matchAnalysisRepository.findLastMatchesByTeam(awayTeam.getId(), PageRequest.of(0,10));
 
         // Le moteur utilise maintenant l'objet 'match' qui contient le contexte
-        PredictionResult prediction = predictionEngine.calculateMatchPrediction(match, historiqueH2H, leagueAvg);
+        PredictionResult prediction = predictionEngine.calculateMatchPrediction(
+                match, h2h, homeLast10, awayLast10, leagueAvg
+        );
         match.setPrediction(prediction);
 
         // --- APPRENTISSAGE ELO (V8) ---
@@ -86,20 +95,28 @@ public class MatchAnalysisService {
             System.out.println("⚡ ELO Update: " + homeTeam.getName() + " (" + homeTeam.getEloRating() + ") vs " + awayTeam.getName() + " (" + awayTeam.getEloRating() + ")");
         }
 
-        return matchRepository.save(match);
+        MatchAnalysis savedMatch = matchAnalysisRepository.save(match);
+
+        // --- AJOUT V12 : RECALCUL AUTOMATIQUE DES STATS ---
+        if (savedMatch.getHomeScore() != null) {
+            teamStatsService.recalculateTeamStats(savedMatch.getHomeTeam().getId());
+            teamStatsService.recalculateTeamStats(savedMatch.getAwayTeam().getId());
+        }
+
+        return savedMatch;
     }
 
     // ...
 
     // V11 : Lister les matchs d'une équipe
     public List<MatchAnalysis> getMatchesByTeam(Long teamId) {
-        return analysisRepository.findByHomeTeamIdOrAwayTeamIdOrderByMatchDateDesc(teamId, teamId);
+        return matchAnalysisRepository.findByHomeTeamIdOrAwayTeamIdOrderByMatchDateDesc(teamId, teamId);
     }
 
     // V11 : Mettre à jour un match existant
     @Transactional
     public MatchAnalysis updateMatch(Long matchId, MatchAnalysisRequest request) {
-        MatchAnalysis match = matchRepository.findById(matchId)
+        MatchAnalysis match = matchAnalysisRepository.findById(matchId)
                 .orElseThrow(() -> new RuntimeException("Match introuvable ID: " + matchId));
 
         // Mise à jour des infos de base
@@ -119,9 +136,12 @@ public class MatchAnalysisService {
             match.setAwayNewCoach(request.getContext().isAwayNewCoach());
         }
 
-        // Note : On ne recalcule pas l'ELO ici pour éviter de casser l'historique complet.
-        // On suppose que c'est une correction de données (stats, xG...).
+        MatchAnalysis savedMatch = matchAnalysisRepository.save(match);
 
-        return matchRepository.save(match);
+        // --- AJOUT V12 : RECALCUL AUTOMATIQUE DES STATS ---
+        teamStatsService.recalculateTeamStats(savedMatch.getHomeTeam().getId());
+        teamStatsService.recalculateTeamStats(savedMatch.getAwayTeam().getId());
+
+        return savedMatch;
     }
 }
