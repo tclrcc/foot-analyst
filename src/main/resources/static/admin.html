@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Foot Analyst - Back Office</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .admin-header { background: #343a40; color: white; }
+    .nav-tabs .nav-link.active { font-weight: bold; border-bottom: 3px solid #0d6efd; }
+  </style>
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-dark bg-dark mb-4 shadow-sm">
+  <div class="container">
+    <span class="navbar-brand mb-0 h1">🛠️ Back Office Admin</span>
+    <a href="/" class="btn btn-outline-light btn-sm">Retour App</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+    <li class="nav-item">
+      <button class="nav-link active" id="league-tab" data-bs-toggle="tab" data-bs-target="#league-pane" type="button">Nouvelle Ligue</button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" id="team-tab" data-bs-toggle="tab" data-bs-target="#team-pane" type="button">Nouvelle Équipe</button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-pane" type="button">Historique Match</button>
+    </li>
+  </ul>
+
+  <div class="tab-content" id="myTabContent">
+
+    <div class="tab-pane fade show active" id="league-pane" role="tabpanel">
+      <div class="card shadow-sm col-md-6">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Ajouter un Championnat</h5>
+          <form id="leagueForm">
+            <div class="mb-3">
+              <label class="form-label">Nom du Championnat</label>
+              <input type="text" class="form-control" id="newLeagueName" placeholder="Ex: Serie A" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="team-pane" role="tabpanel">
+      <div class="card shadow-sm col-md-6">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Ajouter une Équipe</h5>
+          <form id="teamForm">
+            <div class="mb-3">
+              <label class="form-label">Championnat</label>
+              <select class="form-select league-select" id="teamLeagueSelect" required>
+                <option value="" disabled selected>Chargement...</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Nom de l'équipe</label>
+              <input type="text" class="form-control" id="newTeamName" placeholder="Ex: Juventus" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="history-pane" role="tabpanel">
+      <div class="card shadow-sm border-warning">
+        <div class="card-header bg-warning text-dark">
+          <strong>Saisie d'un résultat passé</strong> (Pour alimenter la base)
+        </div>
+        <div class="card-body">
+          <form id="historyForm">
+            <div class="mb-3">
+              <label class="form-label">Championnat</label>
+              <select class="form-select league-select" id="historyLeagueSelect" required></select>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-5">
+                <label class="form-label">Domicile</label>
+                <select class="form-select home-team-select" id="histHomeTeam" disabled required></select>
+              </div>
+              <div class="col-md-2 text-center align-self-end">
+                <strong>VS</strong>
+              </div>
+              <div class="col-md-5">
+                <label class="form-label">Extérieur</label>
+                <select class="form-select away-team-select" id="histAwayTeam" disabled required></select>
+              </div>
+            </div>
+
+            <div class="row mb-3 bg-light p-3 rounded">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Score Domicile</label>
+                <input type="number" class="form-control" id="histHomeScore" required min="0">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Score Extérieur</label>
+                <input type="number" class="form-control" id="histAwayScore" required min="0">
+              </div>
+            </div>
+
+            <p class="text-muted small">Note : Vous pouvez laisser les stats (classement, xG) vides ou les remplir pour améliorer le dataset futur. Ici on met des valeurs par défaut pour valider le formulaire.</p>
+
+            <input type="hidden" id="dummyRank" value="10">
+            <input type="hidden" id="dummyPoints" value="0">
+
+            <button type="submit" class="btn btn-warning w-100">Enregistrer le Résultat</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // --- FONCTIONS PARTAGÉES ---
+
+  async function loadLeagues() {
+    try {
+      const response = await fetch('/api/v1/references/leagues');
+      const leagues = await response.json();
+      const selects = document.querySelectorAll('.league-select');
+
+      selects.forEach(select => {
+        select.innerHTML = '<option value="" selected disabled>Choisir...</option>';
+        leagues.forEach(l => {
+          select.innerHTML += `<option value="${l.id}">${l.name}</option>`;
+        });
+      });
+    } catch (e) { console.error(e); }
+  }
+
+  async function loadTeams(leagueId, targetSelects) {
+    try {
+      const response = await fetch(`/api/v1/references/leagues/${leagueId}/teams`);
+      const teams = await response.json();
+
+      targetSelects.forEach(select => {
+        select.innerHTML = '<option value="" selected disabled>Choisir...</option>';
+        teams.forEach(t => {
+          select.innerHTML += `<option value="${t.name}">${t.name}</option>`;
+        });
+        select.disabled = false;
+      });
+    } catch (e) { console.error(e); }
+  }
+
+  // --- INITIALISATION ---
+  document.addEventListener('DOMContentLoaded', loadLeagues);
+
+  // --- GESTION DES FORMULAIRES ---
+
+  // 1. Ajouter Ligue
+  document.getElementById('leagueForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('newLeagueName').value;
+
+    await fetch('/api/v1/references/leagues', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name: name })
+    });
+    alert('Ligue ajoutée !');
+    loadLeagues(); // Recharger les listes
+    e.target.reset();
+  });
+
+  // 2. Ajouter Equipe
+  document.getElementById('teamForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('newTeamName').value;
+    const leagueId = document.getElementById('teamLeagueSelect').value;
+
+    await fetch('/api/v1/references/teams', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name: name, leagueId: leagueId })
+    });
+    alert('Équipe ajoutée !');
+    e.target.reset();
+  });
+
+  // 3. Logique Historique (Cascade Ligues -> Equipes)
+  document.getElementById('historyLeagueSelect').addEventListener('change', function() {
+    const homeSel = document.getElementById('histHomeTeam');
+    const awaySel = document.getElementById('histAwayTeam');
+    loadTeams(this.value, [homeSel, awaySel]);
+  });
+
+  // 4. Sauvegarder Match Passé
+  document.getElementById('historyForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    // On simule une requête complète, même si on ne remplit pas toutes les stats
+    // L'astuce est d'envoyer la date d'HIER
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const payload = {
+      leagueNameInput: document.getElementById('historyLeagueSelect').options[document.getElementById('historyLeagueSelect').selectedIndex].text,
+      homeTeamNameInput: document.getElementById('histHomeTeam').value,
+      awayTeamNameInput: document.getElementById('histAwayTeam').value,
+      matchDate: yesterday.toISOString(),
+      homeScore: document.getElementById('histHomeScore').value,
+      awayScore: document.getElementById('histAwayScore').value,
+
+      // On remplit avec des valeurs "dummy" pour passer la validation @NotNull
+      // Dans une vraie app, on saisirait aussi les stats historiques
+      homeStats: { rank: 10, points: 0 },
+      awayStats: { rank: 10, points: 0 }
+    };
+
+    const res = await fetch('/api/v1/analyses', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+
+    if(res.ok) {
+      alert('Match historique enregistré !');
+      e.target.reset();
+    } else {
+      alert('Erreur lors de la sauvegarde');
+    }
+  });
+
+</script>
+</body>
+</html>

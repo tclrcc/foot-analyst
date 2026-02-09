@@ -51,6 +51,9 @@ public class MatchAnalysis {
     @Valid
     private TeamStats awayStats;
 
+    private Integer homeScore;
+    private Integer awayScore;
+
     // Pourra servir plus tard pour stocker ton analyse perso
     @Column(columnDefinition = "TEXT")
     private String myNotes;

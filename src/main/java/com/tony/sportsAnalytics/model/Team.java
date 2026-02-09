@@ -15,7 +15,7 @@ public class Team {
     @Column(unique = true, nullable = false)
     private String name; // Ex: "PSG"
 
-    @ManyToOne(cascade = CascadeType.ALL) // Si on supprime une équipe, on garde la ligue
+    @ManyToOne // Si on supprime une équipe, on garde la ligue
     @JoinColumn(name = "league_id")
     private League league;
 
