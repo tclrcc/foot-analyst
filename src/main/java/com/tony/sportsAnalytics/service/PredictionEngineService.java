@@ -9,12 +9,17 @@ import org.springframework.stereotype.Service;
 public class PredictionEngineService {
 
     // --- CONFIGURATION DES POIDS (L'alchimie de l'algo) ---
+    // On baisse la base pour augmenter l'impact des vraies stats
+    private static final double BASE_SCORE = 50.0;
 
     // Avantage domicile (ex: équivaut à un bonus de points fictifs)
     private static final double HOME_ADVANTAGE_WEIGHT = 15.0;
 
     // Importance du classement (Inverse : meilleur classement = plus de points)
-    private static final double RANK_WEIGHT = 2.0;
+    private static final double RANK_WEIGHT = 3.0;
+
+    // Les points reflètent la réalité de la saison
+    private static final double POINTS_WEIGHT = 2.0;
 
     // Importance de la forme récente (Points sur 5 matchs)
     // C'est souvent plus prédictif que le classement général
@@ -27,24 +32,15 @@ public class PredictionEngineService {
      * Calcule les probabilités pour un match donné.
      */
     public PredictionResult calculateMatchPrediction(MatchAnalysis match) {
-
-        // 1. Calculer le "Power Score" de chaque équipe
         double homeScore = calculateTeamPowerScore(match.getHomeStats(), true);
         double awayScore = calculateTeamPowerScore(match.getAwayStats(), false);
 
-        // 2. Calculer l'écart total
         double totalScore = homeScore + awayScore;
-
-        // 3. Convertir en pourcentages (Normalisation)
-        // Note : C'est une simplification. Pour un vrai modèle de foot,
-        // le match nul est complexe à modéliser sans Loi de Poisson.
-        // Ici, on va déduire une "marge d'incertitude" pour le nul.
 
         double rawHomeProb = (homeScore / totalScore) * 100;
         double rawAwayProb = (awayScore / totalScore) * 100;
 
-        // On arbitre que 25% des matchs finissent en nul (moyenne standard)
-        // On redistribue les % restants
+        // Modèle statique pour le nul (Phase 1)
         double drawProb = 25.0;
         double adjustmentFactor = (100.0 - drawProb) / 100.0;
 
@@ -61,32 +57,27 @@ public class PredictionEngineService {
     }
 
     private double calculateTeamPowerScore(TeamStats stats, boolean isHome) {
-        double score = 100.0; // Score de base pour éviter les divisions par zéro
+        double score = BASE_SCORE;
 
-        // Bonus Domicile
         if (isHome) {
             score += HOME_ADVANTAGE_WEIGHT;
         }
 
-        // Points par match (Qualité globale)
-        // On suppose que stats.getPoints() est le total.
-        // Idéalement il faudrait diviser par le nombre de matchs joués.
-        score += stats.getPoints() * 1.5;
+        if (stats.getPoints() != null) {
+            score += stats.getPoints() * POINTS_WEIGHT;
+        }
 
-        // Forme récente (Qualité actuelle)
         if (stats.getLast5MatchesPoints() != null) {
             score += stats.getLast5MatchesPoints() * FORM_WEIGHT;
         }
 
-        // xG (Qualité offensive créative)
         if (stats.getXG() != null) {
             score += stats.getXG() * XG_WEIGHT;
         }
 
-        // Classement (Plus le rang est petit, mieux c'est)
-        // On inverse : un 1er (20 équipes) prend plus de points qu'un 20ème.
-        // Formule arbitraire : (21 - Rank) * Poids
-        score += (21 - stats.getRank()) * RANK_WEIGHT;
+        if (stats.getRank() != null) {
+            score += (21 - stats.getRank()) * RANK_WEIGHT;
+        }
 
         return score;
     }

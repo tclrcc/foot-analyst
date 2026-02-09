@@ -2,7 +2,6 @@ package com.tony.sportsAnalytics.model;
 
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -16,13 +15,14 @@ public class MatchAnalysis {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "Le nom de l'équipe domicile est requis")
-    private String homeTeamName;
+    @ManyToOne
+    @JoinColumn(name = "home_team_id")
+    private Team homeTeam;
 
-    @NotBlank(message = "Le nom de l'équipe extérieur est requis")
-    private String awayTeamName;
+    @ManyToOne
+    @JoinColumn(name = "away_team_id")
+    private Team awayTeam;
 
-    @FutureOrPresent(message = "La date du match doit être présente ou future")
     private LocalDateTime matchDate;
 
     // @Embedded permet d'aplatir les colonnes dans la table match_analysis
@@ -57,4 +57,11 @@ public class MatchAnalysis {
 
     @Embedded
     private PredictionResult prediction;
+
+    @Transient
+    private String leagueNameInput;
+    @Transient
+    private String homeTeamNameInput;
+    @Transient
+    private String awayTeamNameInput;
 }

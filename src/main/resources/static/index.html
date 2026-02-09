@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Foot Analyst AI - V2</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .stats-input { font-size: 0.9rem; }
+    .prediction-card { display: none; transition: all 0.3s ease; }
+    .score-box { font-size: 2rem; font-weight: bold; }
+    .win-prob { height: 25px; }
+    /* Petit effet pro sur les inputs */
+    .form-control:focus { box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15); }
+  </style>
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-dark bg-primary mb-4 shadow-sm">
+  <div class="container">
+    <span class="navbar-brand mb-0 h1">⚽ Foot Analyst Architect <span class="badge bg-white text-primary fs-6">V2</span></span>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="row">
+    <div class="col-lg-7">
+      <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0 text-primary">📝 Nouvelle Analyse</h5>
+        </div>
+        <div class="card-body p-4">
+          <form id="analysisForm">
+
+            <div class="mb-4">
+              <label class="form-label fw-bold">Championnat</label>
+              <input type="text" class="form-control" id="leagueName" list="leaguesList" placeholder="Ex: Ligue 1" required>
+              <datalist id="leaguesList">
+                <option value="Ligue 1">
+                <option value="Premier League">
+                <option value="La Liga">
+                <option value="Serie A">
+                <option value="Bundesliga">
+                <option value="Champions League">
+              </datalist>
+            </div>
+
+            <div class="row mb-4">
+              <div class="col">
+                <label class="form-label fw-bold">Domicile</label>
+                <input type="text" class="form-control" id="homeTeamName" placeholder="Ex: PSG" required>
+              </div>
+              <div class="col">
+                <label class="form-label fw-bold">Extérieur</label>
+                <input type="text" class="form-control" id="awayTeamName" placeholder="Ex: OM" required>
+              </div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="row g-2 align-items-center mb-3">
+              <div class="col-2 text-center small text-muted text-uppercase">Statistique</div>
+              <div class="col-5 text-center text-primary fw-bold">Domicile</div>
+              <div class="col-5 text-center text-danger fw-bold">Extérieur</div>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-2 text-end align-self-center"><small>Classement</small></div>
+              <div class="col-5"><input type="number" class="form-control stats-input" id="homeRank" required min="1" max="50"></div>
+              <div class="col-5"><input type="number" class="form-control stats-input" id="awayRank" required min="1" max="50"></div>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-2 text-end align-self-center"><small>Points</small></div>
+              <div class="col-5"><input type="number" class="form-control stats-input" id="homePoints" required min="0"></div>
+              <div class="col-5"><input type="number" class="form-control stats-input" id="awayPoints" required min="0"></div>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-2 text-end align-self-center"><small>Forme (5m)</small></div>
+              <div class="col-5"><input type="number" class="form-control stats-input" id="homeForm" placeholder="Pts (0-15)"></div>
+              <div class="col-5"><input type="number" class="form-control stats-input" id="awayForm" placeholder="Pts (0-15)"></div>
+            </div>
+
+            <div class="row g-2 mb-4">
+              <div class="col-2 text-end align-self-center"><small>xG Moyen</small></div>
+              <div class="col-5"><input type="number" step="0.01" class="form-control stats-input" id="homeXg" placeholder="Ex: 1.85"></div>
+              <div class="col-5"><input type="number" step="0.01" class="form-control stats-input" id="awayXg" placeholder="Ex: 0.90"></div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow-sm">
+              Lancer l'Algorithme 🚀
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div id="resultCard" class="card shadow prediction-card border-0">
+        <div class="card-header bg-success text-white text-center py-3">
+          <h4 class="mb-0">🔮 Prédiction Générée</h4>
+        </div>
+        <div class="card-body text-center p-4">
+          <h5 class="text-muted mb-4" id="matchTitle">...</h5>
+
+          <div class="row mb-4">
+            <div class="col">
+              <div class="text-primary fw-bold text-uppercase small">Force Domicile</div>
+              <div class="score-box text-primary" id="homePowerDisplay">0</div>
+            </div>
+            <div class="col">
+              <div class="text-danger fw-bold text-uppercase small">Force Ext.</div>
+              <div class="score-box text-danger" id="awayPowerDisplay">0</div>
+            </div>
+          </div>
+
+          <label class="form-label text-start w-100 fw-bold mb-2">Probabilités de victoire</label>
+          <div class="progress win-prob mb-3 shadow-sm" style="height: 35px;">
+            <div id="probBarHome" class="progress-bar bg-primary" role="progressbar" style="width: 0%">0%</div>
+            <div id="probBarDraw" class="progress-bar bg-secondary" role="progressbar" style="width: 0%">Nul</div>
+            <div id="probBarAway" class="progress-bar bg-danger" role="progressbar" style="width: 0%">0%</div>
+          </div>
+
+          <div class="alert alert-light border mt-4 small text-muted">
+            <i class="bi bi-info-circle"></i> Analyse basée sur le moteur v2 (Pondération xG + Forme + Gestion Championnat)
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('analysisForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    // --- GESTION DATE ---
+    // Astuce "Pro" : On envoie la date de demain pour éviter tout conflit
+    // avec @FutureOrPresent si le serveur est strict.
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // --- CONSTRUCTION DU JSON V2 ---
+    const payload = {
+      // Champs Transitoires pour la gestion League/Team
+      leagueNameInput: document.getElementById('leagueName').value,
+      homeTeamNameInput: document.getElementById('homeTeamName').value,
+      awayTeamNameInput: document.getElementById('awayTeamName').value,
+
+      // Date sécurisée
+      matchDate: tomorrow.toISOString(),
+
+      // Stats imbriquées
+      homeStats: {
+        rank: document.getElementById('homeRank').value,
+        points: document.getElementById('homePoints').value,
+        last5MatchesPoints: document.getElementById('homeForm').value || null,
+        xG: document.getElementById('homeXg').value || null
+      },
+      awayStats: {
+        rank: document.getElementById('awayRank').value,
+        points: document.getElementById('awayPoints').value,
+        last5MatchesPoints: document.getElementById('awayForm').value || null,
+        xG: document.getElementById('awayXg').value || null
+      }
+    };
+
+    try {
+      const response = await fetch('/api/v1/analyses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        // Lecture de l'erreur précise envoyée par le GlobalExceptionHandler
+        const errorJson = await response.json();
+        console.error("Erreur Validation:", errorJson);
+        alert("Erreur de validation !\n" + JSON.stringify(errorJson, null, 2));
+        return;
+      }
+
+      const data = await response.json();
+      displayResult(data);
+
+    } catch (error) {
+      console.error('Erreur technique:', error);
+      alert("Erreur technique (Voir console)");
+    }
+  });
+
+  function displayResult(data) {
+    const p = data.prediction;
+
+    // --- MISE À JOUR V2 ---
+    // Le backend renvoie maintenant des objets Team imbriqués
+    // On accède donc à .homeTeam.name au lieu de .homeTeamName
+    const homeName = data.homeTeam ? data.homeTeam.name : "Domicile";
+    const awayName = data.awayTeam ? data.awayTeam.name : "Extérieur";
+
+    document.getElementById('matchTitle').innerText = `${homeName} vs ${awayName}`;
+
+    document.getElementById('homePowerDisplay').innerText = p.homePowerScore;
+    document.getElementById('awayPowerDisplay').innerText = p.awayPowerScore;
+
+    const barHome = document.getElementById('probBarHome');
+    const barDraw = document.getElementById('probBarDraw');
+    const barAway = document.getElementById('probBarAway');
+
+    barHome.style.width = `${p.homeWinProbability}%`;
+    barHome.innerText = `${p.homeWinProbability}%`;
+
+    barDraw.style.width = `${p.drawProbability}%`;
+    barDraw.innerText = `Nul ${p.drawProbability}%`;
+
+    barAway.style.width = `${p.awayWinProbability}%`;
+    barAway.innerText = `${p.awayWinProbability}%`;
+
+    document.getElementById('resultCard').style.display = 'block';
+  }
+</script>
+
+</body>
+</html>
