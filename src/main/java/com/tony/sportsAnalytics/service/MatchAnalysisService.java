@@ -16,6 +16,7 @@ public class MatchAnalysisService {
 
     private final MatchAnalysisRepository matchRepository;
     private final TeamRepository teamRepository;
+    private final EloService eloService;
     private final MatchAnalysisRepository analysisRepository;
     private final PredictionEngineService predictionEngine;
 
@@ -60,6 +61,20 @@ public class MatchAnalysisService {
         // Le moteur utilise maintenant l'objet 'match' qui contient le contexte
         PredictionResult prediction = predictionEngine.calculateMatchPrediction(match, historiqueH2H);
         match.setPrediction(prediction);
+
+        // --- APPRENTISSAGE ELO (V8) ---
+        // Si c'est un résultat réel (Score saisi dans Admin)
+        if (request.getHomeScore() != null && request.getAwayScore() != null) {
+            // 1. On met à jour l'ELO des équipes
+            eloService.updateRatings(homeTeam, awayTeam, request.getHomeScore(), request.getAwayScore());
+
+            // 2. On sauvegarde les équipes avec leur nouvel ELO
+            teamRepository.save(homeTeam);
+            teamRepository.save(awayTeam);
+
+            // Log pour vérifier
+            System.out.println("⚡ ELO Update: " + homeTeam.getName() + " (" + homeTeam.getEloRating() + ") vs " + awayTeam.getName() + " (" + awayTeam.getEloRating() + ")");
+        }
 
         return matchRepository.save(match);
     }

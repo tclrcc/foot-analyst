@@ -3,6 +3,7 @@ package com.tony.sportsAnalytics.service;
 import com.tony.sportsAnalytics.config.PredictionProperties;
 import com.tony.sportsAnalytics.model.MatchAnalysis;
 import com.tony.sportsAnalytics.model.PredictionResult;
+import com.tony.sportsAnalytics.model.Team;
 import com.tony.sportsAnalytics.model.TeamStats;
 import com.tony.sportsAnalytics.model.dto.MatchAnalysisRequest;
 import lombok.RequiredArgsConstructor;
@@ -16,14 +17,25 @@ public class PredictionEngineService {
 
     private final PredictionProperties props;
 
+    private double getEloImpact(int attackerElo, int defenderElo) {
+        // Différence de points
+        int diff = attackerElo - defenderElo;
+
+        // Chaque 100 points d'écart augmente l'espérance de buts de ~10%
+        // Formule sigmoidale pour lisser les écarts extrêmes
+        return 1.0 + (diff * 0.001);
+    }
+
     /**
      * Calcule les probabilités du match en utilisant la Loi de Poisson ajustée (Dixon-Coles)
      * et une pondération temporelle (Saison vs Forme).
      */
     public PredictionResult calculateMatchPrediction(MatchAnalysis match, List<MatchAnalysis> h2hHistory) {
         // 1. Calcul des Espérances de Buts (Lambda/Mu) avec Pondération Temporelle (Point 4)
-        double homeLambda = calculateExpectedGoals(match.getHomeStats(), match.getAwayStats(), true);
-        double awayLambda = calculateExpectedGoals(match.getAwayStats(), match.getHomeStats(), false);
+        double homeLambda = calculateExpectedGoals(match.getHomeStats(), match.getAwayStats(), true,
+                match.getHomeTeam(), match.getAwayTeam());
+        double awayLambda = calculateExpectedGoals(match.getAwayStats(), match.getHomeStats(), false,
+                match.getAwayTeam(), match.getHomeTeam());
 
         homeLambda = applyContextualFactors(homeLambda, true, match);
         awayLambda = applyContextualFactors(awayLambda, false, match);
@@ -94,52 +106,39 @@ public class PredictionEngineService {
      * Point 4 : Calcul de la force offensive/défensive avec pondération (Saison vs Last 5).
      * Point 2 : Avantage Domicile Dynamique.
      */
-    private double calculateExpectedGoals(TeamStats attacker, TeamStats defender, boolean isHome) {
-        double leagueAvg = props.getLeagueAvgGoals(); // ex: 1.35
+    private double calculateExpectedGoals(TeamStats attacker, TeamStats defender, boolean isHome, Team attackerTeam, Team defenderTeam) {
+        double leagueAvg = props.getLeagueAvgGoals();
 
-        // A. Force d'Attaque (Pondérée)
-        double attackStrength = calculateWeightedStrength(
-                attacker.getGoalsFor(), attacker.getMatchesPlayed(),
-                attacker.getGoalsForLast5(), 5,
-                leagueAvg
-        );
+        // 1. Calcul Statistique Classique (V7)
+        // (Assure-toi de passer les arguments pour la pondération forme/saison V7 si tu l'as gardée)
+        double attackStrength = calculateWeightedStrength(attacker.getGoalsFor(), attacker.getMatchesPlayed(), attacker.getGoalsForLast5(), 5, leagueAvg);
+        double defenseWeakness = calculateWeightedStrength(defender.getGoalsAgainst(), defender.getMatchesPlayed(), defender.getGoalsAgainstLast5(), 5, leagueAvg);
 
-        // B. Faiblesse Défensive (Pondérée)
-        double defenseWeakness = calculateWeightedStrength(
-                defender.getGoalsAgainst(), defender.getMatchesPlayed(),
-                defender.getGoalsAgainstLast5(), 5,
-                leagueAvg
-        );
-
-        // C. Espérance de base
         double expected = attackStrength * defenseWeakness * leagueAvg;
 
-        // D. Avantage Domicile Dynamique (Point 2)
+        // 2. Correction ELO (V8 - NOUVEAU)
+        // Si l'attaquant a un ELO bien supérieur, il marquera probablement plus que ce que disent ses stats récentes.
+        if (attackerTeam != null && defenderTeam != null) {
+            double eloFactor = getEloImpact(attackerTeam.getEloRating(), defenderTeam.getEloRating());
+            expected *= eloFactor;
+        }
+
+        // 3. Avantage Domicile (V7 Dynamique)
         if (isHome) {
-            double homeAdvantage = 1.20; // Base
-            // Si l'équipe sur-performe à domicile (Points Home / MJ Home > Points Global / MJ Global)
-            if (attacker.getVenuePoints() != null && attacker.getVenueMatches() != null && attacker.getVenueMatches() > 0 &&
-                    attacker.getPoints() != null && attacker.getMatchesPlayed() > 0) {
-
+            double homeAdvantage = 1.20;
+            if (attacker.getVenuePoints() != null && attacker.getVenueMatches() > 0) {
                 double ppgHome = (double) attacker.getVenuePoints() / attacker.getVenueMatches();
-                double ppgGlobal = (double) attacker.getPoints() / attacker.getMatchesPlayed();
-
-                // Bonus dynamique : max +15% si forteresse imprenable
-                if (ppgHome > ppgGlobal) {
-                    homeAdvantage += Math.min(0.15, (ppgHome - ppgGlobal) * 0.1);
-                }
+                double ppgGlobal = (double) attacker.getPoints() / Math.max(1, attacker.getMatchesPlayed());
+                if (ppgHome > ppgGlobal) homeAdvantage += 0.1; // Bonus forteresse
             }
             expected *= homeAdvantage;
         } else {
-            // Désavantage Extérieur (fixe ou dynamique, ici simplifié à 0.85 inversé)
             expected *= 0.85;
         }
 
-        // E. Correction xG (Si disponible et significatif)
+        // 4. Contexte xG
         if (attacker.getXG() != null && attacker.getXG() > 0) {
-            // Le xG est souvent plus prédictif que les buts réels
             double xGFactor = attacker.getXG() / leagueAvg;
-            // On mixe 70% stats calculées + 30% xG pur
             expected = (expected * 0.7) + (xGFactor * leagueAvg * 0.3);
         }
 

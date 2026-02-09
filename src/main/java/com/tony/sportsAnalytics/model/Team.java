@@ -23,8 +23,12 @@ public class Team {
     @Embedded
     private TeamStats currentStats;
 
+    @Column(nullable = false, columnDefinition = "integer default 1500")
+    private Integer eloRating = 1500;
+
     public Team(String name, League league) {
         this.name = name;
         this.league = league;
+        this.eloRating = 1500;
     }
 }
