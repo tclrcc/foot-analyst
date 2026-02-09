@@ -13,11 +13,15 @@ public class Team {
     private Long id;
 
     @Column(unique = true, nullable = false)
-    private String name; // Ex: "PSG"
+    private String name;
 
-    @ManyToOne // Si on supprime une équipe, on garde la ligue
+    @ManyToOne
     @JoinColumn(name = "league_id")
     private League league;
+
+    // --- NOUVEAU V7 : Stats Actuelles (Classement Live) ---
+    @Embedded
+    private TeamStats currentStats;
 
     public Team(String name, League league) {
         this.name = name;

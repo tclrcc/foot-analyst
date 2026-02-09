@@ -8,12 +8,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class MatchAnalysisService {
 
     private final MatchAnalysisRepository matchRepository;
     private final TeamRepository teamRepository;
+    private final MatchAnalysisRepository analysisRepository;
     private final PredictionEngineService predictionEngine;
 
     @Transactional
@@ -37,7 +40,9 @@ public class MatchAnalysisService {
 
         // 3. Calcul (seulement si ce n'est pas juste une saisie d'historique pur)
         // On calcule toujours la prédiction pour voir ce que l'algo AURAIT dit
-        PredictionResult prediction = predictionEngine.calculateMatchPrediction(match);
+        List<MatchAnalysis> historiqueH2H = analysisRepository.findH2H(homeTeam, awayTeam, null);
+
+        PredictionResult prediction = predictionEngine.calculateMatchPrediction(match, historiqueH2H);
         match.setPrediction(prediction);
 
         return matchRepository.save(match);

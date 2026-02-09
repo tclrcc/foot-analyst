@@ -1,11 +1,9 @@
 package com.tony.sportsAnalytics.model;
 
 import jakarta.persistence.Embeddable;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 @Embeddable
 @Data
@@ -13,26 +11,20 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class TeamStats {
 
-    @NotNull(message = "Le classement est obligatoire")
-    @Min(1)
     private Integer rank;
-
-    @Min(0)
     private Integer points;
+
+    // --- NOUVEAU V7 : MATCHS JOUÉS ---
+    private Integer matchesPlayed;      // Total
+    private Integer matchesPlayedHome;  // Domicile
+    private Integer matchesPlayedAway;  // Extérieur
 
     private Integer goalsFor;
     private Integer goalsAgainst;
 
-    // xG (Expected Goals) - Utilisation de Double pour la précision
     private Double xG;
-
-    // Forme récente (ex: points sur les 5 derniers matchs)
     private Integer last5MatchesPoints;
 
-    // Pour l'équipe à Domicile : Points gagnés à Domicile
-    // Pour l'équipe à l'Extérieur : Points gagnés à l'Extérieur
+    // Stats contextuelles (Points pris à Dom/Ext)
     private Integer venuePoints;
-
-    // Nombre de matchs joués dans ce contexte (pour faire la moyenne)
-    private Integer venueMatches;
 }

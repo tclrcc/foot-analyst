@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Foot Analyst AI - V5 Pro</title>
+  <title>Foot Analyst AI - V6 Ultimate</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
 
@@ -22,8 +22,8 @@
 <div class="app-header shadow-sm">
   <div class="container d-flex justify-content-between align-items-center">
     <div>
-      <h1 class="h4 mb-0"><i class="bi bi-cpu-fill me-2"></i>Foot Analyst <span class="fw-light">V5.5</span></h1>
-      <small class="opacity-75">Intelligence Artificielle de Prédiction Sportive</small>
+      <h1 class="h4 mb-0"><i class="bi bi-cpu-fill me-2"></i>Foot Analyst <span class="fw-light">V6</span></h1>
+      <small class="opacity-75">Moteur de Prédiction Statistique (Poisson)</small>
     </div>
     <a href="/admin.html" class="btn btn-outline-light btn-sm rounded-pill px-3">
       <i class="bi bi-gear-fill me-1"></i> Admin
@@ -100,7 +100,7 @@
 
             <div class="alert alert-info py-2 small d-flex align-items-center shadow-sm" id="autoFillInfo" style="display:none;">
               <i class="bi bi-magic me-2 fs-5"></i>
-              <span>Données historiques récupérées et pré-remplies.</span>
+              <span>Données historiques récupérées.</span>
             </div>
 
             <div class="table-responsive">
@@ -150,7 +150,7 @@
             </div>
 
             <button type="submit" class="btn btn-primary w-100 fw-bold py-3 shadow-sm rounded-3">
-              <i class="bi bi-lightning-charge-fill me-2"></i>Lancer l'Algorithme V5
+              <i class="bi bi-lightning-charge-fill me-2"></i>Lancer l'Algorithme V6
             </button>
           </form>
         </div>
@@ -160,42 +160,80 @@
     <div class="col-lg-5">
       <div id="resultCard" class="card shadow border-0" style="display: none;">
         <div class="card-header bg-dark text-white text-center py-3">
-          <h5 class="mb-0 text-uppercase ls-1"><i class="bi bi-graph-up-arrow me-2"></i>Résultat</h5>
+          <h5 class="mb-0 text-uppercase ls-1"><i class="bi bi-graph-up-arrow me-2"></i>Analyse V6</h5>
         </div>
-        <div class="card-body text-center p-4">
-          <h4 class="mb-4 fw-bold" id="matchTitle">Match</h4>
+        <div class="card-body p-4">
+          <h4 class="mb-4 fw-bold text-center" id="matchTitle">Match</h4>
 
-          <div class="row mb-4 g-0 align-items-center">
-            <div class="col border-end">
-              <div class="text-muted small text-uppercase fw-bold mb-1">Force Domicile</div>
-              <div class="score-box text-primary" id="homePowerDisplay">0</div>
+          <div class="alert alert-light border d-flex justify-content-around align-items-center mb-4 shadow-sm">
+            <div class="text-center">
+              <small class="text-muted text-uppercase fw-bold">Buts Dom.</small>
+              <h3 class="text-primary fw-bold mb-0" id="predHomeGoals">0.0</h3>
             </div>
-            <div class="col">
-              <div class="text-muted small text-uppercase fw-bold mb-1">Force Extérieur</div>
-              <div class="score-box text-danger" id="awayPowerDisplay">0</div>
+            <div class="text-muted fs-4">vs</div>
+            <div class="text-center">
+              <small class="text-muted text-uppercase fw-bold">Buts Ext.</small>
+              <h3 class="text-danger fw-bold mb-0" id="predAwayGoals">0.0</h3>
             </div>
           </div>
 
-          <div class="mb-2 text-start">
-            <label class="small fw-bold text-muted text-uppercase">Probabilités calculées</label>
+          <label class="small fw-bold text-muted text-uppercase mb-1">Issue du match (1N2)</label>
+          <div class="progress shadow-sm mb-1" style="height: 30px;">
+            <div id="probBarHome" class="progress-bar bg-primary" role="progressbar"></div>
+            <div id="probBarDraw" class="progress-bar bg-secondary" role="progressbar"></div>
+            <div id="probBarAway" class="progress-bar bg-danger" role="progressbar"></div>
           </div>
-          <div class="progress shadow-sm" style="height: 35px; font-weight: bold; font-size: 0.9rem;">
-            <div id="probBarHome" class="progress-bar bg-primary progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-            <div id="probBarDraw" class="progress-bar bg-secondary" role="progressbar" style="width: 0%"></div>
-            <div id="probBarAway" class="progress-bar bg-danger progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-          </div>
-          <div class="d-flex justify-content-between small text-muted mt-1 px-1">
-            <span>1 (Dom)</span>
-            <span>N (Nul)</span>
-            <span>2 (Ext)</span>
+          <div class="d-flex justify-content-between small text-muted mb-4">
+            <span id="txtHome"></span><span id="txtDraw"></span><span id="txtAway"></span>
           </div>
 
-          <div class="mt-4 pt-3 border-top">
-            <p class="small text-muted mb-0">
-              <i class="bi bi-info-circle me-1"></i>
-              Ce score prend en compte le classement, la forme récente, les xG et la <strong>différence de buts</strong>.
-            </p>
+          <label class="small fw-bold text-muted text-uppercase mb-1">Double Chance</label>
+          <div class="row g-2 mb-4 text-center">
+            <div class="col-4">
+              <div class="p-2 border rounded bg-light">
+                <small class="d-block text-muted">1N</small>
+                <strong id="dc1N">0%</strong>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-2 border rounded bg-light">
+                <small class="d-block text-muted">12</small>
+                <strong id="dc12">0%</strong>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-2 border rounded bg-light">
+                <small class="d-block text-muted">N2</small>
+                <strong id="dcN2">0%</strong>
+              </div>
+            </div>
           </div>
+
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="card bg-light border-0">
+                <div class="card-body text-center p-2">
+                  <small class="text-muted fw-bold">Plus de 2.5 Buts</small>
+                  <div class="progress mt-1" style="height: 8px;">
+                    <div id="barOver" class="progress-bar bg-success" role="progressbar"></div>
+                  </div>
+                  <div class="mt-1 fw-bold" id="txtOver">0%</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="card bg-light border-0">
+                <div class="card-body text-center p-2">
+                  <small class="text-muted fw-bold">Les 2 marquent</small>
+                  <div class="progress mt-1" style="height: 8px;">
+                    <div id="barBtts" class="progress-bar bg-warning" role="progressbar"></div>
+                  </div>
+                  <div class="mt-1 fw-bold" id="txtBtts">0%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -205,48 +243,23 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-  // --- 1. CHARGEMENT DASHBOARD ---
+  // --- 1. DASHBOARD ---
   async function loadDashboard() {
     try {
-      // Note: Assure-toi que ton Controller expose bien /api/v1/analyses/dashboard (ou /dashboard suivant ton code)
       const res = await fetch('/api/v1/analyses/dashboard');
       if(res.ok) {
         const stats = await res.json();
-
-        // Animation simple des chiffres
-        const animateValue = (id, start, end, duration) => {
-          if (start === end) return;
-          const range = end - start;
-          const minTimer = 50;
-          let stepTime = Math.abs(Math.floor(duration / range));
-          stepTime = Math.max(stepTime, minTimer);
-          let startTime = new Date().getTime();
-          let endTime = startTime + duration;
-          let timer;
-
-          function run() {
-            let now = new Date().getTime();
-            let remaining = Math.max((endTime - now) / duration, 0);
-            let value = Math.round(end - (remaining * range));
-            document.getElementById(id).innerText = String(value).includes('.') ? value : value + (id.includes('Accuracy') || id.includes('Confidence') ? '%' : '');
-            if (value == end) clearInterval(timer);
-          }
-          timer = setInterval(run, stepTime);
-          run();
-        };
-
         document.getElementById('kpiTotal').innerText = stats.totalMatches;
         document.getElementById('kpiFinished').innerText = stats.finishedMatches;
         document.getElementById('kpiAccuracy').innerText = stats.globalAccuracy + '%';
         document.getElementById('kpiConfidence').innerText = stats.confidenceAccuracy + '%';
       }
-    } catch(e) { console.warn("Dashboard error (API pas encore prête ?)", e); }
+    } catch(e) { console.warn("Dashboard error", e); }
   }
 
-  // --- 2. CHARGEMENT LIGUES & TEAMS ---
+  // --- 2. INIT ---
   document.addEventListener('DOMContentLoaded', async () => {
     loadDashboard();
-
     const leagueSelect = document.getElementById('leagueSelect');
     const res = await fetch('/api/v1/references/leagues');
     const leagues = await res.json();
@@ -263,7 +276,6 @@
   document.getElementById('leagueSelect').addEventListener('change', async function() {
     const homeSelect = document.getElementById('homeTeamSelect');
     const awaySelect = document.getElementById('awayTeamSelect');
-
     homeSelect.innerHTML = '<option>Chargement...</option>';
     homeSelect.disabled = true; awaySelect.disabled = true;
 
@@ -274,7 +286,7 @@
       sel.innerHTML = '<option value="" selected disabled>-- Sélectionner --</option>';
       teams.forEach(t => {
         const opt = document.createElement('option');
-        opt.value = t.id; // Feature C: Utilisation des IDs
+        opt.value = t.id;
         opt.text = t.name;
         sel.appendChild(opt);
       });
@@ -283,32 +295,46 @@
     fill(homeSelect); fill(awaySelect);
   });
 
-  // --- 3. AUTO-FILL INTELLIGENT ---
+  // --- 3. AUTO-FILL ---
   async function fetchStats(teamId, prefix) {
     if(!teamId) return;
-    try {
-      const res = await fetch(`/api/v1/references/teams/${teamId}/suggested-stats`);
-      if(res.ok) {
-        const s = await res.json();
-        if(s) {
-          if(s.rank) document.getElementById(`${prefix}Rank`).value = s.rank;
-          if(s.points) document.getElementById(`${prefix}Points`).value = s.points;
-          // Note: Le service suggested-stats ne renvoie pas encore GF/GA,
-          // il faudra mettre à jour TeamStatsService pour les inclure si tu veux l'auto-fill complet.
-          if(s.last5MatchesPoints !== null) document.getElementById(`${prefix}Form`).value = s.last5MatchesPoints;
-          if(s.xG) document.getElementById(`${prefix}Xg`).value = s.xG;
 
-          document.getElementById('autoFillInfo').style.display = 'block';
+    // On appelle l'API qui renvoie l'objet Team complet avec ses currentStats
+    // Il faut créer un endpoint GET /api/v1/references/teams/{id}
+    const res = await fetch(`/api/v1/references/teams/${teamId}`);
+    if(res.ok) {
+      const team = await res.json();
+      const s = team.currentStats; // Les stats sauvegardées via Admin
+
+      if(s) {
+        // Remplissage automatique
+        if(s.rank) document.getElementById(`${prefix}Rank`).value = s.rank;
+        if(s.points) document.getElementById(`${prefix}Points`).value = s.points;
+        if(s.goalsFor) document.getElementById(`${prefix}GF`).value = s.goalsFor;
+        if(s.goalsAgainst) document.getElementById(`${prefix}GA`).value = s.goalsAgainst;
+        if(s.xG) document.getElementById(`${prefix}Xg`).value = s.xG;
+        if(s.last5MatchesPoints) document.getElementById(`${prefix}Form`).value = s.last5MatchesPoints;
+
+        // Nouveaux champs contextuels
+        // Si c'est Home, on remplit avec les stats Home
+        if(prefix === 'home') {
+          if(s.venuePoints) document.getElementById('homeVenuePts').value = s.venuePoints; // Pts Domicile
+          if(s.matchesPlayedHome) document.getElementById('homeVenueMj').value = s.matchesPlayedHome;
+        } else {
+          // Pour Away, idéalement il faudrait avoir stocké venuePointsAway.
+          // Si on ne l'a pas, on laisse vide ou on met une estimation.
+          if(s.matchesPlayedAway) document.getElementById('awayVenueMj').value = s.matchesPlayedAway;
         }
-      }
-    } catch(e) { console.log("Pas d'historique"); }
-  }
 
+        document.getElementById('autoFillInfo').style.display = 'block';
+        document.getElementById('autoFillInfo').innerHTML = `<i class="bi bi-database-check me-2"></i>Stats officielles chargées pour ${team.name}`;
+      }
+    }
+  }
   document.getElementById('homeTeamSelect').addEventListener('change', (e) => fetchStats(e.target.value, 'home'));
   document.getElementById('awayTeamSelect').addEventListener('change', (e) => fetchStats(e.target.value, 'away'));
 
-
-  // --- 4. SOUMISSION ---
+  // --- 4. SUBMIT ---
   document.getElementById('analysisForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
@@ -322,20 +348,16 @@
       homeStats: {
         rank: document.getElementById('homeRank').value,
         points: document.getElementById('homePoints').value,
-        // V5.5 NOUVEAUX CHAMPS
         goalsFor: document.getElementById('homeGF').value || 0,
         goalsAgainst: document.getElementById('homeGA').value || 0,
-
         last5MatchesPoints: document.getElementById('homeForm').value || null,
         xG: document.getElementById('homeXg').value || null
       },
       awayStats: {
         rank: document.getElementById('awayRank').value,
         points: document.getElementById('awayPoints').value,
-        // V5.5 NOUVEAUX CHAMPS
         goalsFor: document.getElementById('awayGF').value || 0,
         goalsAgainst: document.getElementById('awayGA').value || 0,
-
         last5MatchesPoints: document.getElementById('awayForm').value || null,
         xG: document.getElementById('awayXg').value || null
       }
@@ -350,37 +372,56 @@
 
       if(res.ok) {
         const data = await res.json();
-        const p = data.prediction;
-
-        // Affichage textuel
-        const hName = document.getElementById('homeTeamSelect').options[document.getElementById('homeTeamSelect').selectedIndex].text;
-        const aName = document.getElementById('awayTeamSelect').options[document.getElementById('awayTeamSelect').selectedIndex].text;
-        document.getElementById('matchTitle').innerText = `${hName} vs ${aName}`;
-
-        // Affichage scores
-        document.getElementById('homePowerDisplay').innerText = p.homePowerScore;
-        document.getElementById('awayPowerDisplay').innerText = p.awayPowerScore;
-
-        // Affichage barres
-        const setBar = (id, val) => {
-          const el = document.getElementById(id);
-          el.style.width = val + '%';
-          el.innerText = val > 10 ? Math.round(val) + '%' : '';
-        };
-        setBar('probBarHome', p.homeWinProbability);
-        setBar('probBarDraw', p.drawProbability);
-        setBar('probBarAway', p.awayWinProbability);
-
-        document.getElementById('resultCard').style.display = 'block';
-        document.getElementById('resultCard').scrollIntoView({behavior: 'smooth'});
-
-        // Rafraîchir les KPIs
-        await loadDashboard();
+        displayResult(data);
+        loadDashboard(); // Refresh KPI
       } else {
-        alert("Erreur lors de l'analyse (Vérifiez la console)");
+        alert("Erreur lors de l'analyse");
       }
     } catch(err) { console.error(err); alert("Erreur technique"); }
   });
+
+  function displayResult(data) {
+    const p = data.prediction;
+    const hName = document.getElementById('homeTeamSelect').options[document.getElementById('homeTeamSelect').selectedIndex].text;
+    const aName = document.getElementById('awayTeamSelect').options[document.getElementById('awayTeamSelect').selectedIndex].text;
+
+    document.getElementById('matchTitle').innerText = `${hName} vs ${aName}`;
+
+    // 1. Buts Prédits
+    document.getElementById('predHomeGoals').innerText = p.predictedHomeGoals;
+    document.getElementById('predAwayGoals').innerText = p.predictedAwayGoals;
+
+    // 2. 1N2
+    const setBar = (id, val, labelId) => {
+      const el = document.getElementById(id);
+      el.style.width = val + '%';
+      el.innerText = val > 12 ? Math.round(val) + '%' : '';
+      if(labelId) document.getElementById(labelId).innerText = Math.round(val) + '%';
+    };
+    setBar('probBarHome', p.homeWinProbability, 'txtHome');
+    setBar('probBarDraw', p.drawProbability, 'txtDraw');
+    setBar('probBarAway', p.awayWinProbability, 'txtAway');
+
+    // 3. Double Chance
+    document.getElementById('dc1N').innerText = p.doubleChance1N + '%';
+    document.getElementById('dc12').innerText = p.doubleChance12 + '%';
+    document.getElementById('dcN2').innerText = p.doubleChanceN2 + '%';
+
+    // 4. Stats Goals (Coloration dynamique)
+    const setMiniBar = (idBar, idTxt, val) => {
+      document.getElementById(idBar).style.width = val + '%';
+      document.getElementById(idTxt).innerText = val + '%';
+      const el = document.getElementById(idBar);
+      if(val > 50) { el.className = 'progress-bar bg-success'; }
+      else { el.className = 'progress-bar bg-secondary'; }
+    }
+
+    setMiniBar('barOver', 'txtOver', p.over2_5_Prob);
+    setMiniBar('barBtts', 'txtBtts', p.bttsProb);
+
+    document.getElementById('resultCard').style.display = 'block';
+    document.getElementById('resultCard').scrollIntoView({behavior: 'smooth'});
+  }
 </script>
 
 </body>

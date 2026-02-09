@@ -15,4 +15,5 @@ public class PredictionProperties {
     private double formImportance = 5.0;
     private double xgImportance = 10.0;
     private double goalDiffImportance = 1.5;
+    private double leagueAvgGoals = 1.35; // Moyenne de buts par équipe par match
 }
