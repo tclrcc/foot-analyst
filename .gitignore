@@ -1,0 +1,49 @@
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
+
+# Maven
+target/
+mvnw
+mvnw.cmd
+.mvn/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# VS Code
+.vscode/
+
+# Spring Boot
+help.md
+
+# MAC OS
+.DS_Store
+
+# --- SECURITY ---
+# Ignore les fichiers de conf locaux contenant tes mots de passe !
+# On committera un "application.properties.example" à la place.
+src/main/resources/application.properties
