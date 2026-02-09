@@ -29,6 +29,11 @@ public class MatchAnalysis {
     @AttributeOverrides({
             @AttributeOverride(name = "rank", column = @Column(name = "home_rank")),
             @AttributeOverride(name = "points", column = @Column(name = "home_points")),
+            // --- AJOUTS V7 POUR CORRIGER L'ERREUR ---
+            @AttributeOverride(name = "matchesPlayed", column = @Column(name = "home_mj_total")),
+            @AttributeOverride(name = "matchesPlayedHome", column = @Column(name = "home_mj_home")),
+            @AttributeOverride(name = "matchesPlayedAway", column = @Column(name = "home_mj_away")),
+            // ----------------------------------------
             @AttributeOverride(name = "goalsFor", column = @Column(name = "home_goals_for")),
             @AttributeOverride(name = "goalsAgainst", column = @Column(name = "home_goals_against")),
             @AttributeOverride(name = "xG", column = @Column(name = "home_xg")),
@@ -43,6 +48,11 @@ public class MatchAnalysis {
     @AttributeOverrides({
             @AttributeOverride(name = "rank", column = @Column(name = "away_rank")),
             @AttributeOverride(name = "points", column = @Column(name = "away_points")),
+            // --- AJOUTS V7 POUR CORRIGER L'ERREUR ---
+            @AttributeOverride(name = "matchesPlayed", column = @Column(name = "away_mj_total")),
+            @AttributeOverride(name = "matchesPlayedHome", column = @Column(name = "away_mj_home")),
+            @AttributeOverride(name = "matchesPlayedAway", column = @Column(name = "away_mj_away")),
+            // ----------------------------------------
             @AttributeOverride(name = "goalsFor", column = @Column(name = "away_goals_for")),
             @AttributeOverride(name = "goalsAgainst", column = @Column(name = "away_goals_against")),
             @AttributeOverride(name = "xG", column = @Column(name = "away_xg")),

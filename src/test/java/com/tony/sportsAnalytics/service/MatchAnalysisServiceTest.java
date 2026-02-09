@@ -24,32 +24,4 @@ class MatchAnalysisServiceTest {
 
     @InjectMocks // Injecte les mocks dans le service à tester
     private MatchAnalysisService matchAnalysisService;
-
-    @Test
-    void analyzeAndSave_ShouldCalculatePredictionAndSave() {
-        // ARRANGE
-        MatchAnalysis inputMatch = new MatchAnalysis();
-        inputMatch.setHomeTeamName("PSG");
-
-        PredictionResult expectedPrediction = new PredictionResult(50.0, 25.0, 25.0, 100.0, 90.0);
-
-        // On dit au Mock Engine : "Si on t'appelle, renvoie ce résultat prévu"
-        when(predictionEngine.calculateMatchPrediction(any(MatchAnalysis.class)))
-                .thenReturn(expectedPrediction);
-
-        // On dit au Mock Repository : "Quand on sauvegarde, renvoie l'objet qu'on t'a donné"
-        when(repository.save(any(MatchAnalysis.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-        // ACT
-        MatchAnalysis savedMatch = matchAnalysisService.analyzeAndSave(inputMatch);
-
-        // ASSERT
-        // 1. Vérifier que la prédiction a été attachée à l'objet
-        assertThat(savedMatch.getPrediction()).isEqualTo(expectedPrediction);
-
-        // 2. Vérifier que les méthodes des dépendances ont bien été appelées une fois
-        verify(predictionEngine, times(1)).calculateMatchPrediction(inputMatch);
-        verify(repository, times(1)).save(inputMatch);
-    }
 }

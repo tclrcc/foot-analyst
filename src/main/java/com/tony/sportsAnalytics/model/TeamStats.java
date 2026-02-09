@@ -14,7 +14,7 @@ public class TeamStats {
     private Integer rank;
     private Integer points;
 
-    // --- NOUVEAU V7 : MATCHS JOUÉS ---
+    // --- NOUVEAU V7 : MATCHS JOUÉS (Stats Globales) ---
     private Integer matchesPlayed;      // Total
     private Integer matchesPlayedHome;  // Domicile
     private Integer matchesPlayedAway;  // Extérieur
@@ -25,6 +25,10 @@ public class TeamStats {
     private Double xG;
     private Integer last5MatchesPoints;
 
-    // Stats contextuelles (Points pris à Dom/Ext)
-    private Integer venuePoints;
+    // --- STATS CONTEXTUELLES (Pour le calcul du match spécifique) ---
+    // Ces champs sont remplis dynamiquement selon si l'équipe joue à Dom ou Ext
+    private Integer venuePoints;   // Ex: Points à Domicile si c'est l'équipe Home
+
+    // C'est ce champ qui manquait pour ton calcul :
+    private Integer venueMatches;  // Ex: Nb Matchs à Domicile si c'est l'équipe Home
 }

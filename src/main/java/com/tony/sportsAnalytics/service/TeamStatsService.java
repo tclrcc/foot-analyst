@@ -25,28 +25,37 @@ public class TeamStatsService {
         List<MatchAnalysis> history = matchRepository.findLatestMatchesByTeam(team, PageRequest.of(0, 10));
 
         if (history.isEmpty()) {
-            return null; // Pas de données, le front laissera vide
+            return null; // Pas de données
         }
 
-        // 1. Récupérer les stats les plus récentes (Rank, Points, xG)
-        // On prend le dernier match analysé comme base
+        // 1. Récupérer les stats les plus récentes
         MatchAnalysis lastMatch = history.getFirst();
         TeamStats baseStats = (lastMatch.getHomeTeam().equals(team))
                 ? lastMatch.getHomeStats()
                 : lastMatch.getAwayStats();
 
-        // 2. Recalculer la forme (5 derniers matchs joués)
+        // 2. Recalculer la forme
         int computedForm = calculateForm(team, history);
 
-        // On renvoie un mix : stats statiques du dernier match + forme recalculée
-        return new TeamStats(
-                baseStats.getRank(),
-                baseStats.getPoints(), // Idéalement, on devrait ajouter les points des matchs joués depuis
-                baseStats.getGoalsFor(),
-                baseStats.getGoalsAgainst(),
-                baseStats.getXG(),
-                computedForm
-        );
+        // 3. Construction de l'objet de suggestion (Correction ici : Utilisation des setters)
+        TeamStats suggestion = new TeamStats();
+
+        suggestion.setRank(baseStats.getRank());
+        suggestion.setPoints(baseStats.getPoints());
+
+        // On transfère aussi les nouveaux champs de comptage s'ils existent
+        suggestion.setMatchesPlayed(baseStats.getMatchesPlayed());
+        suggestion.setMatchesPlayedHome(baseStats.getMatchesPlayedHome());
+        suggestion.setMatchesPlayedAway(baseStats.getMatchesPlayedAway());
+
+        suggestion.setGoalsFor(baseStats.getGoalsFor());
+        suggestion.setGoalsAgainst(baseStats.getGoalsAgainst());
+        suggestion.setXG(baseStats.getXG());
+
+        // On injecte la forme recalculée
+        suggestion.setLast5MatchesPoints(computedForm);
+
+        return suggestion;
     }
 
     private int calculateForm(Team team, List<MatchAnalysis> history) {
@@ -54,7 +63,6 @@ public class TeamStatsService {
         int matchesCounted = 0;
 
         for (MatchAnalysis m : history) {
-            // On ne compte que les matchs TERMINÉS (avec un score)
             if (m.getHomeScore() != null && m.getAwayScore() != null) {
                 boolean isHome = m.getHomeTeam().equals(team);
                 int us = isHome ? m.getHomeScore() : m.getAwayScore();
@@ -64,7 +72,7 @@ public class TeamStatsService {
                 else if (us == them) points += 1;
 
                 matchesCounted++;
-                if (matchesCounted >= 5) break; // On s'arrête à 5 matchs
+                if (matchesCounted >= 5) break;
             }
         }
         return points;

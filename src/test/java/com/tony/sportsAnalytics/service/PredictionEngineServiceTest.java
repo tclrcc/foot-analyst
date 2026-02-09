@@ -15,7 +15,7 @@ class PredictionEngineServiceTest {
 
     @BeforeEach
     void setUp() {
-        predictionEngine = new PredictionEngineService();
+        predictionEngine = new PredictionEngineService(null);
     }
 
     @Test
@@ -28,7 +28,7 @@ class PredictionEngineServiceTest {
         match.setHomeStats(equalStatsHome);
         match.setAwayStats(equalStatsAway);
 
-        PredictionResult result = predictionEngine.calculateMatchPrediction(match);
+        PredictionResult result = predictionEngine.calculateMatchPrediction(match, null);
 
         assertThat(result.getHomePowerScore()).isGreaterThan(result.getAwayPowerScore());
         assertThat(result.getHomeWinProbability()).isGreaterThan(result.getAwayWinProbability());
@@ -48,7 +48,7 @@ class PredictionEngineServiceTest {
         match.setAwayStats(weakAway);
 
         // ACT
-        PredictionResult result = predictionEngine.calculateMatchPrediction(match);
+        PredictionResult result = predictionEngine.calculateMatchPrediction(match, null);
 
         // ASSERT
         // Avec le nouveau calibrage, on attend > 60% (ce qui est énorme avec 25% de nul forcé)
@@ -60,16 +60,16 @@ class PredictionEngineServiceTest {
     @Test
     @DisplayName("Devrait gérer les valeurs nulles")
     void shouldHandleNullOptionalValues() {
-        TeamStats incompleteStats = new TeamStats(10, 30, 20, 20, null, null);
+        TeamStats incompleteStats = new TeamStats(10, 30, 20, 20, null, null, null, null, null, null);
         MatchAnalysis match = new MatchAnalysis();
         match.setHomeStats(incompleteStats);
         match.setAwayStats(incompleteStats);
 
-        PredictionResult result = predictionEngine.calculateMatchPrediction(match);
+        PredictionResult result = predictionEngine.calculateMatchPrediction(match, null);
         assertThat(result).isNotNull();
     }
 
     private TeamStats createStats(Integer rank, Integer points, Double xG, Integer last5Points) {
-        return new TeamStats(rank, points, 0, 0, xG, last5Points);
+        return new TeamStats(rank, points, 0, 0, last5Points, null, null, xG, null, null);
     }
 }
