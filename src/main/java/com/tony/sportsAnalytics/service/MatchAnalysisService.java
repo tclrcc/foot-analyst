@@ -1,7 +1,9 @@
 package com.tony.sportsAnalytics.service;
 
 import com.tony.sportsAnalytics.model.*;
+import com.tony.sportsAnalytics.model.dto.MatchAnalysisRequest;
 import com.tony.sportsAnalytics.repository.*;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,40 +13,33 @@ import org.springframework.transaction.annotation.Transactional;
 public class MatchAnalysisService {
 
     private final MatchAnalysisRepository matchRepository;
-    private final LeagueRepository leagueRepository;
     private final TeamRepository teamRepository;
     private final PredictionEngineService predictionEngine;
 
     @Transactional
-    public MatchAnalysis analyzeAndSave(MatchAnalysis matchAnalysis) {
-        // 1. Gestion Intelligente des Données de Référence (League / Team)
-        // On récupère les noms saisis dans le JSON (champs @Transient)
-        String leagueName = matchAnalysis.getLeagueNameInput();
-        String homeName = matchAnalysis.getHomeTeamNameInput();
-        String awayName = matchAnalysis.getAwayTeamNameInput();
+    public MatchAnalysis analyzeAndSave(MatchAnalysisRequest request) {
+        // 1. Récupération propre par ID (Fast Fail si l'équipe n'existe pas)
+        Team homeTeam = teamRepository.findById(request.getHomeTeamId())
+                .orElseThrow(() -> new EntityNotFoundException("Équipe domicile introuvable"));
 
-        // Étape A : Gérer la Ligue
-        // On cherche si elle existe, sinon on la crée
-        League league = leagueRepository.findByName(leagueName)
-                .orElseGet(() -> leagueRepository.save(new League(leagueName)));
+        Team awayTeam = teamRepository.findById(request.getAwayTeamId())
+                .orElseThrow(() -> new EntityNotFoundException("Équipe extérieur introuvable"));
 
-        // Étape B : Gérer les Équipes
-        // Idem : Find or Create, et on les associe à la Ligue trouvée
-        Team homeTeam = teamRepository.findByName(homeName)
-                .orElseGet(() -> teamRepository.save(new Team(homeName, league)));
+        // 2. Mapping DTO -> Entity
+        MatchAnalysis match = new MatchAnalysis();
+        match.setHomeTeam(homeTeam);
+        match.setAwayTeam(awayTeam);
+        match.setMatchDate(request.getMatchDate());
+        match.setHomeStats(request.getHomeStats());
+        match.setAwayStats(request.getAwayStats());
+        match.setHomeScore(request.getHomeScore());
+        match.setAwayScore(request.getAwayScore());
 
-        Team awayTeam = teamRepository.findByName(awayName)
-                .orElseGet(() -> teamRepository.save(new Team(awayName, league)));
+        // 3. Calcul (seulement si ce n'est pas juste une saisie d'historique pur)
+        // On calcule toujours la prédiction pour voir ce que l'algo AURAIT dit
+        PredictionResult prediction = predictionEngine.calculateMatchPrediction(match);
+        match.setPrediction(prediction);
 
-        // On attache les vrais objets Team au Match
-        matchAnalysis.setHomeTeam(homeTeam);
-        matchAnalysis.setAwayTeam(awayTeam);
-
-        // 2. Appel de l'algo de prédiction (inchangé)
-        PredictionResult prediction = predictionEngine.calculateMatchPrediction(matchAnalysis);
-        matchAnalysis.setPrediction(prediction);
-
-        // 3. Sauvegarde
-        return matchRepository.save(matchAnalysis);
+        return matchRepository.save(match);
     }
 }
