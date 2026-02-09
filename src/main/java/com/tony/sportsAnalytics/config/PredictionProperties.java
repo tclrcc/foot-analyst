@@ -10,19 +10,16 @@ import org.springframework.context.annotation.Configuration;
 public class PredictionProperties {
     // --- Paramètres de base ---
     private double baseScore = 50.0;
-    private double leagueAvgGoals = 1.35; // Moyenne de buts par équipe (ex: 2.70 total match)
+    // private double leagueAvgGoals = 1.35; // <--- SUPPRIMÉ (Géré par League.java)
 
-    // --- 4. Pondération Temporelle (Saison vs Forme) ---
-    // Si formWeight = 0.6, la forme récente compte pour 60% du calcul de la force
+    // --- 4. Pondération Temporelle ---
     private double seasonWeight = 0.4;
     private double formWeight = 0.6;
 
     // --- 2. Paramètres Dixon-Coles ---
-    // Rho corrige l'interdépendance des scores faibles (0-0, 1-0, 0-1, 1-1)
-    // Une valeur standard est -0.13
     private double rho = -0.13;
 
-    // --- Paramètres Scores Legacy (Affichage uniquement) ---
+    // --- Legacy ---
     private double venueImportance = 10.0;
     private double rankImportance = 3.0;
     private double pointsImportance = 2.0;

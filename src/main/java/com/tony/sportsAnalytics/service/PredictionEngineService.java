@@ -30,12 +30,12 @@ public class PredictionEngineService {
      * Calcule les probabilités du match en utilisant la Loi de Poisson ajustée (Dixon-Coles)
      * et une pondération temporelle (Saison vs Forme).
      */
-    public PredictionResult calculateMatchPrediction(MatchAnalysis match, List<MatchAnalysis> h2hHistory) {
+    public PredictionResult calculateMatchPrediction(MatchAnalysis match, List<MatchAnalysis> h2hHistory, double leagueAvg) {
         // 1. Calcul des Espérances de Buts (Lambda/Mu) avec Pondération Temporelle (Point 4)
         double homeLambda = calculateExpectedGoals(match.getHomeStats(), match.getAwayStats(), true,
-                match.getHomeTeam(), match.getAwayTeam());
+                match.getHomeTeam(), match.getAwayTeam(), leagueAvg);
         double awayLambda = calculateExpectedGoals(match.getAwayStats(), match.getHomeStats(), false,
-                match.getAwayTeam(), match.getHomeTeam());
+                match.getAwayTeam(), match.getHomeTeam(), leagueAvg);
 
         homeLambda = applyContextualFactors(homeLambda, true, match);
         awayLambda = applyContextualFactors(awayLambda, false, match);
@@ -47,48 +47,49 @@ public class PredictionEngineService {
             else awayLambda *= (1.0 + Math.abs(h2hFactor));
         }
 
-        // 3. Matrice de Probabilités (Poisson + Dixon-Coles - Point 2)
+        // 3. Matrice de Poisson & Dixon-Coles
         double probHomeWin = 0.0, probDraw = 0.0, probAwayWin = 0.0;
         double probOver2_5 = 0.0, probBTTS = 0.0;
 
-        // On itère jusqu'à 7 buts pour couvrir 99.9% des cas
         for (int h = 0; h <= 7; h++) {
             for (int a = 0; a <= 7; a++) {
-                // Probabilité naïve (Poisson standard)
                 double probability = poisson(h, homeLambda) * poisson(a, awayLambda);
-
-                // --- AJUSTEMENT DIXON-COLES ---
-                // Corrige la sous-estimation des scores faibles (0-0, 1-0, 0-1, 1-1)
                 probability = applyDixonColes(probability, h, a, homeLambda, awayLambda);
-                // -----------------------------
 
-                // Accumulation 1N2
                 if (h > a) probHomeWin += probability;
                 else if (h == a) probDraw += probability;
                 else probAwayWin += probability;
 
-                // Accumulation Over/Under 2.5
                 if ((h + a) > 2.5) probOver2_5 += probability;
-
-                // Accumulation BTTS (Les deux marquent)
                 if (h > 0 && a > 0) probBTTS += probability;
             }
         }
 
-        // Normalisation (Indispensable après Dixon-Coles qui peut légèrement modifier la somme totale)
+        // Normalisation
         double totalProb = probHomeWin + probDraw + probAwayWin;
+        if(totalProb == 0) totalProb = 1.0;
+
         probHomeWin = (probHomeWin / totalProb) * 100;
         probDraw = (probDraw / totalProb) * 100;
         probAwayWin = (probAwayWin / totalProb) * 100;
         probOver2_5 = (probOver2_5 / totalProb) * 100;
         probBTTS = (probBTTS / totalProb) * 100;
 
-        // Double Chance
         double dc1N = probHomeWin + probDraw;
         double dcN2 = probDraw + probAwayWin;
         double dc12 = probHomeWin + probAwayWin;
 
-        // Calcul Scores Legacy pour affichage
+        // Kelly & Value (V9)
+        double kellyHome = calculateKelly(probHomeWin / 100.0, match.getOdds1());
+        double kellyDraw = calculateKelly(probDraw / 100.0, match.getOddsN());
+        double kellyAway = calculateKelly(probAwayWin / 100.0, match.getOdds2());
+
+        String valueSide = null;
+        if (kellyHome > 0) valueSide = "HOME";
+        else if (kellyAway > 0) valueSide = "AWAY";
+        else if (kellyDraw > 0) valueSide = "DRAW";
+
+        // Scores Legacy
         double homePower = calculateLegacyPowerScore(match.getHomeStats(), true);
         double awayPower = calculateLegacyPowerScore(match.getAwayStats(), false);
 
@@ -98,7 +99,9 @@ public class PredictionEngineService {
                 round(homeLambda), round(awayLambda),
                 round(probOver2_5), round(100.0 - probOver2_5),
                 round(probBTTS),
-                round(dc1N), round(dcN2), round(dc12)
+                round(dc1N), round(dcN2), round(dc12),
+                // Champs V9 Value/Kelly
+                kellyHome, kellyDraw, kellyAway, valueSide
         );
     }
 
@@ -106,37 +109,33 @@ public class PredictionEngineService {
      * Point 4 : Calcul de la force offensive/défensive avec pondération (Saison vs Last 5).
      * Point 2 : Avantage Domicile Dynamique.
      */
-    private double calculateExpectedGoals(TeamStats attacker, TeamStats defender, boolean isHome, Team attackerTeam, Team defenderTeam) {
-        double leagueAvg = props.getLeagueAvgGoals();
-
-        // 1. Calcul Statistique Classique (V7)
-        // (Assure-toi de passer les arguments pour la pondération forme/saison V7 si tu l'as gardée)
+    private double calculateExpectedGoals(TeamStats attacker, TeamStats defender, boolean isHome,
+            Team attackerTeam, Team defenderTeam, double leagueAvg) {
         double attackStrength = calculateWeightedStrength(attacker.getGoalsFor(), attacker.getMatchesPlayed(), attacker.getGoalsForLast5(), 5, leagueAvg);
         double defenseWeakness = calculateWeightedStrength(defender.getGoalsAgainst(), defender.getMatchesPlayed(), defender.getGoalsAgainstLast5(), 5, leagueAvg);
 
         double expected = attackStrength * defenseWeakness * leagueAvg;
 
-        // 2. Correction ELO (V8 - NOUVEAU)
-        // Si l'attaquant a un ELO bien supérieur, il marquera probablement plus que ce que disent ses stats récentes.
+        // Correction ELO
         if (attackerTeam != null && defenderTeam != null) {
             double eloFactor = getEloImpact(attackerTeam.getEloRating(), defenderTeam.getEloRating());
             expected *= eloFactor;
         }
 
-        // 3. Avantage Domicile (V7 Dynamique)
+        // Avantage Domicile
         if (isHome) {
             double homeAdvantage = 1.20;
-            if (attacker.getVenuePoints() != null && attacker.getVenueMatches() > 0) {
+            if (attacker.getVenuePoints() != null && attacker.getVenueMatches() != null && attacker.getVenueMatches() > 0) {
                 double ppgHome = (double) attacker.getVenuePoints() / attacker.getVenueMatches();
                 double ppgGlobal = (double) attacker.getPoints() / Math.max(1, attacker.getMatchesPlayed());
-                if (ppgHome > ppgGlobal) homeAdvantage += 0.1; // Bonus forteresse
+                if (ppgHome > ppgGlobal) homeAdvantage += 0.1;
             }
             expected *= homeAdvantage;
         } else {
             expected *= 0.85;
         }
 
-        // 4. Contexte xG
+        // xG Context
         if (attacker.getXG() != null && attacker.getXG() > 0) {
             double xGFactor = attacker.getXG() / leagueAvg;
             expected = (expected * 0.7) + (xGFactor * leagueAvg * 0.3);
@@ -168,6 +167,14 @@ public class PredictionEngineService {
 
         // 4. Force Relative
         return weightedAvg / leagueAvg;
+    }
+
+    private double calculateKelly(double trueProb, Double odds) {
+        if (odds == null || odds <= 1.0) return 0.0;
+        double b = odds - 1.0;
+        double q = 1.0 - trueProb;
+        double f = ((b * trueProb) - q) / b;
+        return f > 0 ? (f * 0.25) * 100.0 : 0.0;
     }
 
     /**

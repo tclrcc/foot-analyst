@@ -66,6 +66,16 @@ public class ReferenceController {
         return ResponseEntity.ok(teamRepository.save(newTeam));
     }
 
+    @PutMapping("/teams/{teamId}/stats")
+    public ResponseEntity<Team> updateTeamStats(@PathVariable Long teamId, @RequestBody TeamStats newStats) {
+        return teamRepository.findById(teamId)
+                .map(team -> {
+                    team.setCurrentStats(newStats); // On écrase les stats actuelles
+                    return ResponseEntity.ok(teamRepository.save(team));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     // Petit DTO interne pour simplifier la requête JSON de création d'équipe
     @Data
     public static class CreateTeamRequest {

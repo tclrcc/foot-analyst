@@ -20,6 +20,9 @@ public class League {
     // Code ISO pour le drapeau (ex: "fr", "gb", "es")
     private String countryCode;
 
+    @Column(nullable = false, columnDefinition = "double precision default 1.35")
+    private Double averageGoalsPerTeam = 1.35;
+
     public League(String name) {
         this.name = name;
     }
@@ -28,5 +31,12 @@ public class League {
         this.name = name;
         this.country = country;
         this.countryCode = countryCode;
+    }
+
+    public League(String name, String country, String countryCode, Double averageGoalsPerTeam) {
+        this.name = name;
+        this.country = country;
+        this.countryCode = countryCode;
+        this.averageGoalsPerTeam = averageGoalsPerTeam;
     }
 }

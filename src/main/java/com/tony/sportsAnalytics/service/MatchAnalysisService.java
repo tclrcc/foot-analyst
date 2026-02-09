@@ -55,11 +55,14 @@ public class MatchAnalysisService {
         }
         // ------------------------------------------
 
+        // On récupère la moyenne de buts du championnat de l'équipe à domicile
+        double leagueAvg = homeTeam.getLeague().getAverageGoalsPerTeam();
+
         // Calcul Prédictif
         List<MatchAnalysis> historiqueH2H = analysisRepository.findH2H(homeTeam, awayTeam, null);
 
         // Le moteur utilise maintenant l'objet 'match' qui contient le contexte
-        PredictionResult prediction = predictionEngine.calculateMatchPrediction(match, historiqueH2H);
+        PredictionResult prediction = predictionEngine.calculateMatchPrediction(match, historiqueH2H, leagueAvg);
         match.setPrediction(prediction);
 
         // --- APPRENTISSAGE ELO (V8) ---

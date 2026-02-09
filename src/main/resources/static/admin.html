@@ -425,12 +425,50 @@
     }
   });
 
-  // Sauvegarde Stats (Snapshot)
+  // Sauvegarde Stats (Snapshot) - CORRIGÉ
   document.getElementById('statsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    // Ici, statsTeamSelect contient bien l'ID maintenant
-    // TODO: Ajouter l'appel API PUT pour mettre à jour les stats
-    showToast("Sauvegarde stats: Fonctionnalité à coder côté serveur (PUT /teams/{id}/stats)", true);
+
+    // Récupération de l'ID de l'équipe (Assure-toi que loadTeams met bien l'ID en value !)
+    const teamId = document.getElementById('statsTeamSelect').value;
+
+    if (!teamId) {
+      showToast("Erreur : Aucune équipe sélectionnée", true);
+      return;
+    }
+
+    const payload = {
+      rank: parseInt(document.getElementById('sRank').value) || 0,
+      points: parseInt(document.getElementById('sPoints').value) || 0,
+      xG: parseFloat(document.getElementById('sXg').value) || 0.0,
+      goalsFor: parseInt(document.getElementById('sGF').value) || 0,
+      goalsAgainst: parseInt(document.getElementById('sGA').value) || 0,
+      last5MatchesPoints: parseInt(document.getElementById('sForm').value) || 0,
+
+      // Stats détaillées
+      matchesPlayed: parseInt(document.getElementById('sMjTotal').value) || 0,
+      matchesPlayedHome: parseInt(document.getElementById('sMjHome').value) || 0,
+      matchesPlayedAway: parseInt(document.getElementById('sMjAway').value) || 0,
+      venuePoints: parseInt(document.getElementById('sPtsHome').value) || 0
+      // Note : Tu pourras ajouter venueMatches si tu l'ajoutes au formulaire HTML
+    };
+
+    try {
+      const res = await fetch(`/api/v1/references/teams/${teamId}/stats`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+
+      if(res.ok) {
+        showToast("Stats mises à jour avec succès !");
+      } else {
+        showToast("Erreur serveur lors de la sauvegarde", true);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur technique", true);
+    }
   });
 </script>
 </body>
