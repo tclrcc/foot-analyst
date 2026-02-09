@@ -125,41 +125,97 @@
       </div>
 
       <div class="tab-pane fade" id="history-pane">
-        <h3 class="mb-4">Saisie de Résultats</h3>
-        <div class="card p-4 border-warning border-2 border-top-0 border-end-0 border-bottom-0">
-          <form id="historyForm">
-            <div class="row mb-4">
-              <div class="col-md-4">
-                <label class="form-label">Date</label>
-                <input type="date" class="form-control" id="histDate" required>
-              </div>
-              <div class="col-md-8">
-                <label class="form-label">Championnat</label>
-                <select class="form-select league-select" id="historyLeagueSelect" required></select>
-              </div>
-            </div>
+        <h3 class="mb-4"><i class="bi bi-journal-richtext me-2"></i>Saisie Complète de Match</h3>
 
-            <div class="row align-items-end mb-4">
-              <div class="col-md-5">
-                <label class="form-label fw-bold text-primary">Domicile</label>
-                <select class="form-select home-team-select" id="histHomeTeam" disabled required></select>
-              </div>
-              <div class="col-md-2 text-center pb-2">
-                <button type="button" class="btn btn-outline-secondary btn-sm rounded-circle" onclick="swapTeams()"><i class="bi bi-arrow-left-right"></i></button>
-              </div>
-              <div class="col-md-5">
-                <label class="form-label fw-bold text-danger">Extérieur</label>
-                <select class="form-select away-team-select" id="histAwayTeam" disabled required></select>
-              </div>
-            </div>
+        <div class="card shadow-sm border-0">
+          <div class="card-header bg-warning text-dark fw-bold">
+            <i class="bi bi-pencil-square me-2"></i>Nouveau Résultat
+          </div>
+          <div class="card-body p-4">
+            <form id="historyForm">
 
-            <div class="row mb-4">
-              <div class="col-md-6"><input type="number" class="form-control text-center fw-bold" placeholder="Score Dom." id="histHomeScore" min="0" required></div>
-              <div class="col-md-6"><input type="number" class="form-control text-center fw-bold" placeholder="Score Ext." id="histAwayScore" min="0" required></div>
-            </div>
+              <h6 class="text-muted text-uppercase small fw-bold mb-3">Contexte du Match</h6>
+              <div class="row mb-4 g-3">
+                <div class="col-md-3">
+                  <label class="form-label small">Date</label>
+                  <input type="date" class="form-control" id="histDate" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small">Championnat</label>
+                  <select class="form-select league-select" id="historyLeagueSelect" required></select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-bold text-primary">Domicile</label>
+                  <select class="form-select home-team-select" id="histHomeTeam" disabled required></select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-bold text-danger">Extérieur</label>
+                  <select class="form-select away-team-select" id="histAwayTeam" disabled required></select>
+                </div>
+              </div>
 
-            <button type="submit" class="btn btn-warning w-100 fw-bold"><i class="bi bi-save me-2"></i>Enregistrer</button>
-          </form>
+              <div class="row justify-content-center mb-4 align-items-center bg-light py-3 rounded mx-0">
+                <div class="col-auto">
+                  <span class="badge bg-primary">DOM</span>
+                </div>
+                <div class="col-2">
+                  <input type="number" class="form-control text-center fs-4 fw-bold" id="histHomeScore" placeholder="0" min="0" required>
+                </div>
+                <div class="col-auto fw-bold text-muted">-</div>
+                <div class="col-2">
+                  <input type="number" class="form-control text-center fs-4 fw-bold" id="histAwayScore" placeholder="0" min="0" required>
+                </div>
+                <div class="col-auto">
+                  <span class="badge bg-danger">EXT</span>
+                </div>
+              </div>
+
+              <div class="d-grid gap-2 mb-3">
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#advancedStatsCollapse">
+                  <i class="bi bi-bar-chart-steps me-2"></i>Ajouter Stats Détaillées (xG, Possession...)
+                </button>
+              </div>
+
+              <div class="collapse" id="advancedStatsCollapse">
+                <div class="card card-body bg-light border-0 mb-4">
+                  <div class="row text-center mb-2">
+                    <div class="col-5 fw-bold text-primary">Domicile</div>
+                    <div class="col-2 text-muted small">Métrique</div>
+                    <div class="col-5 fw-bold text-danger">Extérieur</div>
+                  </div>
+
+                  <div class="row g-2 mb-2 align-items-center">
+                    <div class="col-5"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="hxG" placeholder="xG Dom"></div>
+                    <div class="col-2 text-center small fw-bold">xG</div>
+                    <div class="col-5"><input type="number" step="0.01" class="form-control form-control-sm text-center" id="axG" placeholder="xG Ext"></div>
+                  </div>
+
+                  <div class="row g-2 mb-2 align-items-center">
+                    <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="hPoss" placeholder="%"></div>
+                    <div class="col-2 text-center small fw-bold">Poss.</div>
+                    <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="aPoss" placeholder="%"></div>
+                  </div>
+
+                  <div class="row g-2 mb-2 align-items-center">
+                    <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="hSoT" placeholder="Tirs C."></div>
+                    <div class="col-2 text-center small fw-bold">Tirs Cadrés</div>
+                    <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="aSoT" placeholder="Tirs C."></div>
+                  </div>
+
+                  <div class="row g-2 mb-2 align-items-center">
+                    <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="hCorn"></div>
+                    <div class="col-2 text-center small fw-bold">Corners</div>
+                    <div class="col-5"><input type="number" class="form-control form-control-sm text-center" id="aCorn"></div>
+                  </div>
+
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-success w-100 py-2 fw-bold shadow-sm">
+                <i class="bi bi-check-circle-fill me-2"></i>Enregistrer le Match
+              </button>
+            </form>
+          </div>
         </div>
       </div>
 
@@ -396,20 +452,34 @@
     }
   });
 
-  // Créer Résultat (CORRIGÉ)
+  // Créer Résultat Complet (V10)
   document.getElementById('historyForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // On envoie maintenant les IDs (valeurs des selects)
     const payload = {
       homeTeamId: document.getElementById('histHomeTeam').value,
       awayTeamId: document.getElementById('histAwayTeam').value,
       matchDate: new Date(document.getElementById('histDate').value).toISOString(),
       homeScore: document.getElementById('histHomeScore').value,
       awayScore: document.getElementById('histAwayScore').value,
-      // Stats bidons obligatoires pour passer la validation (si nécessaire)
-      homeStats: { rank: 10, points: 0 },
-      awayStats: { rank: 10, points: 0 }
+
+      // Stats obligatoires pour le modèle (mock si pas de stats détaillées)
+      homeStats: { rank: 0, points: 0 },
+      awayStats: { rank: 0, points: 0 },
+
+      // --- V10 : Stats Détaillées ---
+      homeMatchStats: {
+        xG: document.getElementById('hxG').value || null,
+        possession: document.getElementById('hPoss').value || null,
+        shotsOnTarget: document.getElementById('hSoT').value || null,
+        corners: document.getElementById('hCorn').value || null
+      },
+      awayMatchStats: {
+        xG: document.getElementById('axG').value || null,
+        possession: document.getElementById('aPoss').value || null,
+        shotsOnTarget: document.getElementById('aSoT').value || null,
+        corners: document.getElementById('aCorn').value || null
+      }
     };
 
     const res = await fetch('/api/v1/analyses', {
@@ -417,11 +487,14 @@
     });
 
     if(res.ok) {
-      showToast('Résultat enregistré !');
+      showToast('Match enregistré avec succès !');
+      // Reset partiel
       document.getElementById('histHomeScore').value = '';
       document.getElementById('histAwayScore').value = '';
+      // Reset stats avancées
+      document.querySelectorAll('#advancedStatsCollapse input').forEach(i => i.value = '');
     } else {
-      showToast('Erreur enregistrement (400)', true);
+      showToast('Erreur enregistrement (Vérifiez les IDs)', true);
     }
   });
 

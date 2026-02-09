@@ -1,5 +1,6 @@
 package com.tony.sportsAnalytics.model.dto;
 
+import com.tony.sportsAnalytics.model.MatchDetailStats;
 import com.tony.sportsAnalytics.model.TeamStats;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -24,6 +25,9 @@ public class MatchAnalysisRequest {
 
     private Integer homeScore;
     private Integer awayScore;
+
+    private MatchDetailStats homeMatchStats;
+    private MatchDetailStats awayMatchStats;
 
     @Data
     public static class MatchContext {

@@ -5,7 +5,6 @@ import com.tony.sportsAnalytics.model.MatchAnalysis;
 import com.tony.sportsAnalytics.model.PredictionResult;
 import com.tony.sportsAnalytics.model.Team;
 import com.tony.sportsAnalytics.model.TeamStats;
-import com.tony.sportsAnalytics.model.dto.MatchAnalysisRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +25,35 @@ public class PredictionEngineService {
         return 1.0 + (diff * 0.001);
     }
 
+    // Méthode utilitaire à appeler si h2hHistory contient des stats détaillées
+    private double calculateEfficiencyBonus(Team team, List<MatchAnalysis> history) {
+        double totalXg = 0.0;
+        double totalGoals = 0.0;
+        int count = 0;
+
+        for(MatchAnalysis m : history) {
+            // Vérifier si c'est l'équipe Home ou Away et si les stats existent
+            if(m.getHomeTeam().equals(team) && m.getHomeMatchStats() != null && m.getHomeMatchStats().getXG() != null) {
+                totalXg += m.getHomeMatchStats().getXG();
+                totalGoals += m.getHomeScore();
+                count++;
+            } else if (m.getAwayTeam().equals(team) && m.getAwayMatchStats() != null && m.getAwayMatchStats().getXG() != null) {
+                totalXg += m.getAwayMatchStats().getXG();
+                totalGoals += m.getAwayScore();
+                count++;
+            }
+        }
+
+        if(count < 3 || totalXg == 0) return 1.0;
+
+        // Ratio Efficacité : Buts Réels / xG
+        // Si > 1.0 : Tueurs devant le but. Si < 1.0 : Maladroits.
+        double ratio = totalGoals / totalXg;
+
+        // On lisse le ratio pour éviter les extrêmes (max +10% ou -10%)
+        return Math.max(0.9, Math.min(1.1, ratio));
+    }
+
     /**
      * Calcule les probabilités du match en utilisant la Loi de Poisson ajustée (Dixon-Coles)
      * et une pondération temporelle (Saison vs Forme).
@@ -40,8 +68,17 @@ public class PredictionEngineService {
         homeLambda = applyContextualFactors(homeLambda, true, match);
         awayLambda = applyContextualFactors(awayLambda, false, match);
 
-        // 2. Impact Historique (H2H) - Bonus/Malus psychologique
+        // Si on a de l'historique H2H avec des stats xG, on s'en sert pour affiner
         if (h2hHistory != null && !h2hHistory.isEmpty()) {
+            // Calcul du réalisme offensif
+            double homeEfficiency = calculateEfficiencyBonus(match.getHomeTeam(), h2hHistory);
+            double awayEfficiency = calculateEfficiencyBonus(match.getAwayTeam(), h2hHistory);
+
+            // Application du correctif
+            homeLambda *= homeEfficiency;
+            awayLambda *= awayEfficiency;
+
+            // Logique H2H psychologique existante (Bonus victoire)
             double h2hFactor = calculateH2HFactor(match.getHomeTeam().getName(), h2hHistory);
             if (h2hFactor > 0) homeLambda *= (1.0 + h2hFactor);
             else awayLambda *= (1.0 + Math.abs(h2hFactor));

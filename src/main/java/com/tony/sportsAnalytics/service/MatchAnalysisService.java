@@ -42,6 +42,13 @@ public class MatchAnalysisService {
         match.setHomeScore(request.getHomeScore());
         match.setAwayScore(request.getAwayScore());
 
+        if (request.getHomeMatchStats() != null) {
+            match.setHomeMatchStats(request.getHomeMatchStats());
+        }
+        if (request.getAwayMatchStats() != null) {
+            match.setAwayMatchStats(request.getAwayMatchStats());
+        }
+
         // --- NOUVEAU : Mapping Cotes & Contexte ---
         match.setOdds1(request.getOdds1());
         match.setOddsN(request.getOddsN());

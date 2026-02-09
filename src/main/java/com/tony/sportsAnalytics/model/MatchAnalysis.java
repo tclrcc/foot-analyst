@@ -71,6 +71,32 @@ public class MatchAnalysis {
     @Valid
     private TeamStats awayStats;
 
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "xG", column = @Column(name = "home_match_xg")),
+            @AttributeOverride(name = "shots", column = @Column(name = "home_match_shots")),
+            @AttributeOverride(name = "shotsOnTarget", column = @Column(name = "home_match_sot")),
+            @AttributeOverride(name = "possession", column = @Column(name = "home_match_possession")),
+            @AttributeOverride(name = "corners", column = @Column(name = "home_match_corners")),
+            @AttributeOverride(name = "fouls", column = @Column(name = "home_match_fouls")),
+            @AttributeOverride(name = "yellowCards", column = @Column(name = "home_match_yc")),
+            @AttributeOverride(name = "redCards", column = @Column(name = "home_match_rc"))
+    })
+    private MatchDetailStats homeMatchStats;
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "xG", column = @Column(name = "away_match_xg")),
+            @AttributeOverride(name = "shots", column = @Column(name = "away_match_shots")),
+            @AttributeOverride(name = "shotsOnTarget", column = @Column(name = "away_match_sot")),
+            @AttributeOverride(name = "possession", column = @Column(name = "away_match_possession")),
+            @AttributeOverride(name = "corners", column = @Column(name = "away_match_corners")),
+            @AttributeOverride(name = "fouls", column = @Column(name = "away_match_fouls")),
+            @AttributeOverride(name = "yellowCards", column = @Column(name = "away_match_yc")),
+            @AttributeOverride(name = "redCards", column = @Column(name = "away_match_rc"))
+    })
+    private MatchDetailStats awayMatchStats;
+
     // --- NOUVEAU : Cotes Bookmakers (Pour calcul Value / Kelly) ---
     private Double odds1;
     private Double oddsN;
