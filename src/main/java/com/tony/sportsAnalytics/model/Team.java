@@ -26,6 +26,10 @@ public class Team {
     @Column(nullable = false, columnDefinition = "integer default 1500")
     private Integer eloRating = 1500;
 
+    private String stadiumCity; // Ex: "Paris"
+    private Double latitude;    // Ex: 48.8414
+    private Double longitude;   // Ex: 2.2530
+
     public Team(String name, League league) {
         this.name = name;
         this.league = league;

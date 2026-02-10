@@ -57,4 +57,9 @@ public class PredictionResult {
     // Score Exact le plus probable
     private String exactScore;   // Ex: "2-1"
     private Double exactScoreProb; // Ex: 12.5 (%)
+
+    private Double probUnder1_5;
+    private Double probUnder2_5;
+    private Double probOver3_5;
+    private Double probBTTS_No;
 }

@@ -47,4 +47,9 @@ public class MatchAnalysisController {
     public ResponseEntity<MatchAnalysis> updateMatch(@PathVariable Long id, @RequestBody MatchAnalysisRequest request) {
         return ResponseEntity.ok(matchAnalysisService.updateMatch(id, request));
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<MatchAnalysis> getAnalysisById(@PathVariable Long id) {
+        return ResponseEntity.ok(matchAnalysisService.getMatchById(id));
+    }
 }
