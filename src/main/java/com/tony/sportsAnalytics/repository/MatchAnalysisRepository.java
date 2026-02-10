@@ -34,4 +34,8 @@ public interface MatchAnalysisRepository extends JpaRepository<MatchAnalysis, Lo
     // 2. Pour calculer les stats globales (Moyenne buts, etc.) d'une ligue sur une saison
     // Spring comprend automatiquement : Match -> HomeTeam -> League
     List<MatchAnalysis> findByHomeTeamLeagueAndSeason(League league, String season);
+
+    // Récupère les 5 derniers matchs (Top 5) d'une équipe (Dom ou Ext),
+    // où le score n'est pas null (donc match joué), triés du plus récent au plus vieux.
+    List<MatchAnalysis> findTop5ByHomeTeamIdOrAwayTeamIdAndHomeScoreIsNotNullOrderByMatchDateDesc(Long homeTeamId, Long awayTeamId);
 }
