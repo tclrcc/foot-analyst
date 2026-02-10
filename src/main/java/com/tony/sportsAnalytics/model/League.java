@@ -23,6 +23,14 @@ public class League {
     @Column(nullable = false, columnDefinition = "double precision default 1.35")
     private Double averageGoalsPerTeam = 1.35;
 
+    // --- Stats Globales Saison ---
+    private Double averageGoalsPerMatch; // Ex: 2.85
+    private Double percentHomeWin;       // Ex: 45.0
+    private Double percentDraw;          // Ex: 25.0
+    private Double percentAwayWin;       // Ex: 30.0
+    private Double percentOver2_5;       // Ex: 55.0
+    private Double percentBTTS;          // Ex: 52.0
+
     public League(String name) {
         this.name = name;
     }

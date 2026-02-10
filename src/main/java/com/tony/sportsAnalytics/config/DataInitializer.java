@@ -1,7 +1,6 @@
 package com.tony.sportsAnalytics.config;
 
 import com.tony.sportsAnalytics.model.League;
-import com.tony.sportsAnalytics.model.MatchAnalysis;
 import com.tony.sportsAnalytics.model.Team;
 import com.tony.sportsAnalytics.repository.LeagueRepository;
 import com.tony.sportsAnalytics.repository.MatchAnalysisRepository;
@@ -11,9 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -51,27 +48,6 @@ public class DataInitializer implements CommandLineRunner {
             ));
 
             System.out.println("✅ Données V3 initialisées !");
-        }
-
-        System.out.println("🔄 Recalcul de toutes les stats d'équipes basé sur l'historique...");
-        teamRepository.findAll().forEach(team -> {
-            teamStatsService.recalculateTeamStats(team.getId());
-        });
-        System.out.println("✅ Recalcul terminé.");
-
-        // Correction Rétroactive V13
-        List<MatchAnalysis> nullSeasonMatches = matchAnalysisRepository.findAll().stream()
-                .filter(m -> m.getSeason() == null)
-                .toList();
-
-        for (MatchAnalysis m : nullSeasonMatches) {
-            // Logique simple : Si après Août 2025 -> 2025-2026
-            if (m.getMatchDate().isAfter(LocalDateTime.of(2025, 7, 1, 0, 0))) {
-                m.setSeason("2025-2026");
-            } else {
-                m.setSeason("2024-2025"); // Par défaut pour les vieux tests
-            }
-            matchAnalysisRepository.save(m);
         }
     }
 }

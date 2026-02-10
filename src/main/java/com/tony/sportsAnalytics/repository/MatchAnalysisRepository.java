@@ -1,5 +1,6 @@
 package com.tony.sportsAnalytics.repository;
 
+import com.tony.sportsAnalytics.model.League;
 import com.tony.sportsAnalytics.model.MatchAnalysis;
 import com.tony.sportsAnalytics.model.Team;
 import org.springframework.data.domain.Pageable;
@@ -26,4 +27,11 @@ public interface MatchAnalysisRepository extends JpaRepository<MatchAnalysis, Lo
 
     @Query("SELECT m FROM MatchAnalysis m WHERE m.homeTeam.id = :teamId OR m.awayTeam.id = :teamId ORDER BY m.matchDate DESC")
     List<MatchAnalysis> findLastMatchesByTeam(@Param("teamId") Long teamId);
+
+    // 1. Pour charger tout le cache des matchs de la saison en cours
+    List<MatchAnalysis> findBySeason(String season);
+
+    // 2. Pour calculer les stats globales (Moyenne buts, etc.) d'une ligue sur une saison
+    // Spring comprend automatiquement : Match -> HomeTeam -> League
+    List<MatchAnalysis> findByHomeTeamLeagueAndSeason(League league, String season);
 }

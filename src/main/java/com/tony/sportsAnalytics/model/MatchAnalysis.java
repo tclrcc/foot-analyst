@@ -126,6 +126,16 @@ public class MatchAnalysis {
     @Column(name = "odds_btts_yes")
     private Double oddsBTTSYes;
 
+    @Column(name = "referee")
+    private String referee; // Nom de l'arbitre
+
+    // Scores Mi-temps
+    private Integer homeScoreHT;
+    private Integer awayScoreHT;
+
+    // Cotes Under 2.5 (Tu avais déjà Over)
+    private Double oddsUnder25;
+
     // --- NOUVEAU : Facteurs Contextuels (Booleans) ---
     private boolean homeKeyPlayerMissing; // Absence joueur clé Dom
     private boolean awayKeyPlayerMissing; // Absence joueur clé Ext

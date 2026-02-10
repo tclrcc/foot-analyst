@@ -16,7 +16,10 @@
     .card { border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 10px; }
     .flag-preview { width: 30px; height: 20px; object-fit: cover; border-radius: 3px; display: none; }
     .team-badge { font-size: 0.9rem; padding: 8px 12px; margin: 3px; background-color: #e9ecef; color: #495057; border-radius: 20px; display: inline-block; transition: all 0.2s; }
-    .team-badge:hover { background-color: #dee2e6; transform: translateY(-1px); }
+
+    /* Style pour le tableau cliquable */
+    .clickable-row { cursor: pointer; transition: background-color 0.1s; }
+    .clickable-row:hover { background-color: #e9ecef !important; }
   </style>
 </head>
 <body>
@@ -121,7 +124,6 @@
               </form>
             </div>
           </div>
-
           <div class="col-md-6">
             <div class="card p-4 h-100 bg-light">
               <h6 class="text-muted text-uppercase mb-3 fw-bold small"><i class="bi bi-list-ul me-2"></i>Équipes déjà présentes</h6>
@@ -135,14 +137,12 @@
 
       <div class="tab-pane fade" id="history-pane">
         <h3 class="mb-4"><i class="bi bi-journal-richtext me-2"></i>Saisie Complète de Match</h3>
-
         <div class="card shadow-sm border-0">
           <div class="card-header bg-warning text-dark fw-bold">
             <i class="bi bi-pencil-square me-2"></i>Nouveau Résultat
           </div>
           <div class="card-body p-4">
             <form id="historyForm">
-
               <h6 class="text-muted text-uppercase small fw-bold mb-3">Contexte du Match</h6>
               <div class="row mb-4 g-3">
                 <div class="col-md-3">
@@ -153,8 +153,6 @@
                   <label class="form-label small">Saison</label>
                   <select class="form-select" id="histSeason">
                     <option value="2025-2026" selected>2025-2026</option>
-                    <option value="2024-2025">2024-2025</option>
-                    <option value="2023-2024">2023-2024</option>
                   </select>
                 </div>
                 <div class="col-md-3">
@@ -170,39 +168,13 @@
                   <select class="form-select away-team-select" id="histAwayTeam" disabled required></select>
                 </div>
               </div>
-
               <div class="row justify-content-center mb-4 align-items-center bg-light py-3 rounded mx-0">
-                <div class="col-auto">
-                  <span class="badge bg-primary">DOM</span>
-                </div>
-                <div class="col-2">
-                  <input type="number" class="form-control text-center fs-4 fw-bold" id="histHomeScore" placeholder="0" min="0" required>
-                </div>
+                <div class="col-auto"><span class="badge bg-primary">DOM</span></div>
+                <div class="col-2"><input type="number" class="form-control text-center fs-4 fw-bold" id="histHomeScore" placeholder="0" min="0" required></div>
                 <div class="col-auto fw-bold text-muted">-</div>
-                <div class="col-2">
-                  <input type="number" class="form-control text-center fs-4 fw-bold" id="histAwayScore" placeholder="0" min="0" required>
-                </div>
-                <div class="col-auto">
-                  <span class="badge bg-danger">EXT</span>
-                </div>
+                <div class="col-2"><input type="number" class="form-control text-center fs-4 fw-bold" id="histAwayScore" placeholder="0" min="0" required></div>
+                <div class="col-auto"><span class="badge bg-danger">EXT</span></div>
               </div>
-
-              <div class="d-grid gap-2 mb-3">
-                <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#advancedStatsCollapse">
-                  <i class="bi bi-bar-chart-steps me-2"></i>Saisir Stats Avancées
-                </button>
-              </div>
-
-              <div class="collapse" id="advancedStatsCollapse">
-                <div class="card card-body bg-light border-0 mb-4">
-                  <div class="row g-1 mb-2 align-items-center">
-                    <div class="col-5"><input type="number" class="form-control text-center" id="hShots" placeholder="Tirs Dom"></div>
-                    <div class="col-2 text-center small fw-bold">Tirs</div>
-                    <div class="col-5"><input type="number" class="form-control text-center" id="aShots" placeholder="Tirs Ext"></div>
-                  </div>
-                </div>
-              </div>
-
               <button type="submit" class="btn btn-success w-100 py-2 fw-bold shadow-sm">
                 <i class="bi bi-check-circle-fill me-2"></i>Enregistrer le Match
               </button>
@@ -212,7 +184,7 @@
       </div>
 
       <div class="tab-pane fade" id="manage-pane">
-        <h3 class="mb-4"><i class="bi bi-list-check me-2"></i>Édition des Matchs</h3>
+        <h3 class="mb-4"><i class="bi bi-list-check me-2"></i>Gestion & Statistiques</h3>
 
         <div class="card mb-4 border-0 shadow-sm">
           <div class="card-body">
@@ -242,7 +214,7 @@
               <th class="text-end">Domicile</th>
               <th class="text-center">Score</th>
               <th>Extérieur</th>
-              <th>xG</th>
+              <th>Info</th>
               <th class="text-end">Action</th>
             </tr>
             </thead>
@@ -255,23 +227,94 @@
         <div class="modal fade" id="editMatchModal" tabindex="-1">
           <div class="modal-dialog modal-lg">
             <div class="modal-content">
-              <div class="modal-header bg-warning text-dark">
-                <h5 class="modal-title fw-bold">Modifier le Match</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              <div class="modal-header bg-gradient bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-graph-up-arrow me-2"></i>Détails du Match</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
               </div>
               <div class="modal-body">
                 <form id="editMatchForm">
                   <input type="hidden" id="editMatchId">
                   <input type="hidden" id="editMatchDate">
-                  <div class="row text-center mb-3">
-                    <div class="col fw-bold" id="editHomeName"></div>
-                    <div class="col-2"><input type="number" id="editHomeScore" class="form-control text-center"></div>
-                    <div class="col-auto">-</div>
-                    <div class="col-2"><input type="number" id="editAwayScore" class="form-control text-center"></div>
-                    <div class="col fw-bold" id="editAwayName"></div>
+
+                  <div class="bg-light rounded p-3 mb-4 text-center border">
+                    <div class="row align-items-center">
+                      <div class="col-4 text-end">
+                        <h5 class="mb-0 fw-bold text-primary" id="editHomeName">DOM</h5>
+                      </div>
+                      <div class="col-4">
+                        <div class="d-flex justify-content-center align-items-center gap-2">
+                          <input type="number" id="editHomeScore" class="form-control text-center fw-bold fs-3" style="width: 70px;">
+                          <span class="fs-4 text-muted">-</span>
+                          <input type="number" id="editAwayScore" class="form-control text-center fw-bold fs-3" style="width: 70px;">
+                        </div>
+                        <div class="small text-muted mt-1">Mi-temps : <span id="displayHTScore">--</span></div>
+                      </div>
+                      <div class="col-4 text-start">
+                        <h5 class="mb-0 fw-bold text-danger" id="editAwayName">EXT</h5>
+                      </div>
+                    </div>
+                    <div class="mt-2 text-center">
+                      <span class="badge bg-secondary"><i class="bi bi-whistle me-1"></i><span id="editRefereeDisplay">Arbitre inconnu</span></span>
+                    </div>
                   </div>
-                  <div class="text-end">
-                    <button type="submit" class="btn btn-success">Enregistrer</button>
+
+                  <div class="row g-3">
+                    <div class="col-md-6 border-end">
+                      <h6 class="text-primary text-center fw-bold mb-3 border-bottom pb-2">Domicile Stats</h6>
+
+                      <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text w-50">Tirs (Tot/Cadr)</span>
+                        <input type="number" id="editHShots" class="form-control text-center" placeholder="Total">
+                        <input type="number" id="editHSoT" class="form-control text-center" placeholder="Cadré">
+                      </div>
+                      <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text w-50">Corners</span>
+                        <input type="number" id="editHCorn" class="form-control text-center">
+                      </div>
+                      <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text w-50">Fautes</span>
+                        <input type="number" id="editHFouls" class="form-control text-center">
+                      </div>
+                      <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text w-50 bg-warning bg-opacity-10">Cartons Jaunes</span>
+                        <input type="number" id="editHYellow" class="form-control text-center">
+                      </div>
+                      <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text w-50 bg-danger bg-opacity-10">Cartons Rouges</span>
+                        <input type="number" id="editHRed" class="form-control text-center">
+                      </div>
+                    </div>
+
+                    <div class="col-md-6">
+                      <h6 class="text-danger text-center fw-bold mb-3 border-bottom pb-2">Extérieur Stats</h6>
+
+                      <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text w-50">Tirs (Tot/Cadr)</span>
+                        <input type="number" id="editAShots" class="form-control text-center" placeholder="Total">
+                        <input type="number" id="editASoT" class="form-control text-center" placeholder="Cadré">
+                      </div>
+                      <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text w-50">Corners</span>
+                        <input type="number" id="editACorn" class="form-control text-center">
+                      </div>
+                      <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text w-50">Fautes</span>
+                        <input type="number" id="editAFouls" class="form-control text-center">
+                      </div>
+                      <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text w-50 bg-warning bg-opacity-10">Cartons Jaunes</span>
+                        <input type="number" id="editAYellow" class="form-control text-center">
+                      </div>
+                      <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text w-50 bg-danger bg-opacity-10">Cartons Rouges</span>
+                        <input type="number" id="editARed" class="form-control text-center">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="modal-footer border-top-0 px-0 pb-0 mt-3">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                    <button type="submit" class="btn btn-success fw-bold"><i class="bi bi-check-lg me-2"></i>Enregistrer modifs</button>
                   </div>
                 </form>
               </div>
@@ -309,44 +352,33 @@
 
       <div class="tab-pane fade" id="import-pane">
         <h3 class="mb-4 text-warning"><i class="bi bi-cloud-download-fill me-2"></i>Importation Automatisée</h3>
-
         <div class="alert alert-light border shadow-sm">
           <i class="bi bi-info-circle-fill text-primary me-2"></i>
-          Utilisez ce module pour synchroniser votre base de données avec des sources externes (Football-Data.co.uk).
-          Cela mettra à jour les résultats, cotes et statistiques de tirs pour la saison 2025/2026.
+          Synchronisation Football-Data.co.uk (Saison 2025/2026).
         </div>
-
-        <div class="row g-4">
-          <div class="col-md-6">
-            <div class="card h-100 border-0 shadow-sm">
-              <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-flag-fill me-2"></i>Premier League</span>
-                <span class="badge bg-success">Actif</span>
-              </div>
-              <div class="card-body">
-                <p class="text-muted small">
-                  Importe tous les matchs joués jusqu'à aujourd'hui. <br>
-                  Crée les équipes manquantes automatiquement.
-                </p>
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                  <small class="text-muted">Source: football-data.co.uk</small>
-                  <button id="btnImportPL" class="btn btn-primary fw-bold btn-sm px-3">
-                    <i class="bi bi-download me-1"></i> Lancer Import
-                  </button>
-                </div>
-              </div>
-            </div>
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-flag-fill me-2"></i>Premier League</span>
+            <span class="badge bg-success">Actif</span>
           </div>
+          <div class="card-body">
+            <p class="text-muted small">
+              Importe tous les matchs joués jusqu'à aujourd'hui. <br>
+              Crée les équipes manquantes automatiquement.
+            </p>
 
-          <div class="col-md-6">
-            <div class="card h-100 border-0 shadow-sm opacity-50">
-              <div class="card-header bg-white fw-bold">
-                <span><i class="bi bi-flag me-2"></i>La Liga / Serie A</span>
-                <span class="badge bg-secondary">Bientôt</span>
-              </div>
-              <div class="card-body d-flex align-items-center justify-content-center">
-                <span class="text-muted fst-italic">Fonctionnalité à venir</span>
-              </div>
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="chkForceUpdatePL">
+              <label class="form-check-label small text-muted" for="chkForceUpdatePL">
+                Écraser les données existantes (Mise à jour)
+              </label>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <small class="text-muted">Source: football-data.co.uk</small>
+              <button id="btnImportPL" class="btn btn-primary fw-bold btn-sm px-3">
+                <i class="bi bi-download me-1"></i> Lancer Import
+              </button>
             </div>
           </div>
         </div>
@@ -377,34 +409,64 @@
 
   const getVal = (id) => document.getElementById(id).value ? parseFloat(document.getElementById(id).value) : null;
   const getInt = (id) => document.getElementById(id).value ? parseInt(document.getElementById(id).value) : null;
+  const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = (val !== null && val !== undefined) ? val : ''; };
 
-  // --- LOGIQUE IMPORT DONNÉES (NOUVEAU) ---
+  // --- 1. IMPORT DATA ---
   const btnImportPL = document.getElementById('btnImportPL');
   if(btnImportPL) {
     btnImportPL.addEventListener('click', async () => {
-      if(!confirm("Êtes-vous sûr de vouloir importer/mettre à jour toutes les données de Premier League ? Cela peut prendre quelques secondes.")) return;
+      // Récupérer l'état de la checkbox
+      const forceUpdate = document.getElementById('chkForceUpdatePL').checked;
 
-      showToast("Import en cours... Veuillez patienter.", false);
+      let msg = "Lancer l'import Premier League ?";
+      if (forceUpdate) {
+        msg += "\n⚠️ ATTENTION : Les matchs existants seront écrasés avec les données du CSV.";
+      }
+
+      if(!confirm(msg)) return;
+
+      showToast("Import en cours...", false);
 
       try {
-        const res = await fetch('/api/v1/admin/import/premier-league', { method: 'POST' });
+        // Ajout du paramètre dans l'URL
+        const res = await fetch(`/api/v1/admin/import/premier-league?forceUpdate=${forceUpdate}`, {
+          method: 'POST'
+        });
         const text = await res.text();
+        showToast(res.ok ? "Succès : " + text : "Erreur : " + text, !res.ok);
+      } catch(e) { showToast("Erreur serveur", true); }
+    });
+  }
 
-        if(res.ok) {
-          showToast("Succès : " + text);
-        } else {
-          showToast("Erreur : " + text, true);
-        }
-      } catch(e) {
-        console.error(e);
-        showToast("Erreur de connexion au serveur", true);
+  // --- 2. GESTION DES MATCHS ---
+
+  // Chargement Ligues & Equipes
+  async function loadLeagues() {
+    try {
+      const res = await fetch('/api/v1/references/leagues');
+      if(!res.ok) return;
+      const leagues = await res.json();
+      ['teamLeagueSelect', 'historyLeagueSelect', 'statsLeagueSelect', 'manageLeagueSelect'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.innerHTML = '<option value="" selected disabled>Choisir...</option>' + leagues.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+      });
+    } catch(e) {}
+  }
+
+  async function loadTeams(leagueId, targets = []) {
+    if (!leagueId) return;
+    const res = await fetch(`/api/v1/references/leagues/${leagueId}/teams`);
+    const teams = await res.json();
+    targets.forEach(id => {
+      const el = document.getElementById(id);
+      if(el) {
+        el.innerHTML = '<option value="" selected disabled>Choisir...</option>' + teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        el.disabled = false;
       }
     });
   }
 
-  // --- LOGIQUE METIER EXISTANTE ---
-
-  // 1. GESTION LIGUES & EQUIPES
+  // Affichage Liste Matchs
   document.getElementById('manageLeagueSelect').addEventListener('change', function() {
     loadTeams(this.value, ['manageTeamSelect']);
     document.getElementById('manageTeamSelect').disabled = false;
@@ -414,7 +476,6 @@
     document.getElementById('btnLoadMatches').disabled = false;
   });
 
-  // 2. LISTE MATCHS
   document.getElementById('btnLoadMatches').addEventListener('click', async () => {
     const teamId = document.getElementById('manageTeamSelect').value;
     const tbody = document.getElementById('matchesTableBody');
@@ -429,36 +490,70 @@
         return;
       }
 
+      // Création des lignes du tableau (Cliquables)
       tbody.innerHTML = matches.map(m => {
         const date = new Date(m.matchDate).toLocaleDateString();
         const isHome = (m.homeTeam.id == teamId);
-        const xGDisplay = (m.homeMatchStats?.xG || '-') + ' / ' + (m.awayMatchStats?.xG || '-');
+        // Sérialisation propre pour éviter les bugs de quotes dans le JSON.stringify inline
+        const jsonMatch = JSON.stringify(m).replace(/"/g, '&quot;');
 
         return `
-                <tr>
-                    <td><small>${date}</small></td>
-                    <td class="text-end ${isHome ? 'fw-bold' : ''}">${m.homeTeam.name}</td>
-                    <td class="text-center fw-bold bg-light border">${m.homeScore} - ${m.awayScore}</td>
-                    <td class="${!isHome ? 'fw-bold' : ''}">${m.awayTeam.name}</td>
-                    <td class="small text-muted text-center">${xGDisplay}</td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-warning" onclick='openEditModal(${JSON.stringify(m)})'>
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                    </td>
-                </tr>`;
+            <tr class="clickable-row" onclick="openEditModal(${jsonMatch})">
+                <td><small>${date}</small></td>
+                <td class="text-end ${isHome ? 'fw-bold' : ''}">${m.homeTeam.name}</td>
+                <td class="text-center fw-bold bg-light border">${m.homeScore} - ${m.awayScore}</td>
+                <td class="${!isHome ? 'fw-bold' : ''}">${m.awayTeam.name}</td>
+                <td class="small text-muted text-center">
+                    ${m.referee ? '<i class="bi bi-whistle" title="Arbitre: '+m.referee+'"></i>' : ''}
+                    ${(m.homeMatchStats?.redCards > 0 || m.awayMatchStats?.redCards > 0) ? '<i class="bi bi-file-fill text-danger ms-1" title="Carton Rouge"></i>' : ''}
+                </td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </td>
+            </tr>`;
       }).join('');
     } catch (e) { console.error(e); }
   });
 
-  // 3. MODAL EDIT (Simplifié pour l'exemple)
+  // --- 3. MODAL DETAIL / EDITION ---
   window.openEditModal = (match) => {
+    // Basic Infos
     document.getElementById('editMatchId').value = match.id;
     document.getElementById('editMatchDate').value = match.matchDate;
     document.getElementById('editHomeName').innerText = match.homeTeam.name;
     document.getElementById('editAwayName').innerText = match.awayTeam.name;
-    document.getElementById('editHomeScore').value = match.homeScore;
-    document.getElementById('editAwayScore').value = match.awayScore;
+
+    // Scores
+    setVal('editHomeScore', match.homeScore);
+    setVal('editAwayScore', match.awayScore);
+
+    // Header Info (HT & Referee)
+    const htText = (match.homeScoreHT !== null && match.awayScoreHT !== null) ? `${match.homeScoreHT} - ${match.awayScoreHT}` : '--';
+    document.getElementById('displayHTScore').innerText = htText;
+    document.getElementById('editRefereeDisplay').innerText = match.referee || "Non renseigné";
+
+    // Stats Helpers
+    const h = match.homeMatchStats || {};
+    const a = match.awayMatchStats || {};
+
+    // Domicile Stats
+    setVal('editHShots', h.shots);
+    setVal('editHSoT', h.shotsOnTarget);
+    setVal('editHCorn', h.corners);
+    setVal('editHFouls', h.fouls);       // Nouveau
+    setVal('editHYellow', h.yellowCards); // Nouveau
+    setVal('editHRed', h.redCards);       // Nouveau
+
+    // Extérieur Stats
+    setVal('editAShots', a.shots);
+    setVal('editASoT', a.shotsOnTarget);
+    setVal('editACorn', a.corners);
+    setVal('editAFouls', a.fouls);
+    setVal('editAYellow', a.yellowCards);
+    setVal('editARed', a.redCards);
+
     new bootstrap.Modal(document.getElementById('editMatchModal')).show();
   };
 
@@ -468,52 +563,27 @@
     const payload = {
       homeScore: getInt('editHomeScore'),
       awayScore: getInt('editAwayScore'),
-      matchDate: document.getElementById('editMatchDate').value
-      // Ajouter stats stats détaillées si besoin
+      matchDate: document.getElementById('editMatchDate').value,
+      // Update Stats (On renvoie tout pour ne pas écraser avec null)
+      homeMatchStats: {
+        shots: getInt('editHShots'), shotsOnTarget: getInt('editHSoT'), corners: getInt('editHCorn'),
+        fouls: getInt('editHFouls'), yellowCards: getInt('editHYellow'), redCards: getInt('editHRed')
+      },
+      awayMatchStats: {
+        shots: getInt('editAShots'), shotsOnTarget: getInt('editASoT'), corners: getInt('editACorn'),
+        fouls: getInt('editAFouls'), yellowCards: getInt('editAYellow'), redCards: getInt('editARed')
+      }
     };
+
     const res = await fetch(`/api/v1/analyses/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
     if(res.ok) {
-      showToast("Match modifié");
+      showToast("Match mis à jour");
       bootstrap.Modal.getInstance(document.getElementById('editMatchModal')).hide();
       document.getElementById('btnLoadMatches').click();
-    }
+    } else { showToast("Erreur MAJ", true); }
   });
 
-  // 4. CHARGEMENT
-  async function loadLeagues() {
-    try {
-      const res = await fetch('/api/v1/references/leagues');
-      if(!res.ok) return;
-      const leagues = await res.json();
-      ['teamLeagueSelect', 'historyLeagueSelect', 'statsLeagueSelect', 'manageLeagueSelect'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) {
-          el.innerHTML = '<option value="" selected disabled>Choisir...</option>' + leagues.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
-        }
-      });
-    } catch(e) { console.error("Erreur chargement ligues", e); }
-  }
-
-  async function loadTeams(leagueId, targets = []) {
-    if (!leagueId) return;
-    const res = await fetch(`/api/v1/references/leagues/${leagueId}/teams`);
-    const teams = await res.json();
-
-    targets.forEach(id => {
-      const el = document.getElementById(id);
-      if(el) {
-        el.innerHTML = '<option value="" selected disabled>Choisir...</option>' + teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-        el.disabled = false;
-      }
-    });
-
-    const container = document.getElementById('existingTeamsContainer');
-    if (container && document.getElementById('teamLeagueSelect').value == leagueId) {
-      container.innerHTML = teams.length ? teams.map(t => `<span class="team-badge">${t.name}</span>`).join('') : 'Aucune équipe.';
-    }
-  }
-
-  // 5. EVENT LISTENERS GLOBAUX
+  // Init
   document.addEventListener('DOMContentLoaded', () => {
     loadLeagues();
     const cSelect = document.getElementById('countrySelect');
@@ -522,48 +592,10 @@
     if(d) d.valueAsDate = new Date();
   });
 
+  // Autres Listeners
   document.getElementById('teamLeagueSelect').addEventListener('change', function() { loadTeams(this.value); });
   document.getElementById('historyLeagueSelect').addEventListener('change', function() { loadTeams(this.value, ['histHomeTeam', 'histAwayTeam']); });
   document.getElementById('statsLeagueSelect').addEventListener('change', function() { loadTeams(this.value, ['statsTeamSelect']); });
-
-  document.getElementById('historyForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const payload = {
-      homeTeamId: document.getElementById('histHomeTeam').value,
-      awayTeamId: document.getElementById('histAwayTeam').value,
-      matchDate: new Date(document.getElementById('histDate').value).toISOString(),
-      season: document.getElementById('histSeason').value,
-      homeScore: getInt('histHomeScore'),
-      awayScore: getInt('histAwayScore'),
-      homeStats: {rank:0}, awayStats: {rank:0},
-
-      // Stats simples pour l'exemple (à étendre comme avant si besoin)
-      homeMatchStats: { shots: getInt('hShots') },
-      awayMatchStats: { shots: getInt('aShots') }
-    };
-
-    const res = await fetch('/api/v1/analyses', {
-      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
-    });
-    if(res.ok) {
-      showToast('Match complet enregistré !');
-      e.target.reset();
-      document.getElementById('histDate').valueAsDate = new Date();
-    }
-  });
-
-  document.getElementById('statsForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const teamId = document.getElementById('statsTeamSelect').value;
-    const payload = {
-      rank: getInt('sRank'), points: getInt('sPoints'), xG: getVal('sXg'),
-      goalsFor: getInt('sGF'), goalsAgainst: getInt('sGA'), last5MatchesPoints: getInt('sForm')
-    };
-    const res = await fetch(`/api/v1/references/teams/${teamId}/stats`, {
-      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
-    });
-    if(res.ok) showToast("Stats mises à jour !");
-  });
 
 </script>
 </body>
