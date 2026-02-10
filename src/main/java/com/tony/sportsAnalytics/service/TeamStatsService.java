@@ -155,9 +155,19 @@ public class TeamStatsService {
             }
 
             // Cumul xG pour la moyenne
-            if (detail != null && detail.getXG() != null) {
-                totalXg += detail.getXG();
-                xgCount++;
+            if (detail != null) {
+                if (detail.getXG() != null) {
+                    totalXg += detail.getXG();
+                    xgCount++;
+                } else {
+                    // Fallback : On estime l'xG via les tirs si dispo
+                    if (detail.getShotsOnTarget() != null) {
+                        totalXg += (detail.getShotsOnTarget() * 0.3) + ((detail.getShots() - detail.getShotsOnTarget()) * 0.05);
+                    } else {
+                        // Fallback ultime : On prend 80% des buts réels
+                        totalXg += (isHome ? m.getHomeScore() : m.getAwayScore()) * 0.8;
+                    }
+                }
             }
 
             // Cumul Forme (5 derniers matchs seulement)
