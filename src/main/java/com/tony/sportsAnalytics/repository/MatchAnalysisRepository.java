@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface MatchAnalysisRepository extends JpaRepository<MatchAnalysis, Long> {
@@ -33,8 +34,8 @@ public interface MatchAnalysisRepository extends JpaRepository<MatchAnalysis, Lo
     List<MatchAnalysis> findTop5ByHomeTeamIdOrAwayTeamIdAndHomeScoreIsNotNullOrderByMatchDateDesc(Long homeTeamId, Long awayTeamId);
 
     // Récupère les matchs où le score domicile est NULL (donc non joués)
-    @Query("SELECT m FROM MatchAnalysis m WHERE m.homeScore IS NULL ORDER BY m.matchDate ASC")
-    List<MatchAnalysis> findUpcomingMatches();
+    @Query("SELECT m FROM MatchAnalysis m WHERE m.homeScore IS NULL AND m.matchDate >= :fromDate ORDER BY m.matchDate ASC")
+    List<MatchAnalysis> findUpcomingMatches(@Param("fromDate") LocalDateTime fromDate);
 
     @Query("SELECT m FROM MatchAnalysis m WHERE m.homeTeam.id = :homeId AND m.awayTeam.id = :awayId")
     List<MatchAnalysis> findByTeamIds(@Param("homeId") Long homeId, @Param("awayId") Long awayId);

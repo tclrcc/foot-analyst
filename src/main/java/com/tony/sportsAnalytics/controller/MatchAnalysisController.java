@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -49,13 +51,16 @@ public class MatchAnalysisController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MatchAnalysis> getAnalysisById(@PathVariable Long id) {
-        return ResponseEntity.ok(matchAnalysisService.getMatchById(id));
+    public ResponseEntity<MatchAnalysis> getAnalysis(@PathVariable Long id) {
+        return repository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/upcoming")
     public ResponseEntity<List<MatchAnalysis>> getUpcomingMatches() {
-        return ResponseEntity.ok(repository.findUpcomingMatches());
+        LocalDateTime todayMidnight = LocalDate.now().atStartOfDay();
+        return ResponseEntity.ok(repository.findUpcomingMatches(todayMidnight));
     }
 
     @GetMapping("/{matchId}/h2h")
