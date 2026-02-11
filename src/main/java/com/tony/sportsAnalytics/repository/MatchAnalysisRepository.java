@@ -38,4 +38,19 @@ public interface MatchAnalysisRepository extends JpaRepository<MatchAnalysis, Lo
 
     @Query("SELECT m FROM MatchAnalysis m WHERE m.homeTeam.id = :homeId AND m.awayTeam.id = :awayId")
     List<MatchAnalysis> findByTeamIds(@Param("homeId") Long homeId, @Param("awayId") Long awayId);
+
+    // 1. Tous les matchs (H2H Global)
+    // On cherche tous les matchs joués entre T1 et T2, peu importe qui recevait
+    @Query("SELECT m FROM MatchAnalysis m WHERE " +
+            "(m.homeTeam.id = :t1Id AND m.awayTeam.id = :t2Id) OR " +
+            "(m.homeTeam.id = :t2Id AND m.awayTeam.id = :t1Id) " +
+            "ORDER BY m.matchDate DESC")
+    List<MatchAnalysis> findHeadToHeadGlobal(@Param("t1Id") Long team1Id, @Param("t2Id") Long team2Id);
+
+    // 2. Matchs à domicile (H2H Venue specific)
+    // On cherche uniquement quand T1 recevait T2
+    @Query("SELECT m FROM MatchAnalysis m WHERE " +
+            "m.homeTeam.id = :homeId AND m.awayTeam.id = :awayId " +
+            "ORDER BY m.matchDate DESC")
+    List<MatchAnalysis> findHeadToHeadHome(@Param("homeId") Long homeId, @Param("awayId") Long awayId);
 }

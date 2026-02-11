@@ -57,4 +57,33 @@ public class MatchAnalysisController {
     public ResponseEntity<List<MatchAnalysis>> getUpcomingMatches() {
         return ResponseEntity.ok(repository.findUpcomingMatches());
     }
+
+    @GetMapping("/{matchId}/h2h")
+    public ResponseEntity<List<MatchAnalysis>> getH2H(
+            @PathVariable Long matchId,
+            @RequestParam(defaultValue = "ALL") String filter // "ALL" ou "HOME"
+    ) {
+        // 1. Récupérer le match actuel pour savoir qui sont les équipes
+        MatchAnalysis currentMatch = repository.findById(matchId)
+                .orElseThrow(() -> new RuntimeException("Match non trouvé"));
+
+        Long homeId = currentMatch.getHomeTeam().getId();
+        Long awayId = currentMatch.getAwayTeam().getId();
+
+        List<MatchAnalysis> history;
+
+        // 2. Appliquer le filtre
+        if ("HOME".equalsIgnoreCase(filter)) {
+            // Historique seulement quand l'équipe A recevait l'équipe B
+            history = repository.findHeadToHeadHome(homeId, awayId);
+        } else {
+            // Historique global (domicile et extérieur)
+            history = repository.findHeadToHeadGlobal(homeId, awayId);
+        }
+
+        // On exclut le match actuel de l'historique (s'il est déjà en base)
+        history.removeIf(m -> m.getId().equals(matchId));
+
+        return ResponseEntity.ok(history);
+    }
 }
