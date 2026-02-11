@@ -67,6 +67,8 @@ public class BacktestingService {
             count++;
         }
 
+        simulateBettingStrategy(testMatches);
+
         if (count > 0) {
             log.info("📊 --- RÉSULTATS DU BACKTEST ---");
             log.info("🏟️  Matchs analysés : {}", count);
@@ -75,6 +77,54 @@ public class BacktestingService {
 
             printCalibrationReport(calibrationList);
         }
+    }
+
+    private void simulateBettingStrategy(List<MatchAnalysis> matches) {
+        double bankroll = 1000.0;
+        double maxDrawdown = 0.0;
+        double currentPeak = 1000.0;
+        int betsPlaced = 0;
+        int betsWon = 0;
+
+        log.info("💰 --- SIMULATION FINANCIÈRE (KELLY) ---");
+
+        for (MatchAnalysis m : matches) {
+            PredictionResult p = m.getPrediction();
+            if (p == null) continue;
+
+            // On parie uniquement si Kelly > 0 (Value détectée)
+            // Domicile
+            if (p.getKellyStakeHome() > 0) {
+                double stake = (p.getKellyStakeHome() / 100.0) * bankroll;
+                bankroll -= stake;
+                if (m.getHomeScore() > m.getAwayScore()) {
+                    bankroll += stake * m.getOdds1();
+                    betsWon++;
+                }
+                betsPlaced++;
+            }
+            // Extérieur (On peut ajouter le Nul aussi)
+            if (p.getKellyStakeAway() > 0) {
+                double stake = (p.getKellyStakeAway() / 100.0) * bankroll;
+                bankroll -= stake;
+                if (m.getAwayScore() > m.getHomeScore()) {
+                    bankroll += stake * m.getOdds2();
+                    betsWon++;
+                }
+                betsPlaced++;
+            }
+
+            // Tracking Drawdown
+            if (bankroll > currentPeak) currentPeak = bankroll;
+            double dd = (currentPeak - bankroll) / currentPeak;
+            if (dd > maxDrawdown) maxDrawdown = dd;
+        }
+
+        double roi = ((bankroll - 1000.0) / 1000.0) * 100;
+        log.info("🏁 Bankroll Finale : {:.2f}€ (Départ 1000€)", bankroll);
+        log.info("📈 ROI Global : {:.2f}%", roi);
+        log.info("📉 Max Drawdown : {:.2f}%", maxDrawdown * 100);
+        log.info("🎯 Winrate Value : {:.2f}% ({}/{})", (double)betsWon/betsPlaced*100, betsWon, betsPlaced);
     }
 
     /**

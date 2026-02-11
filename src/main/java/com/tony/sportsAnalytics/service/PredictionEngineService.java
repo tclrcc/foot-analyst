@@ -23,7 +23,6 @@ public class PredictionEngineService {
     private static final double DEFAULT_WEIGHT_POISSON = 0.55;
     private static final double DEFAULT_MARKET_WEIGHT = 0.30;
     private static final double DEFAULT_RHO = -0.13;
-    private static final double DEFAULT_HOME_ADV = 1.15;
 
     private static final double ELO_DIVISOR = 400.0;
     private static final double MAX_FINISHING_CORRECTION = 1.25;
@@ -50,7 +49,11 @@ public class PredictionEngineService {
         double weightPoisson = (league != null && league.getWeightPoisson() != null) ? league.getWeightPoisson() : DEFAULT_WEIGHT_POISSON;
         double weightElo = 1.0 - weightPoisson;
         double marketWeight = (league != null && league.getMarketAnchorWeight() != null) ? league.getMarketAnchorWeight() : DEFAULT_MARKET_WEIGHT;
-        double homeAdv = (league != null && league.getHomeAdvantageFactor() != null) ? league.getHomeAdvantageFactor() : DEFAULT_HOME_ADV;
+        // Calcul avantage domicile
+        double baseHomeAdv = (league != null) ? league.getHomeAdvantageFactor() : 1.15;
+        double homeTeamHomeStrength = calculateHomeDominance(home); // Ratio Pts Dom / Pts Ext
+        double finalHomeAdv = baseHomeAdv * homeTeamHomeStrength;
+
         double rho = (league != null && league.getRho() != null) ? league.getRho() : DEFAULT_RHO;
 
         // -----------------------------------------------------------
@@ -63,7 +66,7 @@ public class PredictionEngineService {
         // -----------------------------------------------------------
         // 3. MODÈLE DIXON-COLES (La Force Instantanée)
         // -----------------------------------------------------------
-        double homeLambda = home.getAttackStrength() * away.getDefenseStrength() * homeAdv;
+        double homeLambda = home.getAttackStrength() * away.getDefenseStrength() * finalHomeAdv;
         double awayLambda = away.getAttackStrength() * home.getDefenseStrength();
 
         // Intégration xG (Correction de la "Chance")
@@ -193,6 +196,19 @@ public class PredictionEngineService {
                 .confidenceScore(round(confidenceFactor * 100.0))
 
                 .build();
+    }
+
+    private double calculateHomeDominance(Team t) {
+        if (t.getCurrentStats() == null || t.getCurrentStats().getMatchesPlayedAway() == 0) return 1.0;
+        double ptsPerGameHome = (double) t.getCurrentStats().getVenuePoints() / t.getCurrentStats().getVenueMatches();
+        double ptsPerGameAway = (double) (t.getCurrentStats().getPoints() - t.getCurrentStats().getVenuePoints())
+                / t.getCurrentStats().getMatchesPlayedAway();
+
+        if (ptsPerGameAway == 0) return 1.1; // Protection div/0
+
+        // On limite le facteur entre 0.9 (ne gagne jamais chez lui) et 1.3 (Intraitable)
+        double ratio = ptsPerGameHome / ptsPerGameAway;
+        return Math.max(0.9, Math.min(1.3, ratio)); // Clamp pour éviter les valeurs folles
     }
 
     private String generateUserLogs(Team h, Team a, double eloDiff, TeamPerformance hp, TeamPerformance ap, PredictionResult sim, double conf) {
@@ -445,6 +461,21 @@ public class PredictionEngineService {
             volatilitySum += matchVolatility * finalWeight;
 
             totalWeight += finalWeight;
+
+            // RECUPERATION DE LA FORCE DE L'ADVERSAIRE DE L'ÉPOQUE
+            Team opponent = wasHome ? m.getAwayTeam() : m.getHomeTeam();
+            double oppDefense = opponent.getDefenseStrength(); // La valeur Alpha/Beta actuelle
+
+            // AJUSTEMENT : Une performance contre une grosse défense vaut plus cher
+            // Si l'adversaire a une Def=0.80 (Encaisse peu), et que je mets 2.0 xG -> C'est comme mettre 2.5 xG contre une équipe moyenne.
+            double adjustedXgF = xgF * (1.0 + (1.0 - oppDefense));
+
+            // Idem pour la défense : Si je prends 1.0 xG contre une Attaque=1.40 (Forte) -> J'ai bien défendu.
+            double oppAttack = opponent.getAttackStrength();
+            double adjustedXgA = xgA * (1.0 - (oppAttack - 1.0));
+
+            sumXgFor += adjustedXgF * finalWeight;
+            sumXgAgainst += adjustedXgA * finalWeight;
         }
 
         if (totalWeight == 0) return new TeamPerformance(1.0, 1.0, 1.0, 0.5, 1.0);
@@ -529,22 +560,6 @@ public class PredictionEngineService {
         if (o1 == null || oN == null || o2 == null) return null;
         double rawSum = (1.0 / o1) + (1.0 / oN) + (1.0 / o2);
         return new MarketProbs((1.0 / o1) / rawSum, (1.0 / oN) / rawSum, (1.0 / o2) / rawSum);
-    }
-
-    private String generateExplainabilityNotes(double hl, double al, double eloDiff, Team h, Team a, League l, double fp1, double fp2) {
-        StringBuilder sb = new StringBuilder("--- AUTO-ANALYSIS PRO ---\n");
-        double wp = (l != null && l.getWeightPoisson() != null) ? l.getWeightPoisson() : DEFAULT_WEIGHT_POISSON;
-
-        sb.append(String.format("• Match : %s vs %s\n", h.getName(), a.getName()));
-        sb.append(String.format("• Config Ligue : Poids Stats %.0f%% / Elo %.0f%%\n", wp*100, (1-wp)*100));
-        sb.append(String.format("• Espérance Buts (xG Sim) : %.2f - %.2f\n", hl, al));
-        sb.append(String.format("• Delta Elo : %+.0f (Avantage %s)\n", eloDiff, eloDiff > 0 ? "DOM" : "EXT"));
-        sb.append(String.format("• Probas Finales Calibrées : %.1f%% - %.1f%%\n", fp1, fp2));
-
-        if (h.getCurrentStats() != null && h.getCurrentStats().getPpda() != null && h.getCurrentStats().getPpda() < 10.0) {
-            sb.append("• Bonus Tactique : Pressing Intense (Dom)\n");
-        }
-        return sb.toString();
     }
 
     private int safeInt(Integer val) { return val == null ? 0 : val; }
