@@ -52,4 +52,9 @@ public class MatchAnalysisController {
     public ResponseEntity<MatchAnalysis> getAnalysisById(@PathVariable Long id) {
         return ResponseEntity.ok(matchAnalysisService.getMatchById(id));
     }
+
+    @GetMapping("/upcoming")
+    public ResponseEntity<List<MatchAnalysis>> getUpcomingMatches() {
+        return ResponseEntity.ok(repository.findUpcomingMatches());
+    }
 }
