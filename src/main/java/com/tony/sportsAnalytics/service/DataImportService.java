@@ -34,6 +34,7 @@ public class DataImportService {
     private final TeamStatsService teamStatsService;
     private final PredictionEngineService predictionEngineService;
     private final PredictionEvaluationService evaluationService;
+    private final XgScraperService xgScraperService;
 
     // --- CONFIGURATION CONSTANTES ---
     private static final String BASE_URL = "https://www.football-data.co.uk/mmz4281/";
@@ -46,6 +47,14 @@ public class DataImportService {
             "LIGA", "SP1.csv",
             "SERIEA", "I1.csv",
             "BUNDES", "D1.csv"
+    );
+
+    private static final Map<String, String> FBREF_LEAGUE_URLS = Map.of(
+            "PL", "https://fbref.com/en/comps/9/stats/Premier-League-Stats",
+            "L1", "https://fbref.com/en/comps/13/stats/Ligue-1-Stats",
+            "LIGA", "https://fbref.com/en/comps/12/stats/La-Liga-Stats",
+            "SERIEA", "https://fbref.com/en/comps/11/stats/Serie-A-Stats",
+            "BUNDES", "https://fbref.com/en/comps/20/stats/Bundesliga-Stats"
     );
 
     private static final Map<String, String> DIV_TO_LEAGUE_CODE = Map.of(
@@ -140,6 +149,34 @@ public class DataImportService {
         return report.toString();
     }
 
+    public void enrichTeamsWithAdvancedStats(String leagueUrl) {
+        // 1. Scraper les xG/xGA sur FBRef
+        Map<String, XgScraperService.TeamXgMetrics> advancedStats = xgScraperService.scrapeAdvancedMetrics(leagueUrl);
+
+        advancedStats.forEach((scrapedName, metrics) -> {
+            // On essaie de trouver l'équipe en gérant les variations de noms
+            String cleanName = TEAM_NAME_MAPPING.getOrDefault(scrapedName, scrapedName);
+
+            teamRepository.findByName(cleanName).ifPresent(team -> {
+                TeamStats stats = team.getCurrentStats();
+
+                // Si pas de stats, on en crée une (Clean Code)
+                if (stats == null) {
+                    stats = new TeamStats();
+                    team.setCurrentStats(stats);
+                }
+
+                // Injection de l'xG réel observé sur FBRef
+                stats.setXG(metrics.xG());
+                // On peut aussi stocker l'xGA (Expected Goals Against) si tu l'as ajouté à TeamStats
+//                 stats.setXGA(metrics.xGA());
+
+                teamRepository.save(team);
+                log.debug("✅ xG mis à jour pour {}", team.getName());
+            });
+        });
+    }
+
     /**
      * Importe l'historique des résultats de la saison EN COURS (2526)
      * Appelée par l'admin via "Importer Premier League" etc.
@@ -152,9 +189,18 @@ public class DataImportService {
         String url = BASE_URL + CURRENT_SEASON_CODE + "/" + fileName;
 
         try {
-            return processImport(url, leagueCode, CURRENT_SEASON_LABEL, forceUpdate);
+            // 1. Import des résultats de base (CSV)
+            String csvResult = processImport(url, leagueCode, CURRENT_SEASON_LABEL, forceUpdate);
+
+            // 2. Enrichissement avec les stats avancées (Scraping xG)
+            if (FBREF_LEAGUE_URLS.containsKey(leagueCode)) {
+                log.info("📊 Enrichissement des xG pour la ligue {}", leagueCode);
+                enrichTeamsWithAdvancedStats(FBREF_LEAGUE_URLS.get(leagueCode));
+            }
+
+            return csvResult + " + xG synchronisés.";
         } catch (Exception e) {
-            log.error("Erreur Import " + leagueCode, e);
+            log.error("Erreur Import {}", leagueCode, e);
             return "Erreur : " + e.getMessage();
         }
     }

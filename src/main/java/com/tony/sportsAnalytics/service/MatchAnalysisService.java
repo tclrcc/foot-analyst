@@ -166,9 +166,4 @@ public class MatchAnalysisService {
             return (year - 1) + "-" + year;
         }
     }
-
-    public MatchAnalysis getMatchById(Long id) {
-        return matchAnalysisRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Analyse introuvable pour l'ID : " + id));
-    }
 }

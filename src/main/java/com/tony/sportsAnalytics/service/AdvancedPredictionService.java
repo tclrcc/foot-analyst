@@ -1,19 +1,31 @@
-import com.tony.sportsAnalytics.service.PredictionEngineService;
+package com.tony.sportsAnalytics.service;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/**
+ * Service de calculs statistiques avancés pour le modèle Dixon-Coles.
+ * Ce service est purement mathématique et stateless.
+ */
 @Service
 @RequiredArgsConstructor
 public class AdvancedPredictionService {
 
     /**
-     * Calcule la probabilité exacte d'un score (x,y) avec correction Dixon-Coles.
+     * Calcule la probabilité exacte d'un score (x, y) en intégrant la correction de corrélation de Dixon-Coles.
+     * @param x      Buts équipe domicile
+     * @param y      Buts équipe extérieur
+     * @param lambda Espérance de buts domicile (moyennée Dixon-Coles/xG/Elo)
+     * @param mu     Espérance de buts extérieur
+     * @param rho    Paramètre de corrélation (généralement ~ -0.13)
+     * @return       Probabilité entre 0 et 1
      */
     public double calculateProbability(int x, int y, double lambda, double mu, double rho) {
+        // Probabilité de Poisson indépendante de base
         double poissonProb = (poisson(x, lambda) * poisson(y, mu));
-        double tau = 1.0;
 
-        // Application de la correction Tau pour les scores faibles (0-0, 1-0, 0-1, 1-1)
+        // Application de la fonction de correction Tau pour les faibles scores (Dixon-Coles 1997)
+        double tau = 1.0;
         if (x == 0 && y == 0) tau = 1 - (lambda * mu * rho);
         else if (x == 0 && y == 1) tau = 1 + (lambda * rho);
         else if (x == 1 && y == 0) tau = 1 + (mu * rho);
@@ -23,16 +35,22 @@ public class AdvancedPredictionService {
     }
 
     /**
-     * Utilisation des xG pour stabiliser les lambdas.
-     * L'xG est moins "bruyant" que le but réel pour prédire le futur.
+     * Loi de Poisson : P(k; λ) = (λ^k * e^-λ) / k!
      */
-    private double calculateAdjustedLambda(PredictionEngineService.TeamPerformance perf, double opponentDefense, double homeAdvantage) {
-        // Au lieu d'utiliser perf.goalsFor(), on utilise perf.avgXG()
-        // lambda = alpha_i * beta_j * gamma
-        return perf.attackRating() * opponentDefense * homeAdvantage;
+    private double poisson(int k, double lambda) {
+        if (lambda <= 0) return k == 0 ? 1.0 : 0.0;
+        return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
     }
 
-    private double poisson(int k, double lambda) {
-        return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
+    /**
+     * Calcul de la factorielle (version itérative pour éviter stack overflow)
+     */
+    private long factorial(int n) {
+        if (n <= 1) return 1;
+        long res = 1;
+        for (int i = 2; i <= n; i++) {
+            res *= i;
+        }
+        return res;
     }
 }
