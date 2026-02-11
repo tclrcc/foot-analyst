@@ -73,6 +73,39 @@ public class DataImportService {
         TEAM_NAME_MAPPING.put("Betis", "Real Betis");
     }
 
+    // Référentiel GPS des principaux stades (Latitude, Longitude)
+    private static final Map<String, double[]> STADIUM_COORDS = new HashMap<>();
+    static {
+        // Angleterre
+        STADIUM_COORDS.put("Man City", new double[]{53.4831, -2.2004}); // Etihad
+        STADIUM_COORDS.put("Liverpool", new double[]{53.4308, -2.9608}); // Anfield
+        STADIUM_COORDS.put("Arsenal", new double[]{51.5549, -0.1084});  // Emirates
+        STADIUM_COORDS.put("Man United", new double[]{53.4631, -2.2913});
+        STADIUM_COORDS.put("Chelsea", new double[]{51.4816, -0.1909});
+        STADIUM_COORDS.put("Tottenham", new double[]{51.6042, -0.0662});
+
+        // France
+        STADIUM_COORDS.put("PSG", new double[]{48.8414, 2.2530});       // Parc des Princes
+        STADIUM_COORDS.put("Marseille", new double[]{43.2698, 5.3959}); // Vélodrome
+        STADIUM_COORDS.put("Lyon", new double[]{45.7653, 4.9820});
+        STADIUM_COORDS.put("Lille", new double[]{50.6119, 3.1305});
+
+        // Espagne
+        STADIUM_COORDS.put("Real Madrid", new double[]{40.4530, -3.6883});
+        STADIUM_COORDS.put("Barcelona", new double[]{41.3809, 2.1228});
+        STADIUM_COORDS.put("Atl. Madrid", new double[]{40.4362, -3.5995});
+
+        // Italie
+        STADIUM_COORDS.put("Juventus", new double[]{45.1096, 7.6412});
+        STADIUM_COORDS.put("Milan", new double[]{45.4781, 9.1240});     // San Siro
+        STADIUM_COORDS.put("Inter", new double[]{45.4781, 9.1240});
+
+        // Allemagne
+        STADIUM_COORDS.put("Bayern Munich", new double[]{48.2188, 11.6247});
+        STADIUM_COORDS.put("Dortmund", new double[]{51.4926, 7.4519});
+        STADIUM_COORDS.put("Leverkusen", new double[]{51.0383, 7.0022});
+    }
+
     /**
      * IMPORT MASSIF HISTORIQUE (Saisons passées)
      * À lancer une fois pour peupler la BDD et stabiliser les ratings Elo.
@@ -403,8 +436,20 @@ public class DataImportService {
     // --- HELPERS ---
     private Team resolveTeam(String csvName, League league) {
         String cleanName = TEAM_NAME_MAPPING.getOrDefault(csvName, csvName);
+
         return teamRepository.findByNameAndLeague(cleanName, league)
-                .orElseGet(() -> teamRepository.save(new Team(cleanName, league)));
+                .orElseGet(() -> {
+                    Team t = new Team(cleanName, league);
+
+                    // Injection des coordonnées si connues
+                    if (STADIUM_COORDS.containsKey(cleanName)) {
+                        double[] gps = STADIUM_COORDS.get(cleanName);
+                        t.setLatitude(gps[0]);
+                        t.setLongitude(gps[1]);
+                    }
+
+                    return teamRepository.save(t);
+                });
     }
 
     private Team resolveTeamFromCache(String csvName, League league, Map<String, Team> cache) {

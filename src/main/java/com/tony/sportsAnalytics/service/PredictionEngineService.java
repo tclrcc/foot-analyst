@@ -300,11 +300,23 @@ public class PredictionEngineService {
     }
 
     private double calculateWeatherFactor(MatchAnalysis match) {
-        var wOpt = weatherService.getMatchWeather(match.getHomeTeam().getLatitude(), match.getHomeTeam().getLongitude(), match.getMatchDate().toString());
+        // 1. OPTIMISATION : Si le match est déjà passé, pas de météo (Facteur neutre)
+        if (match.getMatchDate().isBefore(LocalDateTime.now())) {
+            return 1.0;
+        }
+
+        // 2. Appel du service uniquement pour les futurs matchs
+        var wOpt = weatherService.getMatchWeather(
+                match.getHomeTeam().getLatitude(),
+                match.getHomeTeam().getLongitude(),
+                match.getMatchDate().toString()
+        );
+
         double factor = 1.0;
         if (wOpt.isPresent()) {
             var w = wOpt.get();
             if (w.windSpeed() > 30.0) factor *= 0.90;
+            // if (w.isRaining()) ...
         }
         return factor;
     }
