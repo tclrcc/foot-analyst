@@ -42,12 +42,14 @@ public class PredictionEngineService {
         double eloProbHome = 1.0 / (1.0 + Math.pow(10, (-eloDiff - 100.0) / ELO_DIVISOR));
         double eloProbAway = 1.0 / (1.0 + Math.pow(10, (eloDiff + 100.0) / ELO_DIVISOR));
 
-        // 1. Dixon-Coles Lambdas (Force intrinsèque via MLE)
-        double homeAdvantage = (league != null) ? league.getHomeAdvantageFactor() : HOME_ADVANTAGE_BASE;
+        // 1. Dixon-Coles Lambdas (Force intrinsèque via MLE dynamique)
+        // On utilise les paramètres gamma et alpha/beta calibrés par ParameterEstimationService
+        double homeAdvantage = (league != null && league.getHomeAdvantageFactor() != null)
+                ? league.getHomeAdvantageFactor() : HOME_ADVANTAGE_BASE;
         double homeLambda = home.getAttackStrength() * away.getDefenseStrength() * homeAdvantage;
         double awayLambda = away.getAttackStrength() * home.getDefenseStrength();
 
-        // 2. Intégration des Expected Goals (xG)
+        // 2. Intégration des Expected Goals (xG) scrapés pour stabiliser les lambdas
         if (home.getCurrentStats() != null && home.getCurrentStats().getXG() != null) {
             homeLambda = (homeLambda + home.getCurrentStats().getXG()) / 2.0;
         }
@@ -55,42 +57,51 @@ public class PredictionEngineService {
             awayLambda = (awayLambda + away.getCurrentStats().getXG()) / 2.0;
         }
 
-        // 3. Ajustement Dynamique (Performance récente)
+        // 3. Ajustement Dynamique (Performance récente - Forme sur 10 matchs)
         TeamPerformance homePerf = analyzeTeamPerformance(home, homeHistory, leagueAvgGoals, true, match.getMatchDate());
         TeamPerformance awayPerf = analyzeTeamPerformance(away, awayHistory, leagueAvgGoals, false, match.getMatchDate());
 
         homeLambda *= Math.min(homePerf.finishingEfficiency(), MAX_FINISHING_CORRECTION);
         awayLambda *= Math.min(awayPerf.finishingEfficiency(), MAX_FINISHING_CORRECTION);
 
-        // 4. H2H Adjustments
+        // 4. H2H Adjustments (Historique profond pondéré)
         if (h2hHistory != null && !h2hHistory.isEmpty()) {
             homeLambda *= (1.0 + calculateH2HFactor(home, h2hHistory));
         }
 
-        // 5. Tactical Overlays
+        // 5. Tactical Overlays (Interaction Field Tilt / PPDA / Volatilité)
         homeLambda = applyTacticalOverlay(homeLambda, home, away, awayPerf.volatility());
         awayLambda = applyTacticalOverlay(awayLambda, away, home, homePerf.volatility());
 
-        // 6. Impact Joueurs & Facteurs Contextuels
+        // 6. Impact Joueurs (Missing Players via Impact Score) & Contextuel
         homeLambda = applyContextualFactors(homeLambda, true, match);
         awayLambda = applyContextualFactors(awayLambda, false, match);
 
+        // Météo (Vent > 30km/h réduit l'efficacité)
         double weatherFactor = calculateWeatherFactor(match);
         homeLambda *= weatherFactor;
         awayLambda *= weatherFactor;
 
-        // 7. Simulation Dixon-Coles Pro
-        double currentRho = (league != null) ? league.getRho() : -0.13;
+        // 7. Simulation Dixon-Coles Pro (Utilisation du Rho dynamique de la ligue)
+        double currentRho = (league != null && league.getRho() != null) ? league.getRho() : -0.13;
         PredictionResult poissonResult = simulateMatchPro(homeLambda, awayLambda, match, homePerf, awayPerf, currentRho);
 
-        // 8. Hybrid Fusion
+        // 8. Hybrid Fusion (Stats Dixon-Coles 60% / Elo 40%)
         double rawHome = (poissonResult.getHomeWinProbability() * HYBRID_WEIGHT_POISSON) + (eloProbHome * 100.0 * HYBRID_WEIGHT_ELO);
         double rawAway = (poissonResult.getAwayWinProbability() * HYBRID_WEIGHT_POISSON) + (eloProbAway * 100.0 * HYBRID_WEIGHT_ELO);
 
-        // 9. CALIBRATION FINALE (Variables renommées pour la cohérence)
+        // 9. Market Anchoring (Sagesse des foules pour stabiliser le modèle)
+        MarketProbs market = calculateMarketImpliedProbs(match.getOdds1(), match.getOddsN(), match.getOdds2());
+        if (market != null) {
+            rawHome = (rawHome * 0.70) + (market.home * 30.0); // Ancrage 30% sur le marché
+            rawAway = (rawAway * 0.70) + (market.away * 30.0);
+        }
+        double rawDraw = 100.0 - rawHome - rawAway;
+
+        // 10. CALIBRATION FINALE (Scaling de Platt pour corriger les biais de sur-confiance)
         double finalProbHome = rawHome;
         double finalProbAway = rawAway;
-        double finalProbDraw = 100.0 - rawHome - rawAway;
+        double finalProbDraw = rawDraw;
 
         if (league != null && league.getCalibrationA() != null && league.getCalibrationB() != null) {
             finalProbHome = calibrationService.calibrate(rawHome, league.getCalibrationA(), league.getCalibrationB());
@@ -98,49 +109,75 @@ public class PredictionEngineService {
             finalProbDraw = 100.0 - finalProbHome - finalProbAway;
         }
 
+        // 11. Explicabilité : Génération des notes techniques
+        match.setMyNotes(generateExplainabilityNotes(homeLambda, awayLambda, eloDiff, home, away));
+
         return PredictionResult.builder()
                 .homeWinProbability(round(finalProbHome))
                 .drawProbability(round(finalProbDraw))
                 .awayWinProbability(round(finalProbAway))
-
-                .homePowerScore(poissonResult.getHomePowerScore())
-                .awayPowerScore(poissonResult.getAwayPowerScore())
-
                 .predictedHomeGoals(round(homeLambda))
                 .predictedAwayGoals(round(awayLambda))
-
+                .homePowerScore(poissonResult.getHomePowerScore())
+                .awayPowerScore(poissonResult.getAwayPowerScore())
                 .over2_5_Prob(poissonResult.getOver2_5_Prob())
                 .under2_5_Prob(poissonResult.getUnder2_5_Prob())
                 .bttsProb(poissonResult.getBttsProb())
-
-                // Utilisation des variables corrigées
                 .doubleChance1N(round(finalProbHome + finalProbDraw))
                 .doubleChanceN2(round(finalProbDraw + finalProbAway))
                 .doubleChance12(round(finalProbHome + finalProbAway))
-
                 .kellyStakeHome(calculateKelly(finalProbHome / 100.0, match.getOdds1()))
                 .kellyStakeDraw(calculateKelly(finalProbDraw / 100.0, match.getOddsN()))
                 .kellyStakeAway(calculateKelly(finalProbAway / 100.0, match.getOdds2()))
-
                 .valueBetDetected(poissonResult.getValueBetDetected())
                 .homeScoreOver0_5(poissonResult.getHomeScoreOver0_5())
                 .homeScoreOver1_5(poissonResult.getHomeScoreOver1_5())
                 .awayScoreOver0_5(poissonResult.getAwayScoreOver0_5())
                 .awayScoreOver1_5(poissonResult.getAwayScoreOver1_5())
-
-                .kellyOver1_5(poissonResult.getKellyOver1_5())
                 .kellyOver2_5(poissonResult.getKellyOver2_5())
                 .kellyBTTS(poissonResult.getKellyBTTS())
-
                 .exactScore(poissonResult.getExactScore())
                 .exactScoreProb(poissonResult.getExactScoreProb())
-
                 .probUnder1_5(poissonResult.getProbUnder1_5())
-                .probUnder2_5(poissonResult.getProbUnder2_5())
                 .probOver3_5(poissonResult.getProbOver3_5())
                 .probBTTS_No(poissonResult.getProbBTTS_No())
-
                 .build();
+    }
+
+    /**
+     * Calcule les probabilités implicites réelles du marché en retirant la marge du bookmaker.
+     */
+    private MarketProbs calculateMarketImpliedProbs(Double o1, Double oN, Double o2) {
+        if (o1 == null || oN == null || o2 == null) return null;
+        double rawSum = (1.0 / o1) + (1.0 / oN) + (1.0 / o2);
+        return new MarketProbs((1.0 / o1) / rawSum, (1.0 / oN) / rawSum, (1.0 / o2) / rawSum);
+    }
+
+    private record MarketProbs(double home, double draw, double away) {}
+
+    /**
+     * Génère un résumé technique expliquant le raisonnement de l'algorithme.
+     * Les lambdas (hl, al) sont maintenant utilisés pour afficher les buts attendus finaux.
+     */
+    private String generateExplainabilityNotes(double hl, double al, double eloDiff, Team h, Team a) {
+        StringBuilder sb = new StringBuilder("--- AUTO-ANALYSIS ---\n");
+
+        // CORRECTION : Utilisation de hl et al pour montrer les espérances de buts finales
+        sb.append(String.format("• Espérance de buts finale : %.2f (Dom) - %.2f (Ext)\n", hl, al));
+
+        sb.append(String.format("• Forces Dixon-Coles intrinsèques (A/D) : %.2f / %.2f\n", h.getAttackStrength(), a.getDefenseStrength()));
+        sb.append(String.format("• Écart Elo : %+.0f pts\n", eloDiff));
+
+        if (h.getCurrentStats() != null) {
+            if (h.getCurrentStats().getPpda() != null && h.getCurrentStats().getPpda() < 10.0) {
+                sb.append("• Bonus Pressing appliqué (PPDA < 10)\n");
+            }
+            if (h.getCurrentStats().getFieldTilt() != null && h.getCurrentStats().getFieldTilt() > 55.0) {
+                sb.append("• Domination territoriale forte détectée (Field Tilt > 55%)\n");
+            }
+        }
+
+        return sb.toString();
     }
 
     /**
@@ -290,6 +327,17 @@ public class PredictionEngineService {
         double defenseRating = (leagueAvg > 0) ? (avgXgAgainst / leagueAvg) : 1.0;
         double finishing = (avgXgFor > 0.2) ? (avgGoalsFor / avgXgFor) : 1.0;
         double volatility = (volatilitySum / totalWeight) / (leagueAvg * 2);
+
+        // Calcul des jours de repos par rapport au dernier match connu
+        if (!history.isEmpty()) {
+            long restDays = Math.abs(Duration.between(history.getFirst().getMatchDate(), targetDate).toDays());
+            // Malus si moins de 4 jours de repos (Cadence européenne)
+            if (restDays < 4) {
+                // On réduit légèrement l'attackRating et on augmente la volatilité
+                attackRating *= 0.95;
+                volatility *= 1.10;
+            }
+        }
 
         return new TeamPerformance(attackRating, defenseRating, finishing, 0.5, volatility);
     }
