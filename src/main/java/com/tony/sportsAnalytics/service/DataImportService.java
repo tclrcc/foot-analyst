@@ -169,7 +169,7 @@ public class DataImportService {
                 // Injection de l'xG réel observé sur FBRef
                 stats.setXG(metrics.xG());
                 // On peut aussi stocker l'xGA (Expected Goals Against) si tu l'as ajouté à TeamStats
-//                 stats.setXGA(metrics.xGA());
+                 stats.setXGA(metrics.xGA());
 
                 teamRepository.save(team);
                 log.debug("✅ xG mis à jour pour {}", team.getName());

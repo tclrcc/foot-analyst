@@ -2,7 +2,6 @@ package com.tony.sportsAnalytics.model;
 
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -26,7 +25,7 @@ public class MatchAnalysis {
     @Column(nullable = false)
     private LocalDateTime matchDate;
 
-    @Column(length = 9) // Ex: "2025-2026"
+    @Column(length = 9)
     private String season;
 
     @Embedded
@@ -39,13 +38,13 @@ public class MatchAnalysis {
             @AttributeOverride(name = "goalsFor", column = @Column(name = "home_goals_for")),
             @AttributeOverride(name = "goalsAgainst", column = @Column(name = "home_goals_against")),
             @AttributeOverride(name = "xG", column = @Column(name = "home_xg")),
+            @AttributeOverride(name = "xGA", column = @Column(name = "home_xga")), // Ajout
+            @AttributeOverride(name = "ppda", column = @Column(name = "home_ppda")), // Ajout
+            @AttributeOverride(name = "fieldTilt", column = @Column(name = "home_field_tilt")), // Ajout
+            @AttributeOverride(name = "deepEntries", column = @Column(name = "home_deep_entries")), // Ajout
             @AttributeOverride(name = "last5MatchesPoints", column = @Column(name = "home_form_l5")),
-
-            // --- AJOUTS CORRECTIFS V7 ---
             @AttributeOverride(name = "goalsForLast5", column = @Column(name = "home_goals_for_l5")),
             @AttributeOverride(name = "goalsAgainstLast5", column = @Column(name = "home_goals_against_l5")),
-            // ----------------------------
-
             @AttributeOverride(name = "venuePoints", column = @Column(name = "home_venue_points")),
             @AttributeOverride(name = "venueMatches", column = @Column(name = "home_venue_matches"))
     })
@@ -62,13 +61,13 @@ public class MatchAnalysis {
             @AttributeOverride(name = "goalsFor", column = @Column(name = "away_goals_for")),
             @AttributeOverride(name = "goalsAgainst", column = @Column(name = "away_goals_against")),
             @AttributeOverride(name = "xG", column = @Column(name = "away_xg")),
+            @AttributeOverride(name = "xGA", column = @Column(name = "away_xga")), // Ajout
+            @AttributeOverride(name = "ppda", column = @Column(name = "away_ppda")), // Ajout
+            @AttributeOverride(name = "fieldTilt", column = @Column(name = "away_field_tilt")), // Ajout
+            @AttributeOverride(name = "deepEntries", column = @Column(name = "away_deep_entries")), // Ajout
             @AttributeOverride(name = "last5MatchesPoints", column = @Column(name = "away_form_l5")),
-
-            // --- AJOUTS CORRECTIFS V7 ---
             @AttributeOverride(name = "goalsForLast5", column = @Column(name = "away_goals_for_l5")),
             @AttributeOverride(name = "goalsAgainstLast5", column = @Column(name = "away_goals_against_l5")),
-            // ----------------------------
-
             @AttributeOverride(name = "venuePoints", column = @Column(name = "away_venue_points")),
             @AttributeOverride(name = "venueMatches", column = @Column(name = "away_venue_matches"))
     })
@@ -111,12 +110,10 @@ public class MatchAnalysis {
     })
     private MatchDetailStats awayMatchStats;
 
-    // --- NOUVEAU : Cotes Bookmakers (Pour calcul Value / Kelly) ---
     private Double odds1;
     private Double oddsN;
     private Double odds2;
 
-    // --- V15 : COTES MARCHÉS SECONDAIRES ---
     @Column(name = "odds_over_1_5")
     private Double oddsOver15;
 
@@ -126,21 +123,15 @@ public class MatchAnalysis {
     @Column(name = "odds_btts_yes")
     private Double oddsBTTSYes;
 
-    @Column(name = "referee")
-    private String referee; // Nom de l'arbitre
-
-    // Scores Mi-temps
+    private String referee;
     private Integer homeScoreHT;
     private Integer awayScoreHT;
-
-    // Cotes Under 2.5 (Tu avais déjà Over)
     private Double oddsUnder25;
 
-    // --- NOUVEAU : Facteurs Contextuels (Booleans) ---
-    private boolean homeKeyPlayerMissing; // Absence joueur clé Dom
-    private boolean awayKeyPlayerMissing; // Absence joueur clé Ext
-    private boolean homeTired;            // Fatigue Dom
-    private boolean awayNewCoach;         // Choc psycho Ext
+    private boolean homeKeyPlayerMissing;
+    private boolean awayKeyPlayerMissing;
+    private boolean homeTired;
+    private boolean awayNewCoach;
 
     private Double homeMissingImpactScore = 0.0;
     private Double awayMissingImpactScore = 0.0;
@@ -148,7 +139,6 @@ public class MatchAnalysis {
     private Integer homeScore;
     private Integer awayScore;
 
-    // Pourra servir plus tard pour stocker ton analyse perso
     @Column(columnDefinition = "TEXT")
     private String myNotes;
 
@@ -162,9 +152,5 @@ public class MatchAnalysis {
     @Transient
     private String awayTeamNameInput;
 
-    private double applyPlayerImpact(double lambda, Double impactScore) {
-        // Si l'impact score est de 0.8 (absence d'un top buteur comme Haaland ou Mbappé)
-        // On réduit le lambda de manière proportionnelle et violente
-        return lambda * (1.0 - (impactScore * 0.25));
-    }
+    // SUPPRESSION DE LA MÉTHODE applyPlayerImpact CAR LOGIQUE TRANSFÉRÉE AU SERVICE
 }
