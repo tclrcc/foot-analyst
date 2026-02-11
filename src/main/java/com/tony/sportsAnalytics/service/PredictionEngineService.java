@@ -394,7 +394,7 @@ public class PredictionEngineService {
     private int safeInt(Integer val) { return val == null ? 0 : val; }
     private double round(double val) { return Math.round(val * 100.0) / 100.0; }
 
-    private record TeamPerformance(
+    public record TeamPerformance(
             double attackRating,
             double defenseRating,
             double finishingEfficiency,
