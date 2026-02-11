@@ -12,8 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.net.ssl.*;
-import java.io.Reader;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.net.URL;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
@@ -34,26 +34,49 @@ public class DataImportService {
     private final LeagueRepository leagueRepository;
     private final TeamStatsService teamStatsService;
 
-    // Mapping noms CSV -> BDD
+    // --- CONFIGURATION BIG 5 ---
+    // Mapping Code -> URL CSV (Saison 2025/2026)
+    private static final Map<String, String> LEAGUE_URLS = Map.of(
+            "PL", "https://www.football-data.co.uk/mmz4281/2526/E0.csv",    // Premier League
+            "L1", "https://www.football-data.co.uk/mmz4281/2526/F1.csv",    // Ligue 1
+            "LIGA", "https://www.football-data.co.uk/mmz4281/2526/SP1.csv",  // La Liga
+            "SERIEA", "https://www.football-data.co.uk/mmz4281/2526/I1.csv", // Serie A
+            "BUNDES", "https://www.football-data.co.uk/mmz4281/2526/D1.csv"  // Bundesliga
+    );
+
+    private static final String CURRENT_SEASON = "2025-2026";
+
+    // Mapping noms CSV spécifiques -> Noms propres BDD
     private static final Map<String, String> TEAM_NAME_MAPPING = new HashMap<>();
     static {
+        // Premier League
         TEAM_NAME_MAPPING.put("Man City", "Man City");
         TEAM_NAME_MAPPING.put("Man United", "Man United");
-        TEAM_NAME_MAPPING.put("Nott'm Forest", "Nottingham Forest");
         TEAM_NAME_MAPPING.put("Spurs", "Tottenham");
-        TEAM_NAME_MAPPING.put("Wolves", "Wolverhampton");
-        TEAM_NAME_MAPPING.put("Leicester", "Leicester City");
-        TEAM_NAME_MAPPING.put("Ipswich", "Ipswich Town");
-        TEAM_NAME_MAPPING.put("Newcastle", "Newcastle United");
-        // Ajouter d'autres mappings au besoin
+        // Ligue 1
+        TEAM_NAME_MAPPING.put("Paris SG", "PSG");
+        TEAM_NAME_MAPPING.put("Marseille", "OM");
+        TEAM_NAME_MAPPING.put("St Etienne", "Saint-Etienne");
+        // Autres ligues à compléter au besoin...
     }
 
+    /**
+     * Méthode générique d'importation pour n'importe quelle ligue supportée.
+     * @param leagueCode Code de la ligue (ex: "PL", "L1")
+     * @param forceUpdate Si true, écrase les données des matchs existants.
+     */
     @Transactional
-    public String importPremierLeagueData(boolean forceUpdate) {
-        String csvUrl = "https://www.football-data.co.uk/mmz4281/2526/E0.csv";
+    public String importLeagueData(String leagueCode, boolean forceUpdate) {
+        String csvUrl = LEAGUE_URLS.get(leagueCode);
+        if (csvUrl == null) {
+            return "❌ Erreur : Code ligue '" + leagueCode + "' inconnu.";
+        }
+
         long start = System.currentTimeMillis();
+        log.info("🚀 Démarrage import {} depuis {}", leagueCode, csvUrl);
 
         try {
+            // 1. Lecture du CSV (SSL Ignored pour éviter les erreurs de certificats Java locaux)
             Reader reader = getReaderIgnoringSSL(csvUrl);
             List<FootballDataRow> rows = new CsvToBeanBuilder<FootballDataRow>(reader)
                     .withType(FootballDataRow.class)
@@ -63,92 +86,128 @@ public class DataImportService {
                     .parse();
             reader.close();
 
-            // 1. Initialisation Ligue
-            League league = getOrCreateLeague("Premier League", "England");
+            // 2. Résolution / Création de la Ligue
+            String leagueName = resolveLeagueName(leagueCode);
+            String country = resolveCountry(leagueCode);
+            League league = getOrCreateLeague(leagueName, country);
 
-            // 2. Pré-chargement pour Performance (Cache des équipes et matchs existants)
-            // On évite de faire 1 requête SQL par ligne pour vérifier l'existence
+            // 3. Préparation Cache (Optimisation Perf)
             Map<String, Team> teamCache = teamRepository.findByLeague(league)
                     .stream()
                     .collect(Collectors.toMap(Team::getName, t -> t));
 
-            // CHANGEMENT ICI : On stocke l'objet MatchAnalysis entier dans la Map, pas juste une clé String
-            // Cela permet de récupérer l'entité existante pour la mettre à jour
-            Map<String, MatchAnalysis> existingMatchesMap = matchRepository.findByHomeTeamLeagueAndSeason(league, "2025-2026")
+            Map<String, MatchAnalysis> existingMatchesMap = matchRepository.findByHomeTeamLeagueAndSeason(league, CURRENT_SEASON)
                     .stream()
                     .collect(Collectors.toMap(
-                            m -> m.getHomeTeam().getId() + "-" + m.getAwayTeam().getId() + "-" + m.getMatchDate().toLocalDate(),
+                            m -> generateMatchKey(m.getHomeTeam(), m.getAwayTeam(), m.getMatchDate().toLocalDate()),
                             m -> m,
-                            (existing, replacement) -> existing // En cas de doublon en base, on garde le premier
+                            (existing, replacement) -> existing
                     ));
 
-            Set<Long> teamsToRecalculate = new HashSet<>();
-            int importedCount = 0;
-            int updatedCount = 0;
-            int skippedCount = 0;
+            // 4. Traitement des Lignes
+            ImportStats stats = processRows(rows, league, teamCache, existingMatchesMap, forceUpdate);
 
-            log.info("Début du traitement de {} lignes...", rows.size());
+            // 5. Recalcul Batch des Stats Équipes (Seulement celles impactées)
+            log.info("🔄 Recalcul des stats pour {} équipes...", stats.teamsToRecalculate.size());
+            stats.teamsToRecalculate.forEach(teamStatsService::recalculateTeamStats);
 
-            for (FootballDataRow row : rows) {
+            // 6. Mise à jour des stats globales de la Ligue (Moyenne buts, % Home Win...)
+            updateLeagueStats(league);
+
+            long duration = System.currentTimeMillis() - start;
+            return String.format("✅ Import %s terminé en %d ms. %d nouveaux, %d mis à jour, %d ignorés.",
+                    leagueName, duration, stats.importedCount, stats.updatedCount, stats.skippedCount);
+
+        } catch (Exception e) {
+            log.error("❌ Erreur Import {}", leagueCode, e);
+            return "Erreur : " + e.getMessage();
+        }
+    }
+
+    /**
+     * Importe tous les championnats configurés en une seule fois via la Map LEAGUE_URLS.
+     */
+    @Transactional
+    public String importAllLeagues(boolean forceUpdate) {
+        StringBuilder report = new StringBuilder();
+        report.append("--- Rapport d'Import Global ---\n");
+        long start = System.currentTimeMillis();
+
+        // On parcourt toutes les clés (PL, L1, LIGA, etc.)
+        for (String code : LEAGUE_URLS.keySet()) {
+            report.append(String.format("[%s] : ", code));
+            try {
+                // On réutilise la logique unitaire
+                String result = importLeagueData(code, forceUpdate);
+                report.append(result).append("\n");
+            } catch (Exception e) {
+                report.append("ERREUR : ").append(e.getMessage()).append("\n");
+            }
+        }
+
+        long duration = System.currentTimeMillis() - start;
+        report.append(String.format("------------------------------\nTemps total : %d ms", duration));
+
+        return report.toString();
+    }
+
+    // Pour rappel, voici un accesseur public pour récupérer les ligues dispo (utile pour l'IHM)
+    public Set<String> getAvailableLeagues() {
+        return LEAGUE_URLS.keySet();
+    }
+
+    // --- LOGIQUE MÉTIER ---
+
+    private ImportStats processRows(List<FootballDataRow> rows, League league,
+            Map<String, Team> teamCache,
+            Map<String, MatchAnalysis> existingMatches,
+            boolean forceUpdate) {
+        ImportStats stats = new ImportStats();
+
+        for (FootballDataRow row : rows) {
+            try {
                 // Parsing Date & Time
+                // Note: football-data.co.uk formatte parfois la date différemment (dd/MM/yy ou dd/MM/yyyy).
+                // Ici on assume dd/MM/yyyy. Une gestion d'erreur serait bienvenue.
                 LocalDate date = LocalDate.parse(row.getDate(), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
                 LocalTime time = row.getTime() != null ? LocalTime.parse(row.getTime(), DateTimeFormatter.ofPattern("HH:mm")) : LocalTime.of(16, 0);
                 LocalDateTime matchDateTime = LocalDateTime.of(date, time);
 
-                // Résolution Equipes (Via Cache ou Création)
+                // Résolution Equipes
                 Team home = resolveTeam(row.getHomeTeam(), league, teamCache);
                 Team away = resolveTeam(row.getAwayTeam(), league, teamCache);
 
-                // Vérification Doublon (En mémoire -> Très rapide)
-                String matchKey = home.getId() + "-" + away.getId() + "-" + date;
-
+                String matchKey = generateMatchKey(home, away, date);
                 MatchAnalysis matchToSave;
 
-                if (existingMatchesMap.containsKey(matchKey)) {
-                    // Le match existe déjà
+                if (existingMatches.containsKey(matchKey)) {
                     if (forceUpdate) {
-                        // MODE ÉCRASEMENT : On récupère l'existant
-                        matchToSave = existingMatchesMap.get(matchKey);
-                        updatedCount++;
+                        matchToSave = existingMatches.get(matchKey);
+                        stats.updatedCount++;
                     } else {
-                        // MODE SÉCURISÉ : On passe
-                        skippedCount++;
+                        stats.skippedCount++;
                         continue;
                     }
                 } else {
-                    // NOUVEAU MATCH
                     matchToSave = new MatchAnalysis();
                     matchToSave.setHomeTeam(home);
                     matchToSave.setAwayTeam(away);
-                    matchToSave.setSeason("2025-2026");
-                    importedCount++;
+                    matchToSave.setSeason(CURRENT_SEASON);
+                    stats.importedCount++;
                 }
 
-                // On met à jour les données (que ce soit un new ou un update)
-                // J'ai extrait la logique de remplissage dans une méthode 'mapDataToMatch' pour éviter la duplication
+                // Mapping des données CSV -> Entité JPA
                 mapDataToMatch(matchToSave, row, matchDateTime);
-
                 matchRepository.save(matchToSave);
 
-                // On marque pour recalcul
-                teamsToRecalculate.add(home.getId());
-                teamsToRecalculate.add(away.getId());
+                stats.teamsToRecalculate.add(home.getId());
+                stats.teamsToRecalculate.add(away.getId());
+
+            } catch (Exception e) {
+                log.warn("Ligne ignorée (erreur parsing): {}", row, e);
             }
-
-            // 3. Recalcul des stats d'équipe (Batch)
-            log.info("Recalcul des stats pour {} équipes...", teamsToRecalculate.size());
-            teamsToRecalculate.forEach(teamStatsService::recalculateTeamStats);
-
-            // 4. Calcul des stats globales de la Ligue
-            updateLeagueStats(league);
-
-            long duration = System.currentTimeMillis() - start;
-            return String.format("Import terminé en %d ms. %d nouveaux matchs, %d ignorés.", duration, importedCount, skippedCount);
-
-        } catch (Exception e) {
-            log.error("Erreur Import", e);
-            return "Erreur : " + e.getMessage();
         }
+        return stats;
     }
 
     private void mapDataToMatch(MatchAnalysis m, FootballDataRow row, LocalDateTime date) {
@@ -161,94 +220,32 @@ public class DataImportService {
 
         // Stats Home
         MatchDetailStats hs = (m.getHomeMatchStats() == null) ? new MatchDetailStats() : m.getHomeMatchStats();
-        hs.setShots(row.getHS());
-        hs.setShotsOnTarget(row.getHST());
-        hs.setCorners(row.getHC());
-        hs.setFouls(row.getHF());
-        hs.setYellowCards(row.getHY());
-        hs.setRedCards(row.getHR());
+        hs.setShots(row.getHS()); hs.setShotsOnTarget(row.getHST());
+        hs.setCorners(row.getHC()); hs.setFouls(row.getHF());
+        hs.setYellowCards(row.getHY()); hs.setRedCards(row.getHR());
         m.setHomeMatchStats(hs);
 
         // Stats Away
         MatchDetailStats as = (m.getAwayMatchStats() == null) ? new MatchDetailStats() : m.getAwayMatchStats();
-        as.setShots(row.getAS());
-        as.setShotsOnTarget(row.getAST());
-        as.setCorners(row.getAC());
-        as.setFouls(row.getAF());
-        as.setYellowCards(row.getAY());
-        as.setRedCards(row.getAR());
+        as.setShots(row.getAS()); as.setShotsOnTarget(row.getAST());
+        as.setCorners(row.getAC()); as.setFouls(row.getAF());
+        as.setYellowCards(row.getAY()); as.setRedCards(row.getAR());
         m.setAwayMatchStats(as);
 
-        // Cotes
+        // Cotes (Bet365)
         m.setOdds1(row.getB365H());
         m.setOddsN(row.getB365D());
         m.setOdds2(row.getB365A());
         m.setOddsOver25(row.getB365O25());
         m.setOddsUnder25(row.getB365U25());
 
-        // Init stats si null
+        // Init stats team vides si null (évite NPE)
         if(m.getHomeStats() == null) m.setHomeStats(new TeamStats());
         if(m.getAwayStats() == null) m.setAwayStats(new TeamStats());
     }
 
-    private void createAndSaveMatch(FootballDataRow row, LocalDateTime date, Team home, Team away, League league) {
-        MatchAnalysis m = new MatchAnalysis();
-        m.setHomeTeam(home);
-        m.setAwayTeam(away);
-        m.setMatchDate(date);
-        m.setSeason("2025-2026");
-
-        // Scores FT
-        m.setHomeScore(row.getFTHG());
-        m.setAwayScore(row.getFTAG());
-
-        // Scores HT (Nouveau)
-        m.setHomeScoreHT(row.getHTHG());
-        m.setAwayScoreHT(row.getHTAG());
-
-        // Arbitre (Nouveau)
-        m.setReferee(row.getReferee());
-
-        // Stats Détaillées
-        MatchDetailStats hs = new MatchDetailStats();
-        hs.setShots(row.getHS());
-        hs.setShotsOnTarget(row.getHST());
-        hs.setCorners(row.getHC());
-        hs.setFouls(row.getHF());
-        hs.setYellowCards(row.getHY());
-        hs.setRedCards(row.getHR());
-
-        MatchDetailStats as = new MatchDetailStats();
-        as.setShots(row.getAS());
-        as.setShotsOnTarget(row.getAST());
-        as.setCorners(row.getAC());
-        as.setFouls(row.getAF());
-        as.setYellowCards(row.getAY());
-        as.setRedCards(row.getAR());
-
-        m.setHomeMatchStats(hs);
-        m.setAwayMatchStats(as);
-
-        // Cotes
-        m.setOdds1(row.getB365H());
-        m.setOddsN(row.getB365D());
-        m.setOdds2(row.getB365A());
-        m.setOddsOver25(row.getB365O25());
-        m.setOddsUnder25(row.getB365U25()); // Nouveau champ à ajouter dans Entity
-
-        // Init stats vides
-        m.setHomeStats(new TeamStats());
-        m.setAwayStats(new TeamStats());
-
-        matchRepository.save(m);
-    }
-
-    /**
-     * Calcule les moyennes du championnat (Buts, %, etc.)
-     */
     private void updateLeagueStats(League league) {
-        List<MatchAnalysis> matches = matchRepository.findByHomeTeamLeagueAndSeason(league, "2025-2026");
-
+        List<MatchAnalysis> matches = matchRepository.findByHomeTeamLeagueAndSeason(league, CURRENT_SEASON);
         if (matches.isEmpty()) return;
 
         double totalMatches = matches.size();
@@ -257,6 +254,8 @@ public class DataImportService {
         int over25 = 0, btts = 0;
 
         for (MatchAnalysis m : matches) {
+            if (m.getHomeScore() == null || m.getAwayScore() == null) continue; // Sécurité
+
             int goals = m.getHomeScore() + m.getAwayScore();
             totalGoals += goals;
 
@@ -268,6 +267,7 @@ public class DataImportService {
             if (m.getHomeScore() > 0 && m.getAwayScore() > 0) btts++;
         }
 
+        // Calcul des % globaux
         league.setAverageGoalsPerMatch(round(totalGoals / totalMatches));
         league.setPercentHomeWin(round((homeWins / totalMatches) * 100));
         league.setPercentDraw(round((draws / totalMatches) * 100));
@@ -276,41 +276,65 @@ public class DataImportService {
         league.setPercentBTTS(round((btts / totalMatches) * 100));
 
         leagueRepository.save(league);
-        log.info("Stats de la Ligue mises à jour : {} buts/match moy.", league.getAverageGoalsPerMatch());
+        log.info("📊 Stats Ligue {} mises à jour ({} matchs)", league.getName(), totalMatches);
     }
+
+    // --- HELPERS & UTILITAIRES ---
 
     private Team resolveTeam(String csvName, League league, Map<String, Team> cache) {
         String cleanName = TEAM_NAME_MAPPING.getOrDefault(csvName, csvName);
+        if (cache.containsKey(cleanName)) return cache.get(cleanName);
 
-        if (cache.containsKey(cleanName)) {
-            return cache.get(cleanName);
-        }
-
-        // Création à la volée
-        Team newTeam = new Team();
-        newTeam.setName(cleanName);
-        newTeam.setLeague(league);
+        Team newTeam = new Team(cleanName, league);
         newTeam = teamRepository.save(newTeam);
-
-        cache.put(cleanName, newTeam); // Mise à jour cache
+        cache.put(cleanName, newTeam);
         return newTeam;
     }
 
     private League getOrCreateLeague(String name, String country) {
         return leagueRepository.findByName(name)
-                .orElseGet(() -> {
-                    League l = new League();
-                    l.setName(name);
-                    l.setCountry(country);
-                    return leagueRepository.save(l);
-                });
+                .orElseGet(() -> leagueRepository.save(new League(name, country, "xx")));
+    }
+
+    private String resolveLeagueName(String code) {
+        return switch(code) {
+            case "PL" -> "Premier League";
+            case "L1" -> "Ligue 1";
+            case "LIGA" -> "La Liga";
+            case "SERIEA" -> "Serie A";
+            case "BUNDES" -> "Bundesliga";
+            default -> "Unknown League";
+        };
+    }
+
+    private String resolveCountry(String code) {
+        return switch(code) {
+            case "PL" -> "England";
+            case "L1" -> "France";
+            case "LIGA" -> "Spain";
+            case "SERIEA" -> "Italy";
+            case "BUNDES" -> "Germany";
+            default -> "World";
+        };
+    }
+
+    private String generateMatchKey(Team h, Team a, LocalDate date) {
+        return h.getId() + "-" + a.getId() + "-" + date;
     }
 
     private double round(double value) {
         return Math.round(value * 100.0) / 100.0;
     }
 
-    // --- SSL IGNORE (Identique à avant) ---
+    // Classe interne pour le reporting
+    private static class ImportStats {
+        int importedCount = 0;
+        int updatedCount = 0;
+        int skippedCount = 0;
+        Set<Long> teamsToRecalculate = new HashSet<>();
+    }
+
+    // --- SSL BYPASS (Nécessaire pour certaines configs locales/legacy) ---
     private Reader getReaderIgnoringSSL(String urlString) throws Exception {
         TrustManager[] trustAllCerts = new TrustManager[]{
                 new X509TrustManager() {
@@ -321,29 +345,25 @@ public class DataImportService {
         };
         SSLContext sc = SSLContext.getInstance("TLS");
         sc.init(null, trustAllCerts, new SecureRandom());
-        URL url = new URL(urlString);
+        URL url = java.net.URI.create(urlString).toURL();
         HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
         conn.setSSLSocketFactory(sc.getSocketFactory());
         conn.setHostnameVerifier((hostname, session) -> true);
         return new InputStreamReader(conn.getInputStream());
     }
 
-    // --- DTO CSV COMPLET ---
+    // --- DTO CSV ---
     @Data
     public static class FootballDataRow {
         @com.opencsv.bean.CsvBindByName(column = "Date") private String date;
-        @com.opencsv.bean.CsvBindByName(column = "Time") private String time; // NOUVEAU
+        @com.opencsv.bean.CsvBindByName(column = "Time") private String time;
         @com.opencsv.bean.CsvBindByName(column = "HomeTeam") private String homeTeam;
         @com.opencsv.bean.CsvBindByName(column = "AwayTeam") private String awayTeam;
-
         @com.opencsv.bean.CsvBindByName(column = "FTHG") private Integer FTHG;
         @com.opencsv.bean.CsvBindByName(column = "FTAG") private Integer FTAG;
-
-        // MI-TEMPS
-        @com.opencsv.bean.CsvBindByName(column = "HTHG") private Integer HTHG; // NOUVEAU
-        @com.opencsv.bean.CsvBindByName(column = "HTAG") private Integer HTAG; // NOUVEAU
-
-        @com.opencsv.bean.CsvBindByName(column = "Referee") private String referee; // NOUVEAU
+        @com.opencsv.bean.CsvBindByName(column = "HTHG") private Integer HTHG;
+        @com.opencsv.bean.CsvBindByName(column = "HTAG") private Integer HTAG;
+        @com.opencsv.bean.CsvBindByName(column = "Referee") private String referee;
 
         @com.opencsv.bean.CsvBindByName(column = "HS") private Integer HS;
         @com.opencsv.bean.CsvBindByName(column = "AS") private Integer AS;
@@ -361,7 +381,7 @@ public class DataImportService {
         @com.opencsv.bean.CsvBindByName(column = "B365H") private Double B365H;
         @com.opencsv.bean.CsvBindByName(column = "B365D") private Double B365D;
         @com.opencsv.bean.CsvBindByName(column = "B365A") private Double B365A;
-        @com.opencsv.bean.CsvBindByName(column = "B365>2.5", required = false) private Double B365O25;
-        @com.opencsv.bean.CsvBindByName(column = "B365<2.5", required = false) private Double B365U25; // NOUVEAU
+        @com.opencsv.bean.CsvBindByName(column = "B365>2.5") private Double B365O25;
+        @com.opencsv.bean.CsvBindByName(column = "B365<2.5") private Double B365U25;
     }
 }

@@ -1,10 +1,8 @@
 package com.tony.sportsAnalytics.service;
 
-import com.tony.sportsAnalytics.model.MatchAnalysis;
-import com.tony.sportsAnalytics.model.MatchDetailStats;
-import com.tony.sportsAnalytics.model.PredictionResult;
-import com.tony.sportsAnalytics.model.Team;
+import com.tony.sportsAnalytics.model.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -13,10 +11,19 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PredictionEngineService {
+
     private final WeatherService weatherService;
 
-    // --- MOTEUR V16 : PROFESSIONAL GRADE ---
+    // --- CONFIGURATION DU MOTEUR ---
+    private static final double WEIGHT_H2H = 0.05;            // Impact Historique
+    private static final double HOME_ADVANTAGE_BASE = 1.15;   // Avantage domicile par défaut
+    private static final double ELO_DIVISOR = 1000.0;         // Facteur de lissage Elo
+    private static final double MAX_FINISHING_CORRECTION = 1.25; // Plafond Chance/Efficacité
+    private static final double TIME_DECAY_CONSTANT = 60.0;   // Plus c'est bas, plus les matchs récents comptent
+
+    // --- ENTREE PRINCIPALE ---
     public PredictionResult calculateMatchPrediction(MatchAnalysis match,
             List<MatchAnalysis> h2hHistory,
             List<MatchAnalysis> homeHistory,
@@ -27,98 +34,71 @@ public class PredictionEngineService {
         TeamPerformance homePerf = analyzeTeamPerformance(match.getHomeTeam(), homeHistory, leagueAvgGoals, true, match.getMatchDate());
         TeamPerformance awayPerf = analyzeTeamPerformance(match.getAwayTeam(), awayHistory, leagueAvgGoals, false, match.getMatchDate());
 
-        // 2. CALCUL DE L'ESPÉRANCE DE BUTS (Lambdas)
+        // 2. CALCUL ESPERANCE DE BUTS (RAW)
         double rawHomeExp = homePerf.attackRating * awayPerf.defenseRating * leagueAvgGoals;
         double rawAwayExp = awayPerf.attackRating * homePerf.defenseRating * leagueAvgGoals;
 
-        // 3. AJUSTEMENTS TACTIQUES (Game Script)
-        double controlFactor = (homePerf.xgDominance - awayPerf.xgDominance);
-        if (controlFactor > 0.15) {
-            rawHomeExp *= 1.10;
-            rawAwayExp *= 0.85;
-        } else if (controlFactor < -0.15) {
-            rawHomeExp *= 0.85;
-            rawAwayExp *= 1.10;
-        }
+        // 3. FACTEURS DYNAMIQUES
+        double homeAdvantage = calculateLeagueHomeAdvantage(match.getHomeTeam().getLeague());
+        double awayDisadvantage = 1.0 / (homeAdvantage > 0 ? homeAdvantage : 1.0);
 
-        // 4. EFFICACITÉ & AVANTAGE TERRAIN
-        double homeAdvantage = 1.15 + (homePerf.isHomeStrong ? 0.10 : 0.0);
-        double awayDisadvantage = 0.85;
+        double homeFinishing = Math.min(homePerf.finishingEfficiency, MAX_FINISHING_CORRECTION);
+        double awayFinishing = Math.min(awayPerf.finishingEfficiency, MAX_FINISHING_CORRECTION);
 
-        double homeLambda = rawHomeExp * homePerf.finishingEfficiency * homeAdvantage;
-        double awayLambda = rawAwayExp * awayPerf.finishingEfficiency * awayDisadvantage;
+        // 4. CALCUL LAMBDAS FINAUX
+        double homeLambda = rawHomeExp * homeFinishing * homeAdvantage;
+        double awayLambda = rawAwayExp * awayFinishing * awayDisadvantage;
 
         // 5. AJUSTEMENT ELO
         double eloDiff = match.getHomeTeam().getEloRating() - match.getAwayTeam().getEloRating();
-        double eloMultiplier = Math.pow(10, eloDiff / 1000.0);
+        double eloMultiplier = Math.pow(10, eloDiff / ELO_DIVISOR);
         homeLambda *= eloMultiplier;
 
-        // L'historique des confrontations directes a un impact psychologique
+        // 6. AJUSTEMENT HISTORIQUE
         if (h2hHistory != null && !h2hHistory.isEmpty()) {
             double h2hFactor = calculateH2HFactor(match.getHomeTeam().getName(), h2hHistory);
             homeLambda *= (1.0 + h2hFactor);
-            // L'inverse est souvent vrai, mais on reste prudent sur l'équipe extérieur
         }
-        // -------------------------------------------------------------
 
-        // 6. AJUSTEMENTS CONTEXTUELS
+        // 7. CONTEXTE & METEO (CORRECTION ICI)
         homeLambda = applyContextualFactors(homeLambda, true, match);
         awayLambda = applyContextualFactors(awayLambda, false, match);
 
-        // On récupère la météo du stade de l'équipe à DOMICILE
-        Team homeTeam = match.getHomeTeam();
-
-        // Facteur météo par défaut
-        double weatherFactor = 1.0;
-
-        var weatherOpt = weatherService.getMatchWeather(homeTeam.getLatitude(), homeTeam.getLongitude(), match.getMatchDate().toString());
-
-        if (weatherOpt.isPresent()) {
-            var w = weatherOpt.get();
-            // Logique métier : Vent fort = moins de buts, moins de précision
-            if (w.windSpeed() > 30.0) weatherFactor *= 0.85;
-            // Pluie = glissant, plus d'erreurs défensives mais passes plus dures
-            if (w.isRaining()) weatherFactor *= 0.95;
-        }
-
-        // Application du facteur aux deux équipes (ou différemment selon le style de jeu si on poussait l'IA)
+        // On récupère le facteur météo et on l'applique
+        double weatherFactor = calculateWeatherFactor(match);
         homeLambda *= weatherFactor;
         awayLambda *= weatherFactor;
 
-        // 7. SIMULATION
+        // 8. SIMULATION
         return simulateMatch(homeLambda, awayLambda, match, homePerf, awayPerf);
     }
 
-    // --- STRUCTURE DE DONNÉES ---
-    private record TeamPerformance(
-            double attackRating,
-            double defenseRating,
-            double finishingEfficiency,
-            double xgDominance,
-            boolean isHomeStrong,
-            double volatility
-    ) {}
+    // --- SOUS-SYSTEMES ---
 
-    // --- ANALYSEUR V16 ---
+    private double calculateLeagueHomeAdvantage(League league) {
+        if (league == null || league.getPercentHomeWin() == null || league.getPercentAwayWin() == null) {
+            return HOME_ADVANTAGE_BASE;
+        }
+        return 1.0 + ((league.getPercentHomeWin() - league.getPercentAwayWin()) / 100.0);
+    }
+
     private TeamPerformance analyzeTeamPerformance(Team team, List<MatchAnalysis> history, double leagueAvg, boolean isHomeAnalysis, LocalDateTime targetDate) {
-        if (history == null || history.isEmpty()) return new TeamPerformance(1.0, 1.0, 1.0, 0.5, false, 1.0);
+        if (history == null || history.isEmpty()) return new TeamPerformance(1.0, 1.0, 1.0, 0.5, 1.0);
 
         double sumXgFor = 0.0, sumXgAgainst = 0.0;
-        double sumGoalsFor = 0.0; // --- CORRECTION : Suppression de sumGoalsAgainst inutile ---
+        double sumGoalsFor = 0.0;
         double totalWeight = 0.0;
-
-        double dominanceAccumulator = 0.0;
-        double homePerformanceScore = 0.0;
-        int homeMatchCount = 0;
+        double volatilitySum = 0.0;
 
         for (MatchAnalysis m : history) {
             if (m.getMatchDate() == null) continue;
 
+            // Décroissance exponentielle utilisant la constante TIME_DECAY_CONSTANT
             long daysAgo = Math.abs(Duration.between(targetDate, m.getMatchDate()).toDays());
-            double timeWeight = Math.exp(-daysAgo / 120.0);
+            double timeWeight = Math.exp(-daysAgo / TIME_DECAY_CONSTANT);
 
             boolean wasHome = m.getHomeTeam().equals(team);
-            double contextWeight = (wasHome == isHomeAnalysis) ? 1.25 : 0.85;
+            double contextWeight = (wasHome == isHomeAnalysis) ? 1.10 : 0.90;
 
             double finalWeight = timeWeight * contextWeight;
 
@@ -127,28 +107,18 @@ public class PredictionEngineService {
 
             int goalsF = safeInt(wasHome ? m.getHomeScore() : m.getAwayScore());
             int goalsA = safeInt(wasHome ? m.getAwayScore() : m.getHomeScore());
-
-            double xgF = (myStats != null && myStats.getXG() != null) ? myStats.getXG() : Math.max(0.2, goalsF * 0.75);
-            double xgA = (oppStats != null && oppStats.getXG() != null) ? oppStats.getXG() : Math.max(0.2, goalsA * 0.75);
+            double xgF = (myStats != null && myStats.getXG() != null) ? myStats.getXG() : Math.max(0.2, goalsF * 0.8);
+            double xgA = (oppStats != null && oppStats.getXG() != null) ? oppStats.getXG() : Math.max(0.2, goalsA * 0.8);
 
             sumXgFor += xgF * finalWeight;
             sumXgAgainst += xgA * finalWeight;
             sumGoalsFor += goalsF * finalWeight;
-            // sumGoalsAgainst supprimé ici aussi
 
-            double totalGameXg = xgF + xgA;
-            double matchDominance = (totalGameXg > 0) ? (xgF / totalGameXg) : 0.5;
-            dominanceAccumulator += matchDominance * finalWeight;
-
-            if (wasHome) {
-                homePerformanceScore += (goalsF - goalsA) * timeWeight;
-                homeMatchCount++;
-            }
-
+            volatilitySum += (xgF + xgA) * finalWeight;
             totalWeight += finalWeight;
         }
 
-        if (totalWeight == 0) return new TeamPerformance(1.0, 1.0, 1.0, 0.5, false, 1.0);
+        if (totalWeight == 0) return new TeamPerformance(1.0, 1.0, 1.0, 0.5, 1.0);
 
         double avgXgFor = sumXgFor / totalWeight;
         double avgXgAgainst = sumXgAgainst / totalWeight;
@@ -156,28 +126,40 @@ public class PredictionEngineService {
 
         double attackRating = (leagueAvg > 0) ? (avgXgFor / leagueAvg) : 1.0;
         double defenseRating = (leagueAvg > 0) ? (avgXgAgainst / leagueAvg) : 1.0;
-
         double finishing = (avgXgFor > 0.2) ? (avgGoalsFor / avgXgFor) : 1.0;
-        finishing = Math.max(0.80, Math.min(1.25, finishing));
+        double volatility = (volatilitySum / totalWeight) / (leagueAvg * 2);
 
-        double avgDominance = dominanceAccumulator / totalWeight;
-        boolean isHomeStrong = (homeMatchCount > 2 && (homePerformanceScore / homeMatchCount) > 0.5);
-
-        double volatility = (avgXgFor + avgXgAgainst) / (leagueAvg * 2);
-
-        return new TeamPerformance(attackRating, defenseRating, finishing, avgDominance, isHomeStrong, volatility);
+        return new TeamPerformance(attackRating, defenseRating, finishing, 0.5, volatility);
     }
 
-    // --- SIMULATION ---
+    /**
+     * Calcule un facteur multiplicateur basé sur la météo.
+     * Retourne 1.0 si pas d'impact ou pas de données.
+     * Retourne < 1.0 si conditions difficiles.
+     */
+    private double calculateWeatherFactor(MatchAnalysis match) {
+        var wOpt = weatherService.getMatchWeather(match.getHomeTeam().getLatitude(), match.getHomeTeam().getLongitude(), match.getMatchDate().toString());
+
+        double factor = 1.0;
+
+        if (wOpt.isPresent()) {
+            var w = wOpt.get();
+            // Vent > 30km/h réduit la précision et le nombre de buts attendus
+            if (w.windSpeed() > 30.0) {
+                factor *= 0.90;
+            }
+            // La pluie peut avoir un impact, ici, on reste neutre pour l'instant (1.0)
+            // sauf si on veut réduire légèrement le score global
+            // if (w.isRaining()) factor *= 0.98;
+        }
+
+        return factor;
+    }
 
     private PredictionResult simulateMatch(double lambdaHome, double lambdaAway, MatchAnalysis match, TeamPerformance homePerf, TeamPerformance awayPerf) {
         double probHome = 0.0, probDraw = 0.0, probAway = 0.0;
         double probOver25 = 0.0, probBTTS = 0.0;
-        double probUnder1_5 = 0.0;
-        double probUnder2_5 = 0.0;
-        double probOver3_5 = 0.0;
-        double probBTTS_No = 0.0;
-
+        double probUnder1_5 = 0.0, probUnder2_5 = 0.0, probOver3_5 = 0.0, probBTTS_No = 0.0;
         double probHomeOver05 = 0.0, probHomeOver15 = 0.0;
         double probAwayOver05 = 0.0, probAwayOver15 = 0.0;
 
@@ -191,8 +173,7 @@ public class PredictionEngineService {
                 double p = poisson(h, lambdaHome) * poisson(a, lambdaAway);
                 p = applyDixonColes(p, h, a, lambdaHome, lambdaAway);
 
-                if (h == a && gameChaos > 1.2) p *= 0.90;
-                if (h == a && gameChaos < 0.8) p *= 1.10;
+                if (h == a && gameChaos > 1.2) p *= 0.92;
 
                 if (h > a) probHome += p;
                 else if (h == a) probDraw += p;
@@ -200,84 +181,61 @@ public class PredictionEngineService {
 
                 if ((h + a) > 2.5) probOver25 += p;
                 if (h > 0 && a > 0) probBTTS += p;
+                else probBTTS_No += p;
+
+                int totalGoals = h + a;
+                if (totalGoals < 1.5) probUnder1_5 += p;
+                if (totalGoals < 2.5) probUnder2_5 += p;
+                if (totalGoals > 3.5) probOver3_5 += p;
 
                 if(h > 0) probHomeOver05 += p; if(h > 1) probHomeOver15 += p;
                 if(a > 0) probAwayOver05 += p; if(a > 1) probAwayOver15 += p;
 
                 if (p > maxProb) { maxProb = p; exactScore = h + "-" + a; }
-
-                int totalGoals = h + a;
-
-                // Calculs UNDER / OVER étendus
-                if (totalGoals < 1.5) probUnder1_5 += p;
-                if (totalGoals < 2.5) probUnder2_5 += p;
-                if (totalGoals > 3.5) probOver3_5 += p;
-
-                // BTTS NO (L'un des deux ne marque pas, ou 0-0)
-                if (h == 0 || a == 0) probBTTS_No += p;
             }
         }
 
-        probUnder1_5 *= 100;
-        probUnder2_5 *= 100;
-        probOver3_5 *= 100;
-        probBTTS_No *= 100;
-
         double total = probHome + probDraw + probAway;
+        // Normalisation
         probHome = (probHome / total) * 100;
         probDraw = (probDraw / total) * 100;
         probAway = (probAway / total) * 100;
-
-        probOver25 = (probOver25 / total) * 100;
-        probBTTS = (probBTTS / total) * 100;
-        probHomeOver05 = (probHomeOver05 / total) * 100; probHomeOver15 = (probHomeOver15 / total) * 100;
-        probAwayOver05 = (probAwayOver05 / total) * 100; probAwayOver15 = (probAwayOver15 / total) * 100;
         double exactScoreProb = (maxProb / total) * 100;
 
         double kHome = calculateKelly(probHome / 100, match.getOdds1());
         double kDraw = calculateKelly(probDraw / 100, match.getOddsN());
         double kAway = calculateKelly(probAway / 100, match.getOdds2());
 
-        // --- CORRECTION : Utilisation de kOv15 ---
-        // On utilise la proba "Home > 0.5" comme proxy grossier ou on devrait calculer probOver15 globalement.
-        // Pour être précis, on va utiliser probOver25 pour le Kelly 2.5 et le BTTS pour BTTS.
-        // Pour l'Over 1.5, si on n'a pas calculé probOver15Global, on met 0 ou on l'ajoute à la boucle.
-        // Pour supprimer le warning, on va utiliser la variable correctement dans le retour.
-        double kOv15 = calculateKelly(probHomeOver05 / 100, match.getOddsOver15()); // Note: Logique à affiner, ici juste pour compiler proprement
-        double kOv25 = calculateKelly(probOver25 / 100, match.getOddsOver25());
-        double kBTTS = calculateKelly(probBTTS / 100, match.getOddsBTTSYes());
+        String valueSide = null;
+        if (kHome > 0) valueSide = "HOME";
+        else if (kAway > 0) valueSide = "AWAY";
+        else if (kDraw > 0) valueSide = "DRAW";
 
-        String value = null;
-        if (kHome > 0) value = "HOME";
-        else if (kAway > 0) value = "AWAY";
-        else if (kDraw > 0) value = "DRAW";
+        double kOv25 = calculateKelly((probOver25 / total), match.getOddsOver25());
+        double kBTTS = calculateKelly((probBTTS / total), match.getOddsBTTSYes());
 
         return new PredictionResult(
                 round(probHome), round(probDraw), round(probAway),
                 0.0, 0.0,
                 round(lambdaHome), round(lambdaAway),
-                round(probOver25), round(100 - probOver25), round(probBTTS),
+                round((probOver25/total)*100), round((probUnder2_5/total)*100), round((probBTTS/total)*100),
                 round(probHome + probDraw), round(probDraw + probAway), round(probHome + probAway),
-                kHome, kDraw, kAway, value,
-                round(probHomeOver05), round(probHomeOver15), round(probAwayOver05), round(probAwayOver15),
-                kOv15, kOv25, kBTTS, // <--- CORRECTION : kOv15 passé ici au lieu de 0.0
+                kHome, kDraw, kAway, valueSide,
+                round((probHomeOver05/total)*100), round((probHomeOver15/total)*100),
+                round((probAwayOver05/total)*100), round((probAwayOver15/total)*100),
+                0.0, kOv25, kBTTS,
                 exactScore, round(exactScoreProb),
-                round(probUnder1_5), round(probUnder2_5), round(probOver3_5), round(probBTTS_No)
+                round((probUnder1_5/total)*100), round((probUnder2_5/total)*100),
+                round((probOver3_5/total)*100), round((probBTTS_No/total)*100)
         );
     }
-
-    // --- UTILS ---
-
-    private int safeInt(Integer val) { return val == null ? 0 : val; }
-
-    private double round(double val) { return Math.round(val * 100.0) / 100.0; }
 
     private double calculateKelly(double prob, Double odds) {
         if (odds == null || odds <= 1.0) return 0.0;
         double b = odds - 1.0;
         double q = 1.0 - prob;
         double f = ((b * prob) - q) / b;
-        return f > 0 ? round((f * 0.20) * 100.0) : 0.0;
+        return f > 0 ? round((f * 0.25) * 100.0) : 0.0;
     }
 
     private double poisson(int k, double lambda) {
@@ -292,11 +250,7 @@ public class PredictionEngineService {
     }
 
     private double applyDixonColes(double p, int h, int a, double lh, double la) {
-        // --- CORRECTION : Utilisation de props (Warning props) ---
-        // On récupère rho depuis la config, ou defaut si null
         double rho = -0.13;
-        // --------------------------------------------------------
-
         double adj = 1.0;
         if(h==0 && a==0) adj = 1.0 - (lh*la*rho);
         else if(h==0 && a==1) adj = 1.0 + (lh*rho);
@@ -313,7 +267,8 @@ public class PredictionEngineService {
             if (m.getHomeScore() == null) continue;
             boolean homeWon = (m.getHomeTeam().getName().equals(homeName) && m.getHomeScore() > m.getAwayScore()) ||
                     (m.getAwayTeam().getName().equals(homeName) && m.getAwayScore() > m.getHomeScore());
-            if (homeWon) factor += 0.05; else factor -= 0.03;
+            if (homeWon) factor += WEIGHT_H2H;
+            else factor -= (WEIGHT_H2H / 2);
         }
         return factor;
     }
@@ -321,12 +276,23 @@ public class PredictionEngineService {
     private double applyContextualFactors(double lambda, boolean isHome, MatchAnalysis m) {
         double f = 1.0;
         if (isHome) {
-            if (m.isHomeKeyPlayerMissing()) f -= 0.10;
-            if (m.isHomeTired()) f -= 0.07;
+            if (m.isHomeKeyPlayerMissing()) f -= 0.12;
+            if (m.isHomeTired()) f -= 0.08;
         } else {
-            if (m.isAwayKeyPlayerMissing()) f -= 0.10;
-            if (m.isAwayNewCoach()) f += 0.04;
+            if (m.isAwayKeyPlayerMissing()) f -= 0.12;
+            if (m.isAwayNewCoach()) f += 0.05;
         }
         return lambda * f;
     }
+
+    private int safeInt(Integer val) { return val == null ? 0 : val; }
+    private double round(double val) { return Math.round(val * 100.0) / 100.0; }
+
+    private record TeamPerformance(
+            double attackRating,
+            double defenseRating,
+            double finishingEfficiency,
+            double dominance,
+            double volatility
+    ) {}
 }

@@ -351,35 +351,61 @@
       </div>
 
       <div class="tab-pane fade" id="import-pane">
-        <h3 class="mb-4 text-warning"><i class="bi bi-cloud-download-fill me-2"></i>Importation Automatisée</h3>
-        <div class="alert alert-light border shadow-sm">
-          <i class="bi bi-info-circle-fill text-primary me-2"></i>
-          Synchronisation Football-Data.co.uk (Saison 2025/2026).
+        <h3 class="mb-4 text-warning"><i class="bi bi-cloud-download-fill me-2"></i>Centre d'Importation</h3>
+
+        <div class="alert alert-dark border-secondary shadow-sm">
+          <i class="bi bi-info-circle-fill text-info me-2"></i>
+          Synchronisation avec Football-Data.co.uk (Saison 2025/2026).
         </div>
-        <div class="card h-100 border-0 shadow-sm">
-          <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-flag-fill me-2"></i>Premier League</span>
-            <span class="badge bg-success">Actif</span>
+
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-card-header fw-bold">
+            <i class="bi bi-sliders me-2"></i>Options de Synchronisation
           </div>
           <div class="card-body">
-            <p class="text-muted small">
-              Importe tous les matchs joués jusqu'à aujourd'hui. <br>
-              Crée les équipes manquantes automatiquement.
-            </p>
 
-            <div class="form-check form-switch mb-3">
-              <input class="form-check-input" type="checkbox" id="chkForceUpdatePL">
-              <label class="form-check-label small text-muted" for="chkForceUpdatePL">
-                Écraser les données existantes (Mise à jour)
+            <div class="form-check form-switch mb-4">
+              <input class="form-check-input" type="checkbox" id="chkForceUpdate">
+              <label class="form-check-label small text-muted" for="chkForceUpdate">
+                Forcer la mise à jour (Écrase les données des matchs existants)
               </label>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center mt-3">
-              <small class="text-muted">Source: football-data.co.uk</small>
-              <button id="btnImportPL" class="btn btn-primary fw-bold btn-sm px-3">
-                <i class="bi bi-download me-1"></i> Lancer Import
-              </button>
+            <div class="row g-4">
+              <div class="col-md-6 border-end border-secondary">
+                <h6 class="text-uppercase text-muted small fw-bold mb-3">Import Ciblé</h6>
+                <div class="input-group mb-3">
+                  <label class="input-group-text bg-dark text-white border-secondary" for="importSelect">Ligue</label>
+                  <select class="form-select bg-dark text-white border-secondary" id="importSelect">
+                    <option value="" selected disabled>Chargement...</option>
+                  </select>
+                </div>
+                <button id="btnImportSingle" class="btn btn-primary w-100">
+                  <i class="bi bi-download me-2"></i>Importer la sélection
+                </button>
+              </div>
+
+              <div class="col-md-6">
+                <h6 class="text-uppercase text-muted small fw-bold mb-3">Import Global</h6>
+                <p class="small text-muted mb-3">
+                  Lance la récupération des données pour <strong>tous les championnats</strong> configurés (Big 5).
+                  Cette opération peut prendre quelques secondes.
+                </p>
+                <button id="btnImportAll" class="btn btn-outline-warning w-100">
+                  <i class="bi bi-globe me-2"></i>Importer TOUT (Big 5)
+                </button>
+              </div>
             </div>
+
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm" id="resultCard" style="display:none;">
+          <div class="card-header bg-success text-white fw-bold">
+            <i class="bi bi-terminal-fill me-2"></i>Rapport d'exécution
+          </div>
+          <div class="card-body bg-dark text-white font-monospace p-3">
+            <pre id="importResultOutput" class="mb-0" style="white-space: pre-wrap;">...</pre>
           </div>
         </div>
       </div>
@@ -411,30 +437,82 @@
   const getInt = (id) => document.getElementById(id).value ? parseInt(document.getElementById(id).value) : null;
   const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = (val !== null && val !== undefined) ? val : ''; };
 
-  // --- 1. IMPORT DATA ---
-  const btnImportPL = document.getElementById('btnImportPL');
-  if(btnImportPL) {
-    btnImportPL.addEventListener('click', async () => {
-      // Récupérer l'état de la checkbox
-      const forceUpdate = document.getElementById('chkForceUpdatePL').checked;
+  // --- 1. IMPORT DATA MANAGER ---
+  // A. Chargement des codes ligues au démarrage
+  async function loadImportOptions() {
+    const select = document.getElementById('importSelect');
+    if(!select) return;
 
-      let msg = "Lancer l'import Premier League ?";
-      if (forceUpdate) {
-        msg += "\n⚠️ ATTENTION : Les matchs existants seront écrasés avec les données du CSV.";
-      }
-
-      if(!confirm(msg)) return;
-
-      showToast("Import en cours...", false);
-
-      try {
-        // Ajout du paramètre dans l'URL
-        const res = await fetch(`/api/v1/admin/import/premier-league?forceUpdate=${forceUpdate}`, {
-          method: 'POST'
+    try {
+      const res = await fetch('/api/v1/admin/leagues-codes');
+      if(res.ok) {
+        const codes = await res.json();
+        select.innerHTML = '<option value="" selected disabled>-- Choisir une ligue --</option>';
+        codes.forEach(code => {
+          // Mapping code -> Label lisible (optionnel, sinon on affiche juste le code)
+          const labels = { 'PL': '🇬🇧 Premier League', 'L1': '🇫🇷 Ligue 1', 'LIGA': '🇪🇸 La Liga', 'SERIEA': '🇮🇹 Serie A', 'BUNDES': '🇩🇪 Bundesliga' };
+          const label = labels[code] || code;
+          select.innerHTML += `<option value="${code}">${label}</option>`;
         });
-        const text = await res.text();
-        showToast(res.ok ? "Succès : " + text : "Erreur : " + text, !res.ok);
-      } catch(e) { showToast("Erreur serveur", true); }
+      }
+    } catch(e) { console.error("Erreur chargement codes ligues", e); }
+  }
+
+  // Appeler cette fonction au chargement
+  document.addEventListener('DOMContentLoaded', loadImportOptions);
+
+  // B. Gestionnaire générique d'appel
+  async function runImport(url) {
+    const force = document.getElementById('chkForceUpdate').checked;
+    const btnSingle = document.getElementById('btnImportSingle');
+    const btnAll = document.getElementById('btnImportAll');
+    const resultCard = document.getElementById('resultCard');
+    const output = document.getElementById('importResultOutput');
+
+    // UI Loading state
+    btnSingle.disabled = true;
+    btnAll.disabled = true;
+    resultCard.style.display = 'block';
+    output.innerText = "⏳ Import en cours... Veuillez patienter.";
+
+    // Ajout paramètre forceUpdate
+    const separator = url.includes('?') ? '&' : '?';
+    const finalUrl = `${url}${separator}forceUpdate=${force}`;
+
+    try {
+      const res = await fetch(finalUrl, { method: 'POST' });
+      const text = await res.text();
+
+      if(res.ok) {
+        output.innerText = text;
+        showToast("Import terminé avec succès !");
+      } else {
+        output.innerText = "ERREUR SERVER :\n" + text;
+        showToast("Erreur lors de l'import", true);
+      }
+    } catch(e) {
+      output.innerText = "ERREUR TECHNIQUE :\n" + e.message;
+    } finally {
+      btnSingle.disabled = false;
+      btnAll.disabled = false;
+    }
+  }
+
+  // C. Listeners Boutons
+  const btnSingle = document.getElementById('btnImportSingle');
+  if(btnSingle) {
+    btnSingle.addEventListener('click', () => {
+      const code = document.getElementById('importSelect').value;
+      if(!code) { alert("Veuillez sélectionner une ligue."); return; }
+      runImport(`/api/v1/admin/import/${code}`);
+    });
+  }
+
+  const btnAll = document.getElementById('btnImportAll');
+  if(btnAll) {
+    btnAll.addEventListener('click', () => {
+      if(!confirm("Êtes-vous sûr de vouloir lancer l'import GLOBAL ? Cela peut prendre du temps.")) return;
+      runImport(`/api/v1/admin/import/all`);
     });
   }
 
