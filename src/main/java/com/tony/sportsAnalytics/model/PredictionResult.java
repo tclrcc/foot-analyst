@@ -1,5 +1,6 @@
 package com.tony.sportsAnalytics.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -68,4 +69,9 @@ public class PredictionResult {
     private Boolean predictionCorrect; // Vrai si le résultat final avait la plus haute proba (ou >35%)
     private Double brierScore;         // Score de précision (plus bas = meilleur)
     private Double rpsScore;           // Ranked Probability Score (encore plus précis)
+
+    @Column(columnDefinition = "TEXT")
+    private String aiAnalysisPrompt; // Le texte complet pour ChatGPT/Gemini
+    private Double matchVolatility;  // Niveau de chaos (0.0 à 2.0)
+    private Double confidenceScore;  // Confiance de l'algo (0 à 100%)
 }

@@ -4,6 +4,7 @@ import com.tony.sportsAnalytics.model.League;
 import com.tony.sportsAnalytics.model.MatchAnalysis;
 import com.tony.sportsAnalytics.model.Team;
 import com.tony.sportsAnalytics.repository.LeagueRepository;
+import com.tony.sportsAnalytics.repository.MatchAnalysisRepository;
 import com.tony.sportsAnalytics.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,8 @@ import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.NelderMeadSimplex;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.SimplexOptimizer;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -24,8 +27,35 @@ import java.util.*;
 public class ParameterEstimationService {
     private final TeamRepository teamRepository;
     private final LeagueRepository leagueRepository;
+    private final MatchAnalysisRepository matchAnalysisRepository;
 
     private static final double XI = 0.0019; // Décroissance temporelle Dixon-Coles
+
+    // N'oubliez pas l'import de @Transactional
+    @Transactional
+    public void runEstimationForLeague(String leagueIdStr) { // On utilise l'ID ou le Code selon votre logique
+        // Astuce : On récupère la ligue via une des équipes ou un repo de ligue
+        // Ici on suppose qu'on passe l'ID de la ligue (ex: 1 pour PL)
+        Long leagueId = Long.parseLong(leagueIdStr);
+
+        // 1. Récupérer les matchs historiques
+        List<MatchAnalysis> matches = matchAnalysisRepository.findFinishedMatchesByLeague(leagueId);
+        if (matches.isEmpty()) {
+            log.warn("Aucun match trouvé pour la ligue ID {}", leagueId);
+            return;
+        }
+
+        // 2. Récupérer les équipes uniques de ces matchs
+        List<Team> teams = matches.stream()
+                .map(MatchAnalysis::getHomeTeam)
+                .distinct()
+                .toList();
+
+        log.info("🧮 Début de l'estimation MLE pour {} équipes sur {} matchs...", teams.size(), matches.size());
+
+        // 3. Lancer l'optimisation (Votre méthode existante)
+        estimateParameters(matches, teams);
+    }
 
     public void estimateParameters(List<MatchAnalysis> matches, List<Team> teams) {
         int n = teams.size();
@@ -44,8 +74,14 @@ public class ParameterEstimationService {
                 int hIdx = teamIdx.get(m.getHomeTeam().getId());
                 int aIdx = teamIdx.get(m.getAwayTeam().getId());
 
-                double lambda = point[hIdx + 2] * point[aIdx + n + 2] * gamma;
-                double mu = point[aIdx + 2] * point[hIdx + n + 2];
+                // Protection contre les valeurs négatives ou nulles aberrantes
+                double alphaHome = Math.max(0.01, point[hIdx + 2]);
+                double betaAway = Math.max(0.01, point[aIdx + n + 2]);
+                double alphaAway = Math.max(0.01, point[aIdx + 2]);
+                double betaHome = Math.max(0.01, point[hIdx + n + 2]);
+
+                double lambda = alphaHome * betaAway * gamma;
+                double mu = alphaAway * betaHome;
 
                 long days = Math.abs(Duration.between(LocalDateTime.now(), m.getMatchDate()).toDays());
                 double weight = Math.exp(-XI * days);
@@ -53,7 +89,7 @@ public class ParameterEstimationService {
                 logL += weight * Math.log(calculateDixonColesProb(m.getHomeScore(), m.getAwayScore(), lambda, mu, rho));
             }
 
-            // Contrainte de normalisation : Moyenne des alphas = 1 (Pénalité si déviation)
+            // Contrainte de normalisation : Moyenne des alphas = 1
             double sumAlpha = 0;
             for(int i=2; i<n+2; i++) sumAlpha += point[i];
             logL -= Math.pow(sumAlpha - n, 2) * 1000;
@@ -61,16 +97,22 @@ public class ParameterEstimationService {
             return logL;
         };
 
+        // --- CORRECTION DU DÉMARRAGE (INITIAL GUESS) ---
+        double[] initialGuess = new double[2 * n + 2];
+        Arrays.fill(initialGuess, 1.0); // On commence avec Alpha/Beta à 1.0 (neutre)
+        initialGuess[0] = 1.20; // Gamma (Avantage dom) commence à 1.20
+        initialGuess[1] = -0.1; // Rho commence légèrement négatif
+
+        // --- AUGMENTATION DE LA LIMITE (MaxEval) ---
         SimplexOptimizer optimizer = new SimplexOptimizer(1e-10, 1e-30);
         PointValuePair optimum = optimizer.optimize(
-                new MaxEval(20000),
+                new MaxEval(200000), // Augmenté de 20k à 200k
                 new ObjectiveFunction(logLikelihood),
                 GoalType.MAXIMIZE,
-                new InitialGuess(new double[2 * n + 2]), // Initialiser à 1.0 partout
+                new InitialGuess(initialGuess), // Utilisation du point de départ optimisé
                 new NelderMeadSimplex(2 * n + 2)
         );
 
-        // Sauvegarde des nouveaux Alpha/Beta en base
         saveResults(optimum.getPoint(), teams, teams.getFirst().getLeague());
     }
 

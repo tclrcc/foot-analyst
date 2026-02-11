@@ -139,8 +139,12 @@ public class PredictionEngineService {
         double kellyDraw = calculateAdjustedKelly(finalProbDraw / 100.0, match.getOddsN(), confidenceFactor);
         double kellyAway = calculateAdjustedKelly(finalProbAway / 100.0, match.getOdds2(), confidenceFactor);
 
-        // Logs techniques pour l'explicabilité ("MyNotes")
-        match.setMyNotes(generateExplainabilityNotes(homeLambda, awayLambda, eloDiff, home, away, league, finalProbHome, finalProbAway));
+        // 1. Génération du Prompt IA
+        String aiPrompt = generateAiPrompt(match, home, away, homePerf, awayPerf, finalProbHome, finalProbDraw, finalProbAway, kellyHome, kellyAway);
+
+        // 2. Logs structurés pour l'utilisateur (HTML formatted)
+        String userLogs = generateUserLogs(home, away, eloDiff, homePerf, awayPerf, poissonResult, confidenceFactor);
+        match.setMyNotes(userLogs); // On sauvegarde les logs dans myNotes
 
         return PredictionResult.builder()
                 .homeWinProbability(round(finalProbHome))
@@ -184,8 +188,105 @@ public class PredictionEngineService {
                 // Mises Kelly secondaires (Exemple, à affiner si besoin)
                 .kellyOver2_5(calculateAdjustedKelly(poissonResult.getOver2_5_Prob()/100.0, match.getOddsOver25(), confidenceFactor))
                 .kellyBTTS(calculateAdjustedKelly(poissonResult.getBttsProb()/100.0, match.getOddsBTTSYes(), confidenceFactor))
+                .aiAnalysisPrompt(aiPrompt)
+                .matchVolatility(round((homePerf.volatility() + awayPerf.volatility()) / 2.0))
+                .confidenceScore(round(confidenceFactor * 100.0))
 
                 .build();
+    }
+
+    private String generateUserLogs(Team h, Team a, double eloDiff, TeamPerformance hp, TeamPerformance ap, PredictionResult sim, double conf) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<ul>");
+        sb.append(String.format("<li><strong>Analyse de Forme :</strong> %s est à %.0f%% de potentiel offensif, %s à %.0f%%.</li>",
+                h.getName(), hp.attackRating()*100, a.getName(), ap.attackRating()*100));
+
+        sb.append(String.format("<li><strong>Stabilité du Match :</strong> Indice de confiance calculé à <strong>%.0f%%</strong> (Volatilité: %.2f).</li>",
+                conf*100, (hp.volatility() + ap.volatility())/2));
+
+        if (Math.abs(eloDiff) > 100) {
+            sb.append(String.format("<li><strong>Hiérarchie :</strong> %s est nettement supérieur au classement Elo (%+.0f pts).</li>",
+                    eloDiff > 0 ? h.getName() : a.getName(), eloDiff));
+        }
+
+        if (sim.getBttsProb() > 60) {
+            sb.append("<li><strong>Style de Jeu :</strong> Forte probabilité de buts des deux côtés (Défenses perméables détectées).</li>");
+        }
+        sb.append("</ul>");
+        return sb.toString();
+    }
+
+    private String generateAiPrompt(MatchAnalysis m, Team h, Team a, TeamPerformance hp, TeamPerformance ap, double p1, double pN, double p2, double k1, double k2) {
+        PredictionResult pred = m.getPrediction();
+
+        // On garde uniquement l'info "Nouveau Coach" si elle est avérée, car c'est un facteur critique
+        String contextAlerts = "";
+        if (m.isAwayNewCoach()) contextAlerts += "- ATTENTION : Choc psychologique potentiel (Nouveau Coach Extérieur)\n";
+
+        // Si aucune alerte structurelle, on ne dit rien pour ne pas induire l'IA en erreur.
+
+        return String.format(
+                "Agis comme un expert en paris sportifs et modélisation statistique.\n" +
+                        "Analyse ce match de %s en te basant exclusivement sur les données mathématiques fournies.\n\n" +
+
+                        "--- 1. IDENTITÉ DU MATCH ---\n" +
+                        "MATCH : %s (Dom) vs %s (Ext)\n" +
+                        "DATE : %s\n" +
+                        "ARBITRE : %s\n" +
+                        "%s\n" + // Insère l'alerte coach si présente, sinon ligne vide
+
+                        "--- 2. PROFILS STATISTIQUES (Saison & Forme) ---\n" +
+                        "FORCES INTRINSÈQUES (Alpha/Beta - Dixon Coles) :\n" +
+                        "- %s : Attaque %.2f / Défense %.2f\n" +
+                        "- %s : Attaque %.2f / Défense %.2f\n\n" +
+
+                        "DYNAMIQUE RÉCENTE (Ratio Performance vs Moyenne Ligue) :\n" +
+                        "- %s : %.2f %s\n" +
+                        "- %s : %.2f %s\n" +
+                        "(Note : > 1.0 = Surperforme, < 0.8 = En difficulté offensive)\n\n" +
+
+                        "--- 3. PRÉDICTIONS DE L'ALGORITHME ---\n" +
+                        "PROBABILITÉS PURES : Home %.1f%% | Draw %.1f%% | Away %.1f%%\n" +
+                        "EXPECTED GOALS : %.2f - %.2f\n" +
+                        "SCORE EXACT LE PLUS PROBABLE : %s\n\n" +
+
+                        "INDICATEURS DE RISQUE :\n" +
+                        "- Volatilité du match : %.2f (0.0=Stable, >1.0=Chaotique)\n" +
+                        "- Confiance du modèle : %.0f%%\n" +
+                        "- BTTS (Les 2 marquent) : %.1f%% | Over 2.5 Buts : %.1f%%\n\n" +
+
+                        "--- 4. ANALYSE DE MARCHÉ (VALUE) ---\n" +
+                        "COTES BOOKMAKER : 1@%.2f | N@%.2f | 2@%.2f\n" +
+                        "CONSEIL DE MISE (Kelly Criterion) : Home %.1f%% | Away %.1f%%\n\n" +
+
+                        "--- TA MISSION ---\n" +
+                        "1. Analyse le rapport de force : Est-ce que la forme récente contredit la puissance intrinsèque des équipes ?\n" +
+                        "2. Évalue la 'Value' : Mon algorithme suggère une mise sur %s. Est-ce cohérent avec les statistiques de buts (xG) ?\n" +
+                        "3. Donne ton verdict final : Suivre, Réduire la mise, ou Passer ?",
+
+                h.getLeague().getName(),
+                h.getName(), a.getName(),
+                m.getMatchDate(),
+                (m.getReferee() != null ? m.getReferee() : "Non spécifié"),
+                contextAlerts,
+
+                h.getName(), h.getAttackStrength(), h.getDefenseStrength(),
+                a.getName(), a.getAttackStrength(), a.getDefenseStrength(),
+
+                h.getName(), hp.attackRating(), (hp.attackRating() < 0.8 ? "(⚠️ MÉFORME)" : ""),
+                a.getName(), ap.attackRating(), (ap.attackRating() < 0.8 ? "(⚠️ MÉFORME)" : ""),
+
+                p1, pN, p2,
+                (pred != null ? pred.getPredictedHomeGoals() : 0.0), (pred != null ? pred.getPredictedAwayGoals() : 0.0), (pred != null ? pred.getExactScore() : "?-?"),
+
+                (hp.volatility() + ap.volatility())/2.0,
+                (pred != null ? pred.getConfidenceScore() : 50.0),
+                (pred != null ? pred.getBttsProb() : 0.0), (pred != null ? pred.getOver2_5_Prob() : 0.0),
+
+                m.getOdds1(), m.getOddsN(), m.getOdds2(),
+                k1, k2,
+                (k1 > 0 ? "le DOMICILE" : (k2 > 0 ? "l'EXTÉRIEUR" : "le NUL"))
+        );
     }
 
     // --- MÉTHODES MÉTIERS AVANCÉES ---

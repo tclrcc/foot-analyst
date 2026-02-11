@@ -5,6 +5,7 @@ import com.tony.sportsAnalytics.repository.MatchAnalysisRepository;
 import com.tony.sportsAnalytics.service.BacktestingService;
 import com.tony.sportsAnalytics.service.DataImportService;
 import com.tony.sportsAnalytics.service.MatchAnalysisService;
+import com.tony.sportsAnalytics.service.ParameterEstimationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +25,7 @@ public class AdminController {
     private final DataImportService importService;
     private final BacktestingService backtestingService;
     private final MatchAnalysisService matchAnalysisService;
+    private final ParameterEstimationService parameterEstimationService;
 
     // 1. Récupérer la liste des codes dispos (PL, L1...) pour le dropdown
     @GetMapping("/leagues-codes")
@@ -66,5 +68,13 @@ public class AdminController {
         log.info("🔄 Relance massive des prédictions pour les matchs à venir");
         int count = matchAnalysisService.recalculateAllUpcoming();
         return ResponseEntity.ok(count + " analyses mises à jour avec les nouveaux paramètres.");
+    }
+
+    @PostMapping("/estimate/{leagueId}")
+    public ResponseEntity<String> estimateParams(@PathVariable String leagueId) {
+        log.info("🧮 Lancement de l'estimation des forces (Alpha/Beta) pour la ligue {}", leagueId);
+        // Appel à la nouvelle méthode créée
+        parameterEstimationService.runEstimationForLeague(leagueId);
+        return ResponseEntity.ok("Estimation des paramètres lancée ! Vérifiez les logs.");
     }
 }

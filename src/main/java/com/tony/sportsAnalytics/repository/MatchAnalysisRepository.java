@@ -61,4 +61,7 @@ public interface MatchAnalysisRepository extends JpaRepository<MatchAnalysis, Lo
 
     // Ajoute cette méthode dans l'interface
     List<MatchAnalysis> findByMatchDateBetweenOrderByMatchDateAsc(LocalDateTime start, LocalDateTime end);
+
+    @Query("SELECT m FROM MatchAnalysis m WHERE m.homeTeam.league.id = :leagueId AND m.homeScore IS NOT NULL ORDER BY m.matchDate ASC")
+    List<MatchAnalysis> findFinishedMatchesByLeague(@Param("leagueId") Long leagueId);
 }
