@@ -20,6 +20,31 @@ public class League {
     // Code ISO pour le drapeau (ex: "fr", "gb", "es")
     private String countryCode;
 
+    // --- PARAMÈTRES ALGORITHMIQUES (DYNAMIQUES) ---
+
+    // Poids de la fusion (ex: 0.55 pour Poisson, le reste pour Elo)
+    @Column(nullable = false, columnDefinition = "double precision default 0.55")
+    private Double weightPoisson = 0.55;
+
+    // Calibration Sigmoïde (A = Pente, B = Seuil)
+    @Column(nullable = false, columnDefinition = "double precision default -8.5")
+    private Double calibrationA = -8.5;
+
+    @Column(nullable = false, columnDefinition = "double precision default 4.2")
+    private Double calibrationB = 4.2;
+
+    // Facteur d'ancrage au marché (0.30 = on fait confiance à 30% aux bookmakers)
+    @Column(nullable = false, columnDefinition = "double precision default 0.30")
+    private Double marketAnchorWeight = 0.30;
+
+    // Paramètre Dixon-Coles (interdépendance des buts, ex: -0.13)
+    @Column(nullable = false, columnDefinition = "double precision default -0.13")
+    private Double rho = -0.13;
+
+    // Avantage domicile (spécifique à la ligue, calculé par MLE)
+    @Column(nullable = false, columnDefinition = "double precision default 1.15")
+    private Double homeAdvantageFactor = 1.15;
+
     @Column(nullable = false, columnDefinition = "double precision default 1.35")
     private Double averageGoalsPerTeam = 1.35;
 
@@ -30,18 +55,6 @@ public class League {
     private Double percentAwayWin;       // Ex: 30.0
     private Double percentOver2_5;       // Ex: 55.0
     private Double percentBTTS;          // Ex: 52.0
-
-    @Column(nullable = false, columnDefinition = "double precision default -0.13")
-    private Double rho = -0.13; // Corrélation Dixon-Coles calculée
-
-    @Column(nullable = false, columnDefinition = "double precision default 1.15")
-    private Double homeAdvantageFactor = 1.15; // Gamma calculé
-
-    @Column(nullable = false, columnDefinition = "double precision default -10.0")
-    private Double calibrationA = -10.0; // Pente
-
-    @Column(nullable = false, columnDefinition = "double precision default 5.0")
-    private Double calibrationB = 5.0;   // Décalage (Intercept)
 
     public League(String name) {
         this.name = name;

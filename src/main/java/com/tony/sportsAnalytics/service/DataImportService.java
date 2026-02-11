@@ -35,6 +35,7 @@ public class DataImportService {
     private final PredictionEngineService predictionEngineService;
     private final PredictionEvaluationService evaluationService;
     private final XgScraperService xgScraperService;
+    private final AnalysisOrchestrator orchestrator;
 
     // --- CONFIGURATION CONSTANTES ---
     private static final String BASE_URL = "https://www.football-data.co.uk/mmz4281/";
@@ -198,7 +199,9 @@ public class DataImportService {
                 enrichTeamsWithAdvancedStats(FBREF_LEAGUE_URLS.get(leagueCode));
             }
 
-            return csvResult + " + xG synchronisés.";
+            orchestrator.refreshUpcomingPredictions();
+
+            return "Import terminé et prédictions mises à jour.";
         } catch (Exception e) {
             log.error("Erreur Import {}", leagueCode, e);
             return "Erreur : " + e.getMessage();
