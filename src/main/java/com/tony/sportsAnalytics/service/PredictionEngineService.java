@@ -391,6 +391,13 @@ public class PredictionEngineService {
         return lambda * f;
     }
 
+    private double calculateLambda(Team home, Team away, double leagueAvg) {
+        // Pro : lambda = alpha_domicile * beta_exterieur * gamma
+        // Utilise Team.getAttackStrength() et Team.getDefenseStrength()
+        double homeAdvantage = 1.15; // gamma calculé par MLE
+        return home.getAttackStrength() * away.getDefenseStrength() * homeAdvantage;
+    }
+
     private int safeInt(Integer val) { return val == null ? 0 : val; }
     private double round(double val) { return Math.round(val * 100.0) / 100.0; }
 

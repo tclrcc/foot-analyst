@@ -32,6 +32,12 @@ public class Team {
     private Double latitude;
     private Double longitude;
 
+    @Column(nullable = false, columnDefinition = "double precision default 1.0")
+    private Double attackStrength = 1.0; // Alpha
+
+    @Column(nullable = false, columnDefinition = "double precision default 1.0")
+    private Double defenseStrength = 1.0; // Beta
+
     public Team(String name, League league) {
         this.name = name;
         this.league = league;

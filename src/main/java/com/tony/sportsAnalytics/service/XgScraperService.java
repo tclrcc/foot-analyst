@@ -1,30 +1,36 @@
 package com.tony.sportsAnalytics.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
-
-import java.util.Map;
+import java.util.*;
 
 @Service
 @Slf4j
 public class XgScraperService {
-    public Map<String, Double> scrapeXgFromFbRef(String leagueUrl) {
-        try {
-            // Connexion au site FBRef (Respecter les délais pour ne pas être banni)
-            org.jsoup.nodes.Document doc = org.jsoup.connect(leagueUrl).get();
-            // Sélection de la table "Squad Overall Stats"
-            org.jsoup.select.Elements rows = doc.select("table#stats_squads_standard_for tbody tr");
 
-            Map<String, Double> teamXgMap = new HashMap<>();
-            for (org.jsoup.nodes.Element row : rows) {
+    public Map<String, TeamXgMetrics> scrapeAdvancedMetrics(String leagueUrl) {
+        Map<String, TeamXgMetrics> metrics = new HashMap<>();
+        try {
+            Document doc = Jsoup.connect(leagueUrl).get();
+            // Sélecteur précis pour la table standard de FBRef
+            Elements rows = doc.select("table#stats_squads_standard_for tbody tr");
+
+            for (Element row : rows) {
                 String teamName = row.select("th[data-stat=team]").text();
-                double xGPerMatch = Double.parseDouble(row.select("td[data-stat=xg_per90]").text());
-                teamXgMap.put(teamName, xGPerMatch);
+                double xG = Double.parseDouble(row.select("td[data-stat=xg]").text());
+                double xGA = Double.parseDouble(row.select("td[data-stat=xg_against]").text());
+
+                metrics.put(teamName, new TeamXgMetrics(xG, xGA));
             }
-            return teamXgMap;
         } catch (Exception e) {
-            log.error("Erreur lors du scraping xG", e);
-            return Collections.emptyMap();
+            log.error("Échec du scraping FBRef: {}", e.getMessage());
         }
+        return metrics;
     }
+
+    public record TeamXgMetrics(double xG, double xGA) {}
 }
