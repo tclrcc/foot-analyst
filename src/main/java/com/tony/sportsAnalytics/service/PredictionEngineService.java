@@ -16,6 +16,7 @@ public class PredictionEngineService {
 
     private final WeatherService weatherService;
     private final AdvancedPredictionService advancedPrediction;
+    private final CalibrationService calibrationService;
 
     // --- CONFIGURATION ---
     private static final double WEIGHT_H2H = 0.08;            // Augmenté (0.05 -> 0.08) car l'historique est plus profond
@@ -34,6 +35,7 @@ public class PredictionEngineService {
 
         Team home = match.getHomeTeam();
         Team away = match.getAwayTeam();
+        League league = home.getLeague();
 
         // 0. ELO Probabilities (Fondation long terme)
         double eloDiff = home.getEloRating() - away.getEloRating();
@@ -41,13 +43,11 @@ public class PredictionEngineService {
         double eloProbAway = 1.0 / (1.0 + Math.pow(10, (eloDiff + 100.0) / ELO_DIVISOR));
 
         // 1. Dixon-Coles Lambdas (Force intrinsèque via MLE)
-        // On utilise les nouveaux champs attackStrength (Alpha) et defenseStrength (Beta)
-        double homeAdvantage = calculateLeagueHomeAdvantage(home.getLeague());
+        double homeAdvantage = (league != null) ? league.getHomeAdvantageFactor() : HOME_ADVANTAGE_BASE;
         double homeLambda = home.getAttackStrength() * away.getDefenseStrength() * homeAdvantage;
         double awayLambda = away.getAttackStrength() * home.getDefenseStrength();
 
         // 2. Intégration des Expected Goals (xG)
-        // On stabilise les lambdas en mixant la force Dixon-Coles avec l'xG réel du terrain
         if (home.getCurrentStats() != null && home.getCurrentStats().getXG() != null) {
             homeLambda = (homeLambda + home.getCurrentStats().getXG()) / 2.0;
         }
@@ -55,22 +55,23 @@ public class PredictionEngineService {
             awayLambda = (awayLambda + away.getCurrentStats().getXG()) / 2.0;
         }
 
-        // 3. Ajustement Dynamique (Performance récente - 10 derniers matchs)
+        // 3. Ajustement Dynamique (Performance récente)
         TeamPerformance homePerf = analyzeTeamPerformance(home, homeHistory, leagueAvgGoals, true, match.getMatchDate());
         TeamPerformance awayPerf = analyzeTeamPerformance(away, awayHistory, leagueAvgGoals, false, match.getMatchDate());
 
-        // Application de l'efficacité de finition (Finishing Efficiency)
         homeLambda *= Math.min(homePerf.finishingEfficiency(), MAX_FINISHING_CORRECTION);
         awayLambda *= Math.min(awayPerf.finishingEfficiency(), MAX_FINISHING_CORRECTION);
 
-        // 4. H2H & Contextual Factors
+        // 4. H2H Adjustments
         if (h2hHistory != null && !h2hHistory.isEmpty()) {
             homeLambda *= (1.0 + calculateH2HFactor(home, h2hHistory));
         }
 
+        // 5. Tactical Overlays
         homeLambda = applyTacticalOverlay(homeLambda, home, away, awayPerf.volatility());
         awayLambda = applyTacticalOverlay(awayLambda, away, home, homePerf.volatility());
 
+        // 6. Impact Joueurs & Facteurs Contextuels
         homeLambda = applyContextualFactors(homeLambda, true, match);
         awayLambda = applyContextualFactors(awayLambda, false, match);
 
@@ -78,15 +79,24 @@ public class PredictionEngineService {
         homeLambda *= weatherFactor;
         awayLambda *= weatherFactor;
 
-        // 5. Simulation Dixon-Coles (Poisson avec correction Rho)
-        // On récupère rho (-0.13 par défaut) pour corriger les scores 0-0, 1-1
-        double rho = -0.13;
-        PredictionResult poissonResult = simulateMatchPro(homeLambda, awayLambda, match, homePerf, awayPerf, rho);
+        // 7. Simulation Dixon-Coles Pro
+        double currentRho = (league != null) ? league.getRho() : -0.13;
+        PredictionResult poissonResult = simulateMatchPro(homeLambda, awayLambda, match, homePerf, awayPerf, currentRho);
 
-        // 6. Hybrid Fusion (Stats Dixon-Coles 60% / Elo 40%)
-        double finalProbHome = (poissonResult.getHomeWinProbability() * HYBRID_WEIGHT_POISSON) + (eloProbHome * 100.0 * HYBRID_WEIGHT_ELO);
-        double finalProbAway = (poissonResult.getAwayWinProbability() * HYBRID_WEIGHT_POISSON) + (eloProbAway * 100.0 * HYBRID_WEIGHT_ELO);
-        double finalProbDraw = 100.0 - finalProbHome - finalProbAway;
+        // 8. Hybrid Fusion
+        double rawHome = (poissonResult.getHomeWinProbability() * HYBRID_WEIGHT_POISSON) + (eloProbHome * 100.0 * HYBRID_WEIGHT_ELO);
+        double rawAway = (poissonResult.getAwayWinProbability() * HYBRID_WEIGHT_POISSON) + (eloProbAway * 100.0 * HYBRID_WEIGHT_ELO);
+
+        // 9. CALIBRATION FINALE (Variables renommées pour la cohérence)
+        double finalProbHome = rawHome;
+        double finalProbAway = rawAway;
+        double finalProbDraw = 100.0 - rawHome - rawAway;
+
+        if (league != null && league.getCalibrationA() != null && league.getCalibrationB() != null) {
+            finalProbHome = calibrationService.calibrate(rawHome, league.getCalibrationA(), league.getCalibrationB());
+            finalProbAway = calibrationService.calibrate(rawAway, league.getCalibrationA(), league.getCalibrationB());
+            finalProbDraw = 100.0 - finalProbHome - finalProbAway;
+        }
 
         return PredictionResult.builder()
                 .homeWinProbability(round(finalProbHome))
@@ -96,22 +106,23 @@ public class PredictionEngineService {
                 .homePowerScore(poissonResult.getHomePowerScore())
                 .awayPowerScore(poissonResult.getAwayPowerScore())
 
-                .predictedHomeGoals(poissonResult.getPredictedHomeGoals())
-                .predictedAwayGoals(poissonResult.getPredictedAwayGoals())
+                .predictedHomeGoals(round(homeLambda))
+                .predictedAwayGoals(round(awayLambda))
 
                 .over2_5_Prob(poissonResult.getOver2_5_Prob())
                 .under2_5_Prob(poissonResult.getUnder2_5_Prob())
                 .bttsProb(poissonResult.getBttsProb())
 
-                .doubleChance1N(poissonResult.getDoubleChance1N())
-                .doubleChanceN2(poissonResult.getDoubleChanceN2())
-                .doubleChance12(poissonResult.getDoubleChance12())
+                // Utilisation des variables corrigées
+                .doubleChance1N(round(finalProbHome + finalProbDraw))
+                .doubleChanceN2(round(finalProbDraw + finalProbAway))
+                .doubleChance12(round(finalProbHome + finalProbAway))
 
-                .kellyStakeHome(poissonResult.getKellyStakeHome())
-                .kellyStakeDraw(poissonResult.getKellyStakeDraw())
-                .kellyStakeAway(poissonResult.getKellyStakeAway())
+                .kellyStakeHome(calculateKelly(finalProbHome / 100.0, match.getOdds1()))
+                .kellyStakeDraw(calculateKelly(finalProbDraw / 100.0, match.getOddsN()))
+                .kellyStakeAway(calculateKelly(finalProbAway / 100.0, match.getOdds2()))
+
                 .valueBetDetected(poissonResult.getValueBetDetected())
-
                 .homeScoreOver0_5(poissonResult.getHomeScoreOver0_5())
                 .homeScoreOver1_5(poissonResult.getHomeScoreOver1_5())
                 .awayScoreOver0_5(poissonResult.getAwayScoreOver0_5())
@@ -128,10 +139,6 @@ public class PredictionEngineService {
                 .probUnder2_5(poissonResult.getProbUnder2_5())
                 .probOver3_5(poissonResult.getProbOver3_5())
                 .probBTTS_No(poissonResult.getProbBTTS_No())
-
-                .predictionCorrect(null)
-                .brierScore(null)
-                .rpsScore(null)
 
                 .build();
     }
@@ -359,14 +366,6 @@ public class PredictionEngineService {
         return lambda * factor;
     }
 
-    // --- UTILS ---
-    private double calculateLeagueHomeAdvantage(League league) {
-        if (league == null || league.getPercentHomeWin() == null || league.getPercentAwayWin() == null) {
-            return HOME_ADVANTAGE_BASE;
-        }
-        return 1.0 + ((league.getPercentHomeWin() - league.getPercentAwayWin()) / 100.0);
-    }
-
     private double calculateWeatherFactor(MatchAnalysis match) {
         if (match.getMatchDate().isBefore(LocalDateTime.now())) return 1.0;
         var wOpt = weatherService.getMatchWeather(
@@ -390,16 +389,23 @@ public class PredictionEngineService {
         return f > 0 ? round((f * 0.25) * 100.0) : 0.0;
     }
 
+    // Dans PredictionEngineService.java
     private double applyContextualFactors(double lambda, boolean isHome, MatchAnalysis m) {
-        double f = 1.0;
-        if (isHome) {
-            if (m.isHomeKeyPlayerMissing()) f -= 0.12;
-            if (m.isHomeTired()) f -= 0.08;
-        } else {
-            if (m.isAwayKeyPlayerMissing()) f -= 0.12;
-            if (m.isAwayNewCoach()) f += 0.05;
+        double factor = 1.0;
+
+        // Utilisation de l'impact score (ex: 0.8 pour un joueur majeur absent)
+        double impactScore = isHome ? m.getHomeMissingImpactScore() : m.getAwayMissingImpactScore();
+
+        if (impactScore > 0) {
+            // Un impact de 1.0 (ex: Mbappé absent) réduit l'espérance de buts de 25%
+            factor -= (impactScore * 0.25);
         }
-        return lambda * f;
+
+        // Autres facteurs contextuels simplifiés
+        if (isHome && m.isHomeTired()) factor -= 0.05;
+        if (!isHome && m.isAwayNewCoach()) factor += 0.05;
+
+        return lambda * factor;
     }
 
     private int safeInt(Integer val) { return val == null ? 0 : val; }

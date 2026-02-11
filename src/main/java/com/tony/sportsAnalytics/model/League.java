@@ -31,6 +31,18 @@ public class League {
     private Double percentOver2_5;       // Ex: 55.0
     private Double percentBTTS;          // Ex: 52.0
 
+    @Column(nullable = false, columnDefinition = "double precision default -0.13")
+    private Double rho = -0.13; // Corrélation Dixon-Coles calculée
+
+    @Column(nullable = false, columnDefinition = "double precision default 1.15")
+    private Double homeAdvantageFactor = 1.15; // Gamma calculé
+
+    @Column(nullable = false, columnDefinition = "double precision default -10.0")
+    private Double calibrationA = -10.0; // Pente
+
+    @Column(nullable = false, columnDefinition = "double precision default 5.0")
+    private Double calibrationB = 5.0;   // Décalage (Intercept)
+
     public League(String name) {
         this.name = name;
     }

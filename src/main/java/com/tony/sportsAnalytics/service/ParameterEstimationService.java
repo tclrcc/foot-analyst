@@ -1,7 +1,9 @@
 package com.tony.sportsAnalytics.service;
 
+import com.tony.sportsAnalytics.model.League;
 import com.tony.sportsAnalytics.model.MatchAnalysis;
 import com.tony.sportsAnalytics.model.Team;
+import com.tony.sportsAnalytics.repository.LeagueRepository;
 import com.tony.sportsAnalytics.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +23,8 @@ import java.util.*;
 @Slf4j
 public class ParameterEstimationService {
     private final TeamRepository teamRepository;
+    private final LeagueRepository leagueRepository;
+
     private static final double XI = 0.0019; // Décroissance temporelle Dixon-Coles
 
     public void estimateParameters(List<MatchAnalysis> matches, List<Team> teams) {
@@ -67,28 +71,29 @@ public class ParameterEstimationService {
         );
 
         // Sauvegarde des nouveaux Alpha/Beta en base
-        saveResults(optimum.getPoint(), teams);
+        saveResults(optimum.getPoint(), teams, teams.getFirst().getLeague());
     }
 
     /**
      * Extrait les paramètres optimisés du vecteur 'point' et les sauvegarde pour chaque équipe.
      */
-    private void saveResults(double[] point, List<Team> teams) {
+    private void saveResults(double[] point, List<Team> teams, League league) {
+        // Selon le vecteur : [0]=gamma, [1]=rho
+        league.setHomeAdvantageFactor(point[0]);
+        league.setRho(point[1]);
+
+        // Alphas et Betas pour chaque équipe
         int n = teams.size();
         for (int i = 0; i < n; i++) {
             Team team = teams.get(i);
-
-            // Selon notre vecteur : [0]=gamma, [1]=rho, [2..n+1]=alphas, [n+2..2n+1]=betas
-            double alpha = point[i + 2];
-            double beta = point[i + n + 2];
-
-            team.setAttackStrength(alpha);
-            team.setDefenseStrength(beta);
+            team.setAttackStrength(point[i + 2]);
+            team.setDefenseStrength(point[i + n + 2]);
         }
 
-        // Sauvegarde groupée pour optimiser les performances JPA
+        leagueRepository.save(league);
         teamRepository.saveAll(teams);
-        log.info("✅ Forces d'attaque (Alpha) et défense (Beta) mises à jour en base pour {} équipes.", n);
+        log.info("✅ Paramètres Dixon-Coles (Rho: {}, Gamma: {}) mis à jour pour la ligue {}",
+                league.getRho(), league.getHomeAdvantageFactor(), league.getName());
     }
 
     /**
