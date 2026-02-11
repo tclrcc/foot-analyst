@@ -32,6 +32,11 @@ public class TeamStats {
 
     @JsonProperty("xG")
     private Double xG; // Expected Goals (Global ou Moyen)
+    private Double xGA;
+
+    private Double ppda;      // Pressing intensity
+    private Double fieldTilt;  // Territorial dominance (%)
+    private Double deepEntries; // Entrées dans la surface par match
 
     // --- STATS CONTEXTUELLES ---
     private Integer venuePoints;   // Points à Dom/Ext

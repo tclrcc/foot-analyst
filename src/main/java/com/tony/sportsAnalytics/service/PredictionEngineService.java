@@ -68,6 +68,9 @@ public class PredictionEngineService {
             homeLambda *= (1.0 + calculateH2HFactor(home, h2hHistory));
         }
 
+        homeLambda = applyTacticalOverlay(homeLambda, home, away, awayPerf.volatility());
+        awayLambda = applyTacticalOverlay(awayLambda, away, home, homePerf.volatility());
+
         homeLambda = applyContextualFactors(homeLambda, true, match);
         awayLambda = applyContextualFactors(awayLambda, false, match);
 
@@ -320,6 +323,40 @@ public class PredictionEngineService {
             // Si Nul, on ne fait rien (0.0). C'est neutre.
         }
         return factor;
+    }
+
+    /**
+     * Applique les métriques tactiques avancées (PPDA, Field Tilt).
+     * On utilise la vulnérabilité de l'adversaire (oppStats + volatility) pour pondérer le bonus.
+     */
+    private double applyTacticalOverlay(double lambda, Team team, Team opponent, double opponentVolatility) {
+        double factor = 1.0;
+        TeamStats stats = team.getCurrentStats();
+        TeamStats oppStats = opponent.getCurrentStats();
+
+        if (stats != null && oppStats != null) {
+            // 1. FIELD TILT vs DEFENSIVE RANK
+            // Si je domine territorialement (> 55%) et que l'adversaire encaisse beaucoup de buts
+            if (stats.getFieldTilt() != null && stats.getFieldTilt() > 55.0) {
+                double vulnerabilityBonus = (oppStats.getGoalsAgainst() != null && oppStats.getGoalsAgainst() > 1.5) ? 0.08 : 0.04;
+                factor += vulnerabilityBonus;
+            }
+
+            // 2. PPDA (Pressing) vs OPPONENT VOLATILITY
+            // Un pressing intense (PPDA < 10) est dévastateur contre une équipe instable (volatility > 1.2)
+            if (stats.getPpda() != null && stats.getPpda() < 10.0) {
+                double pressingEffect = (opponentVolatility > 1.2) ? 0.07 : 0.03;
+                factor += pressingEffect;
+            }
+
+            // 3. EXPLOITATION DES FAIBLESSES (Utilisation de oppStats)
+            // Si l'adversaire a un PPDA très élevé (> 15), il ne presse pas.
+            // Si ma force d'attaque est élevée, je vais avoir plus de temps pour construire.
+            if (oppStats.getPpda() != null && oppStats.getPpda() > 15.0 && team.getAttackStrength() > 1.1) {
+                factor += 0.05;
+            }
+        }
+        return lambda * factor;
     }
 
     // --- UTILS ---

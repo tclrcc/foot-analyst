@@ -54,4 +54,7 @@ public interface MatchAnalysisRepository extends JpaRepository<MatchAnalysis, Lo
             "m.homeTeam.id = :homeId AND m.awayTeam.id = :awayId " +
             "ORDER BY m.matchDate DESC")
     List<MatchAnalysis> findHeadToHeadHome(@Param("homeId") Long homeId, @Param("awayId") Long awayId);
+
+    // Ajoute cette méthode dans l'interface
+    List<MatchAnalysis> findByMatchDateBetweenOrderByMatchDateAsc(LocalDateTime start, LocalDateTime end);
 }

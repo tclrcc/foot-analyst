@@ -142,6 +142,9 @@ public class MatchAnalysis {
     private boolean homeTired;            // Fatigue Dom
     private boolean awayNewCoach;         // Choc psycho Ext
 
+    private Double homeMissingImpactScore = 0.0;
+    private Double awayMissingImpactScore = 0.0;
+
     private Integer homeScore;
     private Integer awayScore;
 
@@ -158,4 +161,10 @@ public class MatchAnalysis {
     private String homeTeamNameInput;
     @Transient
     private String awayTeamNameInput;
+
+    private double applyPlayerImpact(double lambda, Double impactScore) {
+        // Si l'impact score est de 0.8 (absence d'un top buteur comme Haaland ou Mbappé)
+        // On réduit le lambda de manière proportionnelle et violente
+        return lambda * (1.0 - (impactScore * 0.25));
+    }
 }

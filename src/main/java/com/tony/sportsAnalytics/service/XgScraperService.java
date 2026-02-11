@@ -8,6 +8,8 @@ import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 import java.util.*;
 
+import static java.lang.Double.parseDouble;
+
 @Service
 @Slf4j
 public class XgScraperService {
@@ -16,15 +18,19 @@ public class XgScraperService {
         Map<String, TeamXgMetrics> metrics = new HashMap<>();
         try {
             Document doc = Jsoup.connect(leagueUrl).get();
-            // Sélecteur précis pour la table standard de FBRef
             Elements rows = doc.select("table#stats_squads_standard_for tbody tr");
 
             for (Element row : rows) {
                 String teamName = row.select("th[data-stat=team]").text();
-                double xG = Double.parseDouble(row.select("td[data-stat=xg]").text());
-                double xGA = Double.parseDouble(row.select("td[data-stat=xg_against]").text());
+                double xG = parseDouble(row.select("td[data-stat=xg]").text());
+                double xGA = parseDouble(row.select("td[data-stat=xg_against]").text());
 
-                metrics.put(teamName, new TeamXgMetrics(xG, xGA));
+                // Simulation de récupération PPDA et Field Tilt (colonnes souvent dans 'Possession' ou 'Misc')
+                // Pour l'exemple, nous restons sur la table standard mais tu peux chaîner les URLs
+                double ppda = parseDouble(row.select("td[data-stat=blocks]").text()) > 0 ? 12.0 : 10.5; // Logique à affiner selon FBRef
+                double fieldTilt = 50.0; // Valeur par défaut
+
+                metrics.put(teamName, new TeamXgMetrics(xG, xGA, ppda, fieldTilt));
             }
         } catch (Exception e) {
             log.error("Échec du scraping FBRef: {}", e.getMessage());
@@ -32,5 +38,5 @@ public class XgScraperService {
         return metrics;
     }
 
-    public record TeamXgMetrics(double xG, double xGA) {}
+    public record TeamXgMetrics(double xG, double xGA, double ppda, double fieldTilt) {}
 }
