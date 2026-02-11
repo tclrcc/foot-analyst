@@ -12,18 +12,22 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface MatchAnalysisRepository extends JpaRepository<MatchAnalysis, Long> {
-    // Trouver les confrontations directes (H2H)
-    // On cherche les matchs où (Home=A et Away=B) OU (Home=B et Away=A)
+    // 1. Correction H2H avec CAST pour PostgreSQL et filtre de date
     @Query("SELECT m FROM MatchAnalysis m WHERE " +
-            "(m.homeTeam = :t1 AND m.awayTeam = :t2) OR " +
-            "(m.homeTeam = :t2 AND m.awayTeam = :t1) " +
+            "((m.homeTeam = :t1 AND m.awayTeam = :t2) OR (m.homeTeam = :t2 AND m.awayTeam = :t1)) " +
+            "AND (CAST(:date AS timestamp) IS NULL OR m.matchDate < :date) " +
             "ORDER BY m.matchDate DESC")
-    List<MatchAnalysis> findH2H(@Param("t1") Team t1, @Param("t2") Team t2, Pageable pageable);
+    List<MatchAnalysis> findH2H(@Param("t1") Team t1, @Param("t2") Team t2, @Param("date") LocalDateTime date);
+
+    // 2. Correction Historique Équipe avec CAST et filtre de date
+    // On remplace la méthode par défaut par une version qui gère la chronologie
+    @Query("SELECT m FROM MatchAnalysis m WHERE " +
+            "(m.homeTeam.id = :teamId OR m.awayTeam.id = :teamId) " +
+            "AND (CAST(:date AS timestamp) IS NULL OR m.matchDate < :date) " +
+            "ORDER BY m.matchDate DESC")
+    List<MatchAnalysis> findLastMatchesByTeam(@Param("teamId") Long teamId, @Param("date") LocalDateTime date);
 
     List<MatchAnalysis> findByHomeTeamIdOrAwayTeamIdOrderByMatchDateDesc(Long homeId, Long awayId);
-
-    @Query("SELECT m FROM MatchAnalysis m WHERE m.homeTeam.id = :teamId OR m.awayTeam.id = :teamId ORDER BY m.matchDate DESC")
-    List<MatchAnalysis> findLastMatchesByTeam(@Param("teamId") Long teamId);
 
     // 2. Pour calculer les stats globales (Moyenne buts, etc.) d'une ligue sur une saison
     // Spring comprend automatiquement : Match -> HomeTeam -> League

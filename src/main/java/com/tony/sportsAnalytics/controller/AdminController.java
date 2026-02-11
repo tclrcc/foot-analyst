@@ -1,13 +1,18 @@
 package com.tony.sportsAnalytics.controller;
 
+import com.tony.sportsAnalytics.model.MatchAnalysis;
+import com.tony.sportsAnalytics.repository.MatchAnalysisRepository;
 import com.tony.sportsAnalytics.service.BacktestingService;
 import com.tony.sportsAnalytics.service.DataImportService;
+import com.tony.sportsAnalytics.service.MatchAnalysisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 @RestController
@@ -15,9 +20,10 @@ import java.util.Set;
 @RequiredArgsConstructor
 @Slf4j
 public class AdminController {
-
+    private final MatchAnalysisRepository matchAnalysisRepository;
     private final DataImportService importService;
     private final BacktestingService backtestingService;
+    private final MatchAnalysisService matchAnalysisService;
 
     // 1. Récupérer la liste des codes dispos (PL, L1...) pour le dropdown
     @GetMapping("/leagues-codes")
@@ -53,5 +59,12 @@ public class AdminController {
         backtestingService.runBacktest(from, to);
 
         return ResponseEntity.ok("Backtest lancé ! Regarde tes logs pour le Brier Score final.");
+    }
+
+    @PostMapping("/recalculate-upcoming")
+    public ResponseEntity<String> recalculateAllUpcoming() {
+        log.info("🔄 Relance massive des prédictions pour les matchs à venir");
+        int count = matchAnalysisService.recalculateAllUpcoming();
+        return ResponseEntity.ok(count + " analyses mises à jour avec les nouveaux paramètres.");
     }
 }

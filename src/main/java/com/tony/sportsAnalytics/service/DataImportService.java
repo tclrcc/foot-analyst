@@ -433,9 +433,9 @@ public class DataImportService {
     }
 
     private void predictFutureMatch(MatchAnalysis m) {
-        var h2h = matchRepository.findH2H(m.getHomeTeam(), m.getAwayTeam(), null);
-        var homeHistory = matchRepository.findLastMatchesByTeam(m.getHomeTeam().getId());
-        var awayHistory = matchRepository.findLastMatchesByTeam(m.getAwayTeam().getId());
+        var h2h = matchRepository.findH2H(m.getHomeTeam(), m.getAwayTeam(), m.getMatchDate());
+        var homeHistory = matchRepository.findLastMatchesByTeam(m.getHomeTeam().getId(), m.getMatchDate());
+        var awayHistory = matchRepository.findLastMatchesByTeam(m.getAwayTeam().getId(), m.getMatchDate());
 
         double leagueAvg = (m.getHomeTeam().getLeague() != null && m.getHomeTeam().getLeague().getAverageGoalsPerMatch() != null)
                 ? m.getHomeTeam().getLeague().getAverageGoalsPerMatch() : 2.5;

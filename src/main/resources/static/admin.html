@@ -408,6 +408,25 @@
             <pre id="importResultOutput" class="mb-0" style="white-space: pre-wrap;">...</pre>
           </div>
         </div>
+
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="card border-danger border-opacity-25 shadow-sm">
+              <div class="card-header bg-danger bg-opacity-10 text-danger fw-bold">
+                <i class="bi bi-excur-fill me-2"></i>Maintenance & Recalcul
+              </div>
+              <div class="card-body">
+                <p class="small text-muted">
+                  Utilisez cette option après avoir modifié la <strong>Calibration</strong> ou les <strong>Poids Hybrides</strong>
+                  pour mettre à jour les probabilités des matchs de ce soir sans réimporter les données.
+                </p>
+                <button id="btnRecalculateAll" class="btn btn-danger">
+                  <i class="bi bi-arrow-repeat me-2"></i>Recalculer TOUTES les analyses à venir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -456,6 +475,38 @@
         });
       }
     } catch(e) { console.error("Erreur chargement codes ligues", e); }
+  }
+
+  // Listener pour le bouton de recalcul massif
+  const btnRecalculateAll = document.getElementById('btnRecalculateAll');
+  if (btnRecalculateAll) {
+    btnRecalculateAll.addEventListener('click', async () => {
+      if (!confirm("Voulez-vous recalculer toutes les prédictions à venir avec les nouveaux paramètres de calibration ?")) return;
+
+      const output = document.getElementById('importResultOutput');
+      const resultCard = document.getElementById('resultCard');
+
+      btnRecalculateAll.disabled = true;
+      resultCard.style.display = 'block';
+      output.innerText = "⏳ Recalcul en cours... Veuillez patienter.";
+
+      try {
+        const res = await fetch('/api/v1/admin/recalculate-upcoming', { method: 'POST' });
+        const text = await res.text();
+
+        if (res.ok) {
+          output.innerText = text;
+          showToast("Recalcul massif terminé !");
+        } else {
+          output.innerText = "Erreur : " + text;
+          showToast("Erreur lors du recalcul", true);
+        }
+      } catch (e) {
+        output.innerText = "Erreur technique : " + e.message;
+      } finally {
+        btnRecalculateAll.disabled = false;
+      }
+    });
   }
 
   // Appeler cette fonction au chargement

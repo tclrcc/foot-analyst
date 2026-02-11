@@ -44,10 +44,10 @@ public class BacktestingService {
             List<MatchAnalysis> h2h = matchRepository.findHeadToHeadGlobal(m.getHomeTeam().getId(), m.getAwayTeam().getId())
                     .stream().filter(match -> match.getMatchDate().isBefore(limit)).collect(Collectors.toList());
 
-            List<MatchAnalysis> homeHist = matchRepository.findLastMatchesByTeam(m.getHomeTeam().getId())
+            List<MatchAnalysis> homeHist = matchRepository.findLastMatchesByTeam(m.getHomeTeam().getId(), m.getMatchDate())
                     .stream().filter(match -> match.getMatchDate().isBefore(limit)).collect(Collectors.toList());
 
-            List<MatchAnalysis> awayHist = matchRepository.findLastMatchesByTeam(m.getAwayTeam().getId())
+            List<MatchAnalysis> awayHist = matchRepository.findLastMatchesByTeam(m.getAwayTeam().getId(), m.getMatchDate())
                     .stream().filter(match -> match.getMatchDate().isBefore(limit)).collect(Collectors.toList());
 
             double leagueAvg = (m.getHomeTeam().getLeague() != null) ? m.getHomeTeam().getLeague().getAverageGoalsPerMatch() : 2.5;

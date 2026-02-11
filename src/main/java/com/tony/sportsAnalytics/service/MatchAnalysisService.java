@@ -83,9 +83,9 @@ public class MatchAnalysisService {
         double leagueAvg = homeTeam.getLeague().getAverageGoalsPerTeam();
 
         // Calcul Prédictif
-        List<MatchAnalysis> h2h = matchAnalysisRepository.findH2H(homeTeam, awayTeam, null);
-        List<MatchAnalysis> homeHistory = matchAnalysisRepository.findLastMatchesByTeam(homeTeam.getId());
-        List<MatchAnalysis> awayHistory = matchAnalysisRepository.findLastMatchesByTeam(awayTeam.getId());
+        List<MatchAnalysis> h2h = matchAnalysisRepository.findH2H(homeTeam, awayTeam, match.getMatchDate());
+        List<MatchAnalysis> homeHistory = matchAnalysisRepository.findLastMatchesByTeam(homeTeam.getId(), match.getMatchDate());
+        List<MatchAnalysis> awayHistory = matchAnalysisRepository.findLastMatchesByTeam(awayTeam.getId(), match.getMatchDate());
 
         PredictionResult prediction = predictionEngine.calculateMatchPrediction(
                 match, h2h, homeHistory, awayHistory, leagueAvg
@@ -165,5 +165,47 @@ public class MatchAnalysisService {
         } else {
             return (year - 1) + "-" + year;
         }
+    }
+
+    @Transactional
+    public MatchAnalysis recalculatePrediction(Long matchId) {
+        MatchAnalysis match = matchAnalysisRepository.findById(matchId)
+                .orElseThrow(() -> new EntityNotFoundException("Match introuvable ID: " + matchId));
+
+        Team homeTeam = match.getHomeTeam();
+        Team awayTeam = match.getAwayTeam();
+        LocalDateTime limitDate = match.getMatchDate();
+
+        // 1. Récupération des historiques à l'instant T
+        List<MatchAnalysis> h2h = matchAnalysisRepository.findH2H(homeTeam, awayTeam, match.getMatchDate());
+        List<MatchAnalysis> homeHistory = matchAnalysisRepository.findLastMatchesByTeam(homeTeam.getId(), limitDate);
+        List<MatchAnalysis> awayHistory = matchAnalysisRepository.findLastMatchesByTeam(awayTeam.getId(), limitDate);
+
+        // 2. Récupération de la moyenne de buts de la ligue
+        double leagueAvg = (homeTeam.getLeague() != null && homeTeam.getLeague().getAverageGoalsPerMatch() != null)
+                ? homeTeam.getLeague().getAverageGoalsPerMatch() : 2.5;
+
+        // 3. Relance du moteur avec les nouveaux paramètres (Calibration, Poids, etc.)
+        PredictionResult newPrediction = predictionEngine.calculateMatchPrediction(
+                match, h2h, homeHistory, awayHistory, leagueAvg
+        );
+
+        match.setPrediction(newPrediction);
+
+        // 4. Mise à jour des notes d'explicabilité si nécessaire
+        return matchAnalysisRepository.save(match);
+    }
+
+    @Transactional
+    public int recalculateAllUpcoming() {
+        // Récupère tous les matchs à partir de maintenant
+        LocalDateTime now = LocalDateTime.now();
+        List<MatchAnalysis> upcoming = matchAnalysisRepository.findUpcomingMatches(now); //
+
+        for (MatchAnalysis m : upcoming) {
+            // Appelle votre logique de recalcul existante pour chaque match
+            recalculatePrediction(m.getId());
+        }
+        return upcoming.size();
     }
 }

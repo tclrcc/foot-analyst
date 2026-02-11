@@ -91,4 +91,9 @@ public class MatchAnalysisController {
 
         return ResponseEntity.ok(history);
     }
+
+    @PostMapping("/{id}/recalculate")
+    public ResponseEntity<MatchAnalysis> recalculate(@PathVariable Long id) {
+        return ResponseEntity.ok(matchAnalysisService.recalculatePrediction(id));
+    }
 }
