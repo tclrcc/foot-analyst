@@ -24,8 +24,8 @@ public class PredictionEngineService {
     private static final double ELO_DIVISOR = 400.0;
     private static final double MAX_FINISHING_CORRECTION = 1.25;
     private static final double TIME_DECAY_CONSTANT = 60.0;
-    private static final double HYBRID_WEIGHT_POISSON = 0.60; // 60% Stats / 40% Elo
-    private static final double HYBRID_WEIGHT_ELO = 0.40;
+    private static final double HYBRID_WEIGHT_POISSON = 0.55; // 60% Stats / 40% Elo
+    private static final double HYBRID_WEIGHT_ELO = 0.45;
 
     public PredictionResult calculateMatchPrediction(MatchAnalysis match,
             List<MatchAnalysis> h2hHistory,
