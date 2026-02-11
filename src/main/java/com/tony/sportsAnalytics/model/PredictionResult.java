@@ -2,6 +2,7 @@ package com.tony.sportsAnalytics.model;
 
 import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -9,6 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class PredictionResult {
     // 1N2
     private Double homeWinProbability;
@@ -62,4 +64,8 @@ public class PredictionResult {
     private Double probUnder2_5;
     private Double probOver3_5;
     private Double probBTTS_No;
+
+    private Boolean predictionCorrect; // Vrai si le résultat final avait la plus haute proba (ou >35%)
+    private Double brierScore;         // Score de précision (plus bas = meilleur)
+    private Double rpsScore;           // Ranked Probability Score (encore plus précis)
 }
