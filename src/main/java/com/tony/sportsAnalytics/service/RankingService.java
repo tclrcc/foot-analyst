@@ -49,15 +49,32 @@ public class RankingService {
             var s1 = t1.getCurrentStats();
             var s2 = t2.getCurrentStats();
 
-            int p1 = type.equals("HOME") ? s1.getPointsHome() : (type.equals("AWAY") ? s1.getPointsAway() : s1.getPoints());
-            int p2 = type.equals("HOME") ? s2.getPointsHome() : (type.equals("AWAY") ? s2.getPointsAway() : s2.getPoints());
+            // Sécurité absolue (Remplacement des null par 0)
+            int p1 = type.equals("HOME") ? (s1.getPointsHome() != null ? s1.getPointsHome() : 0) :
+                    (type.equals("AWAY") ? (s1.getPointsAway() != null ? s1.getPointsAway() : 0) :
+                            (s1.getPoints() != null ? s1.getPoints() : 0));
+
+            int p2 = type.equals("HOME") ? (s2.getPointsHome() != null ? s2.getPointsHome() : 0) :
+                    (type.equals("AWAY") ? (s2.getPointsAway() != null ? s2.getPointsAway() : 0) :
+                            (s2.getPoints() != null ? s2.getPoints() : 0));
 
             if (p1 != p2) return Integer.compare(p2, p1);
 
-            int gf1 = type.equals("HOME") ? s1.getGoalsForHome() : (type.equals("AWAY") ? s1.getGoalsForAway() : s1.getGoalsFor());
-            int ga1 = type.equals("HOME") ? s1.getGoalsAgainstHome() : (type.equals("AWAY") ? s1.getGoalsAgainstAway() : s1.getGoalsAgainst());
-            int gf2 = type.equals("HOME") ? s2.getGoalsForHome() : (type.equals("AWAY") ? s2.getGoalsForAway() : s2.getGoalsFor());
-            int ga2 = type.equals("HOME") ? s2.getGoalsAgainstHome() : (type.equals("AWAY") ? s2.getGoalsAgainstAway() : s2.getGoalsAgainst());
+            int gf1 = type.equals("HOME") ? (s1.getGoalsForHome() != null ? s1.getGoalsForHome() : 0) :
+                    (type.equals("AWAY") ? (s1.getGoalsForAway() != null ? s1.getGoalsForAway() : 0) :
+                            (s1.getGoalsFor() != null ? s1.getGoalsFor() : 0));
+
+            int ga1 = type.equals("HOME") ? (s1.getGoalsAgainstHome() != null ? s1.getGoalsAgainstHome() : 0) :
+                    (type.equals("AWAY") ? (s1.getGoalsAgainstAway() != null ? s1.getGoalsAgainstAway() : 0) :
+                            (s1.getGoalsAgainst() != null ? s1.getGoalsAgainst() : 0));
+
+            int gf2 = type.equals("HOME") ? (s2.getGoalsForHome() != null ? s2.getGoalsForHome() : 0) :
+                    (type.equals("AWAY") ? (s2.getGoalsForAway() != null ? s2.getGoalsForAway() : 0) :
+                            (s2.getGoalsFor() != null ? s2.getGoalsFor() : 0));
+
+            int ga2 = type.equals("HOME") ? (s2.getGoalsAgainstHome() != null ? s2.getGoalsAgainstHome() : 0) :
+                    (type.equals("AWAY") ? (s2.getGoalsAgainstAway() != null ? s2.getGoalsAgainstAway() : 0) :
+                            (s2.getGoalsAgainst() != null ? s2.getGoalsAgainst() : 0));
 
             int gd1 = gf1 - ga1;
             int gd2 = gf2 - ga2;

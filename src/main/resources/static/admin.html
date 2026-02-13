@@ -99,6 +99,18 @@
             <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-2"></i>Créer la Ligue</button>
           </form>
         </div>
+
+        <div class="card bg-dark border-secondary mb-4">
+          <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+              <h5 class="text-white mb-1"><i class="bi bi-arrow-clockwise text-warning me-2"></i>Recalcul Global</h5>
+              <small class="text-muted">Met à jour les classements (Général, Dom, Ext) pour toutes les équipes.</small>
+            </div>
+            <button id="btnRecalculateAllStandings" class="btn btn-warning fw-bold rounded-pill px-4">
+              Lancer le recalcul
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="tab-pane fade" id="team-pane">
@@ -785,6 +797,32 @@
   document.getElementById('historyLeagueSelect').addEventListener('change', function() { loadTeams(this.value, ['histHomeTeam', 'histAwayTeam']); });
   document.getElementById('statsLeagueSelect').addEventListener('change', function() { loadTeams(this.value, ['statsTeamSelect']); });
 
+</script>
+
+<script>
+  // Logique du bouton à placer dans ta balise <script>
+  const btnRecalculateStandings = document.getElementById('btnRecalculateAllStandings');
+  if (btnRecalculateStandings) {
+    btnRecalculateStandings.addEventListener('click', async () => {
+      btnRecalculateStandings.disabled = true;
+      btnRecalculateStandings.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Calcul en cours...';
+
+      try {
+        // Modifie l'URL selon comment est mappé ton AdminController (ex: /api/v1/admin/recalculate-all)
+        const res = await fetch('/api/v1/admin/recalculate-all', { method: 'POST' });
+        if (res.ok) {
+          alert('✅ Base de données recalculée avec succès ! Les classements Dom/Ext sont à jour.');
+        } else {
+          alert('❌ Erreur lors du recalcul.');
+        }
+      } catch(e) {
+        console.error(e);
+      } finally {
+        btnRecalculateStandings.disabled = false;
+        btnRecalculateStandings.innerHTML = 'Lancer le recalcul';
+      }
+    });
+  }
 </script>
 </body>
 </html>

@@ -1,8 +1,12 @@
 package com.tony.sportsAnalytics.controller;
 
 import com.tony.sportsAnalytics.job.DailyUpdateJob;
+import com.tony.sportsAnalytics.model.League;
 import com.tony.sportsAnalytics.model.MatchAnalysis;
+import com.tony.sportsAnalytics.model.Team;
+import com.tony.sportsAnalytics.repository.LeagueRepository;
 import com.tony.sportsAnalytics.repository.MatchAnalysisRepository;
+import com.tony.sportsAnalytics.repository.TeamRepository;
 import com.tony.sportsAnalytics.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +30,10 @@ public class AdminController {
     private final MatchAnalysisService matchAnalysisService;
     private final ParameterEstimationService parameterEstimationService;
     private final AnalysisOrchestrator orchestrator;
+    private final TeamRepository teamRepository;
+    private final LeagueRepository leagueRepository;
+    private final TeamStatsService teamStatsService;
+    private final RankingService rankingService;
 
     // 1. Récupérer la liste des codes dispos (PL, L1...) pour le dropdown
     @GetMapping("/leagues-codes")
@@ -108,5 +116,22 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Erreur technique lors de l'exécution : " + e.getMessage());
         }
+    }
+
+    @PostMapping("/recalculate-all")
+    public ResponseEntity<?> recalculateAllDatabase() {
+        // 1. Recalculer toutes les statistiques individuelles (Dom/Ext inclus)
+        List<Team> allTeams = teamRepository.findAll();
+        for (Team team : allTeams) {
+            teamStatsService.recalculateTeamStats(team.getId());
+        }
+
+        // 2. Mettre à jour tous les classements (Général, Dom, Ext)
+        List<League> allLeagues = leagueRepository.findAll();
+        for (League league : allLeagues) {
+            rankingService.updateLeagueRankings(league.getId());
+        }
+
+        return ResponseEntity.ok(java.util.Map.of("message", "Base de données entièrement recalculée avec succès !"));
     }
 }
