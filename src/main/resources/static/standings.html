@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classement Général - Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="css/style.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+
+        /* Table Glassmorphism */
+        .table-glass { color: var(--text-primary); margin-bottom: 0; }
+        .table-glass thead th {
+            background-color: rgba(0, 0, 0, 0.4);
+            color: var(--text-muted);
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 1rem;
+            white-space: nowrap;
+        }
+        .table-glass tbody td {
+            background-color: transparent;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 1rem;
+            vertical-align: middle;
+            color: var(--text-primary);
+        }
+        .table-glass tbody tr {
+            transition: all 0.2s ease;
+        }
+        .table-glass tbody tr:hover td {
+            background-color: rgba(255,255,255,0.05);
+        }
+
+        /* Badges de Rang */
+        .rank-badge {
+            width: 32px; height: 32px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 8px; font-weight: bold; font-size: 0.9rem;
+            background-color: rgba(255,255,255,0.1); color: white;
+        }
+        .rank-1 { background: linear-gradient(135deg, #fbbf24, #d97706); color: #000; box-shadow: 0 0 10px rgba(251, 191, 36, 0.4); }
+        .rank-2 { background: linear-gradient(135deg, #cbd5e1, #94a3b8); color: #000; }
+        .rank-3 { background: linear-gradient(135deg, #d97706, #b45309); color: #fff; }
+
+        /* Zones de Classement (Liseré gauche) */
+        .zone-champions { border-left: 4px solid #3b82f6 !important; }
+        .zone-europa { border-left: 4px solid #f59e0b !important; }
+        .zone-relegation { border-left: 4px solid #ef4444 !important; }
+
+        /* Logos Miniatures */
+        .team-logo-mini {
+            width: 35px; height: 35px;
+            object-fit: contain;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%; padding: 4px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .loader-container { min-height: 50vh; display: flex; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a href="#" id="btnBack" class="btn btn-outline-secondary border-secondary text-muted rounded-pill px-4">
+            <i class="bi bi-arrow-left me-2"></i> Retour au match
+        </a>
+    </div>
+
+    <div class="text-center mb-5">
+        <span class="badge bg-primary bg-opacity-25 text-primary border border-primary px-3 py-2 rounded-pill mb-3" style="letter-spacing: 1px;">
+            <i class="bi bi-trophy-fill me-2"></i>CLASSEMENT OFFICIEL
+        </span>
+        <h1 class="display-4 fw-bold text-white mb-2" id="leagueTitle">Chargement...</h1>
+        <p class="text-muted">Statistiques mises à jour après chaque analyse algorithmique.</p>
+    </div>
+
+    <div class="card border-0 shadow-lg mb-5 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-glass table-borderless align-middle mb-0" id="standingsTable" style="display: none;">
+                <thead>
+                <tr>
+                    <th class="text-center" style="width: 5%;">Pos</th>
+                    <th style="width: 35%;">Club</th>
+                    <th class="text-center" title="Matchs Joués">J</th>
+                    <th class="text-center text-success" title="Victoires">V</th>
+                    <th class="text-center text-secondary" title="Nuls">N</th>
+                    <th class="text-center text-danger" title="Défaites">D</th>
+                    <th class="text-center" title="Buts Pour">BP</th>
+                    <th class="text-center" title="Buts Contre">BC</th>
+                    <th class="text-center text-info" title="Différence de Buts">DIFF</th>
+                    <th class="text-center fs-6 text-white">PTS</th>
+                </tr>
+                </thead>
+                <tbody id="standingsBody">
+                </tbody>
+            </table>
+        </div>
+        <div id="loader" class="loader-container">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Récupération des paramètres de l'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const leagueId = urlParams.get('leagueId');
+    const matchId = urlParams.get('matchId');
+
+    // 2. Gestion du bouton Retour
+    const btnBack = document.getElementById('btnBack');
+    if (matchId) {
+        btnBack.href = `/analysis-details.html?id=${matchId}`;
+    } else {
+        btnBack.href = `/`; // Fallback vers dashboard
+        btnBack.innerHTML = `<i class="bi bi-house-door-fill me-2"></i> Accueil`;
+    }
+
+    // 3. Récupération et Affichage des Données
+    async function loadStandings() {
+        if (!leagueId) {
+            document.getElementById('leagueTitle').innerText = "Championnat Introuvable";
+            document.getElementById('loader').style.display = 'none';
+            return;
+        }
+
+        try {
+            // Appel API pour récupérer les équipes de cette ligue
+            const res = await fetch(`/api/v1/references/leagues/${leagueId}/standings`);
+            if (!res.ok) throw new Error("Erreur serveur");
+            const teams = await res.json();
+
+            if (teams.length === 0) throw new Error("Aucune équipe");
+
+            // Met à jour le titre avec le nom du championnat (pris sur la 1ère équipe)
+            document.getElementById('leagueTitle').innerText = teams[0].league.name;
+
+            // Tri algorithmique par Rang (Calculé au préalable par ton RankingService)
+            // Si le rang n'existe pas encore, on le met à la fin (999)
+            teams.sort((a, b) => {
+                const rankA = a.currentStats?.rank || 999;
+                const rankB = b.currentStats?.rank || 999;
+                return rankA - rankB;
+            });
+
+            // Construction du HTML
+            const tbody = document.getElementById('standingsBody');
+            let html = '';
+
+            teams.forEach((team, index) => {
+                const stats = team.currentStats || {};
+
+                // Récupération sécurisée des variables (0 si non défini)
+                const played = stats.matchesPlayed || 0;
+                const wins = stats.wins || 0;
+                const draws = stats.draws || 0;
+                const losses = stats.losses || 0;
+                const gf = stats.goalsFor || 0;
+                const ga = stats.goalsAgainst || 0;
+                const diff = gf - ga;
+                const points = stats.points || 0;
+                const rank = stats.rank || (index + 1);
+
+                // --- DESIGN LOGIC ---
+                // Badges Or/Argent/Bronze
+                let rankClass = 'rank-badge';
+                if (rank === 1) rankClass += ' rank-1';
+                else if (rank === 2) rankClass += ' rank-2';
+                else if (rank === 3) rankClass += ' rank-3';
+
+                // Liserés de zones (Ex: Top 4 Champions League, 5-6 Europa, 3 derniers Relégation)
+                let rowClass = '';
+                if (rank <= 4) rowClass = 'zone-champions';
+                else if (rank <= 6) rowClass = 'zone-europa';
+                else if (rank >= teams.length - 2) rowClass = 'zone-relegation'; // Les 3 derniers
+
+                // Couleur de la différence de buts
+                let diffClass = diff > 0 ? 'text-success' : (diff < 0 ? 'text-danger' : 'text-muted');
+                let diffStr = diff > 0 ? `+${diff}` : diff;
+
+                html += `
+                    <tr class="${rowClass}">
+                        <td class="text-center"><div class="${rankClass}">${rank}</div></td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="position-relative me-3" style="width:35px; height:35px;">
+                                    <img src="${team.logoUrl || '/logos/default.png'}"
+                                         alt="${team.name}"
+                                         class="team-logo-mini position-absolute top-0 start-0"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+
+                                    <div class="team-logo-mini bg-dark text-white fw-bold position-absolute top-0 start-0"
+                                         style="display:none; align-items:center; justify-content:center; padding:0;">
+                                        ${team.name.charAt(0)}
+                                    </div>
+                                </div>
+                                <span class="fw-bold fs-6">${team.name}</span>
+                            </div>
+                        </td>
+                        <td class="text-center text-muted fw-bold">${played}</td>
+                        <td class="text-center text-success">${wins}</td>
+                        <td class="text-center text-secondary">${draws}</td>
+                        <td class="text-center text-danger">${losses}</td>
+                        <td class="text-center">${gf}</td>
+                        <td class="text-center">${ga}</td>
+                        <td class="text-center fw-bold ${diffClass}">${diffStr}</td>
+                        <td class="text-center fw-bold text-white fs-5">${points}</td>
+                    </tr>
+                `;
+            });
+
+            // Affichage
+            document.getElementById('loader').style.display = 'none';
+            tbody.innerHTML = html;
+            document.getElementById('standingsTable').style.display = 'table';
+
+        } catch (error) {
+            console.error(error);
+            document.getElementById('loader').innerHTML = `
+                <div class="text-center text-danger">
+                    <i class="bi bi-exclamation-triangle-fill fs-1 d-block mb-3"></i>
+                    <h5>Erreur de chargement du classement</h5>
+                </div>
+            `;
+        }
+    }
+
+    // Lancement
+    document.addEventListener('DOMContentLoaded', loadStandings);
+</script>
+
+</body>
+</html>

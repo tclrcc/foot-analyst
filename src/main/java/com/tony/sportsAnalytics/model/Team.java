@@ -38,6 +38,9 @@ public class Team {
     @Column(nullable = false, columnDefinition = "double precision default 1.0")
     private Double defenseStrength = 1.0; // Beta
 
+    @Column(length = 255)
+    private String logoUrl;
+
     public Team(String name, League league) {
         this.name = name;
         this.league = league;

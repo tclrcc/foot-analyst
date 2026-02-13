@@ -8,202 +8,261 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="css/style.css" rel="stylesheet">
     <style>
-        .confidence-meter { height: 10px; border-radius: 5px; background: #e9ecef; overflow: hidden; }
+        /* Surcharges spécifiques pour la page Détails (le reste est dans style.css) */
+        .confidence-meter { height: 8px; border-radius: 4px; background: #334155; overflow: hidden; }
         .confidence-fill { height: 100%; transition: width 1s ease-in-out; }
-        .bg-value-bet { background-color: #d63384; color: white; } /* Rose flashy pour les Value Bets */
-        .log-box { background: #f8f9fa; border-left: 4px solid #0d6efd; padding: 15px; font-family: 'Segoe UI', sans-serif; }
-        .log-box ul { padding-left: 20px; margin-bottom: 0; }
-        .prompt-box { background: #212529; color: #00ff41; font-family: monospace; border-radius: 5px; padding: 15px; font-size: 0.85rem; }
+        .z-index-1 { z-index: 1; }
+        .letter-spacing-1 { letter-spacing: 1px; }
+
+        /* Box pour les stats projetées */
+        .stat-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        /* Style spécifique pour les conteneurs de logos dans le scoreboard */
+        .scoreboard-logo-container {
+            width: 80px;
+            height: 80px;
+            background-color: rgba(255, 255, 255, 0.05); /* Fond légèrement clair */
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem auto; /* Centrage et marge en bas */
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .scoreboard-logo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 10px;
+        }
     </style>
 </head>
-<body class="bg-light">
-
+<body>
 <div class="container py-4">
-    <a href="/" class="btn btn-outline-secondary mb-3"><i class="bi bi-arrow-left"></i> Retour</a>
+    <a href="/" class="btn btn-outline-secondary mb-4 border-secondary text-muted">
+        <i class="bi bi-arrow-left"></i> Retour au Dashboard
+    </a>
 
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body text-center py-4">
-            <h5 class="text-muted text-uppercase small fw-bold mb-3" id="matchLeague">...</h5>
-            <div class="d-flex justify-content-center align-items-center gap-4">
-                <div class="text-end">
-                    <h2 class="fw-bold mb-0" id="homeTeamName">...</h2>
-                    <span class="badge bg-primary rounded-pill" id="homeFormBadge">Forme: --</span>
+    <div class="card shadow-lg border-0 mb-4 position-relative overflow-hidden" style="background: linear-gradient(135deg, #1e293b, #090e17);">
+        <div class="position-absolute top-50 start-50 translate-middle" style="width: 300px; height: 300px; background: radial-gradient(circle, rgba(59,130,246,0.1) 0%, rgba(0,0,0,0) 70%); border-radius: 50%;"></div>
+
+        <div class="card-body text-center py-5 position-relative z-index-1">
+            <span class="badge bg-dark border border-secondary text-uppercase letter-spacing-1 mb-4 px-3 py-2 text-white shadow-sm" id="matchLeague">...</span>
+
+            <div class="row align-items-center justify-content-center">
+                <div class="col-4 text-center">
+                    <div class="scoreboard-logo-container">
+                        <img id="homeTeamLogo" src="/logos/default.png" alt="Logo Domicile" class="scoreboard-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span id="homeTeamInitial" class="fw-bold display-6 text-white" style="display:none;">?</span>
+                    </div>
+                    <h2 class="display-6 fw-bold text-white mb-2 text-truncate" id="homeTeamName" title="Equipe Domicile">...</h2>
+                    <span class="badge bg-primary text-white border border-primary px-3 py-2 shadow-sm" id="homeFormBadge">...</span>
                 </div>
-                <div class="display-6 fw-bold text-muted">vs</div>
-                <div class="text-start">
-                    <h2 class="fw-bold mb-0" id="awayTeamName">...</h2>
-                    <span class="badge bg-danger rounded-pill" id="awayFormBadge">Forme: --</span>
+
+                <div class="col-2 text-center px-0">
+                    <div class="text-muted small fw-bold text-uppercase mb-1" style="letter-spacing: 0.1em; font-size: 0.7rem;">Coup d'envoi</div>
+                    <div class="h5 fw-bold text-white mb-3" id="matchDate">--:--</div>
+                    <div class="badge bg-dark text-muted border border-secondary rounded-pill px-3 py-1 shadow-sm">VS</div>
+                </div>
+
+                <div class="col-4 text-center">
+                    <div class="scoreboard-logo-container">
+                        <img id="awayTeamLogo" src="/logos/default.png" alt="Logo Extérieur" class="scoreboard-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span id="awayTeamInitial" class="fw-bold display-6 text-white" style="display:none;">?</span>
+                    </div>
+                    <h2 class="display-6 fw-bold text-white mb-2 text-truncate" id="awayTeamName" title="Equipe Extérieure">...</h2>
+                    <span class="badge bg-danger text-white border border-danger px-3 py-2 shadow-sm" id="awayFormBadge">...</span>
                 </div>
             </div>
-            <div class="mt-3 text-muted small"><i class="bi bi-calendar-event me-1"></i> <span id="matchDate">--</span></div>
 
-            <button id="btnRecalculate" class="btn btn-sm btn-outline-warning mt-3">
-                <i class="bi bi-arrow-clockwise me-1"></i> Actualiser l'analyse
+            <button id="btnRecalculate" class="btn btn-outline-light rounded-pill mt-5 px-4 shadow-sm transition-all">
+                <i class="bi bi-arrow-clockwise me-2"></i>Recalculer via IA
             </button>
         </div>
     </div>
 
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-white fw-bold border-bottom pb-3 pt-3 d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-bar-chart-line-fill text-primary me-2"></i>Face-à-Face (Moyennes de la Saison)</span>
+    <div class="card border-0 mb-4">
+        <div class="card-header border-bottom-0 pb-2 pt-4 px-4 bg-transparent d-flex justify-content-between align-items-center">
+            <span class="fw-bold fs-5 text-white"><i class="bi bi-bar-chart-line-fill text-primary me-2"></i>Rapport de Force (Moyennes)</span>
         </div>
-        <div class="card-body">
+        <div class="card-body px-4">
 
-            <div class="d-flex justify-content-between mb-4 border-bottom pb-3">
+            <div class="d-flex justify-content-between mb-4 border-bottom border-secondary border-opacity-25 pb-4">
                 <div class="text-center w-25">
-                    <span class="d-block small text-muted text-uppercase fw-bold">Rang</span>
+                    <span class="d-block small text-muted text-uppercase fw-bold mb-1">Rang</span>
                     <span class="fs-4 fw-bold text-primary" id="uiHomeRank">#--</span>
                 </div>
                 <div class="text-center align-self-center w-50">
-                    <span class="badge bg-dark text-white border px-3 py-2">Ligue</span>
+                    <a href="#" id="btnStandings" class="badge bg-dark border border-secondary px-3 py-2 text-decoration-none text-white shadow-sm transition-all" style="font-size: 0.8rem;">
+                        <i class="bi bi-list-ol text-primary me-2"></i>Voir le Classement
+                    </a>
                 </div>
                 <div class="text-center w-25">
-                    <span class="d-block small text-muted text-uppercase fw-bold">Rang</span>
+                    <span class="d-block small text-muted text-uppercase fw-bold mb-1">Rang</span>
                     <span class="fs-4 fw-bold text-danger" id="uiAwayRank">#--</span>
                 </div>
             </div>
 
-            <h6 class="text-muted text-uppercase small fw-bold mb-3 mt-2">📊 Volume de jeu</h6>
+            <h6 class="text-muted text-uppercase small fw-bold mb-4 mt-2">📊 Volume de jeu</h6>
             <div id="comp-possession"></div>
             <div id="comp-shots"></div>
             <div id="comp-sot"></div>
             <div id="comp-corners"></div>
 
-            <h6 class="text-muted text-uppercase small fw-bold mb-3 mt-4">🧠 Analyse Tactique Avancée</h6>
+            <h6 class="text-muted text-uppercase small fw-bold mb-4 mt-5">🧠 Analyse Tactique Avancée</h6>
 
-            <div class="row text-center mb-3">
-                <div class="col-6 border-end">
-                    <div class="small text-muted mb-1">xG Moyen (Création)</div>
-                    <div class="fs-5 fw-bold text-success" id="uiHomeXg">--</div>
-                    <div class="fs-5 fw-bold text-danger" id="uiAwayXg">--</div>
+            <div class="row text-center mb-4">
+                <div class="col-6 border-end border-secondary border-opacity-25">
+                    <div class="small text-muted mb-2 text-uppercase fw-bold">xG Moyen (Création)</div>
+                    <div class="d-flex justify-content-around">
+                        <span class="fs-4 fw-bold text-primary" id="uiHomeXg">--</span>
+                        <span class="fs-4 fw-bold text-danger" id="uiAwayXg">--</span>
+                    </div>
                 </div>
                 <div class="col-6">
-                    <div class="small text-muted mb-1">xGA (Solidité Défensive)</div>
-                    <div class="fs-5 fw-bold text-success" id="uiHomeXga">--</div>
-                    <div class="fs-5 fw-bold text-danger" id="uiAwayXga">--</div>
+                    <div class="small text-muted mb-2 text-uppercase fw-bold">xGA (Défense subie)</div>
+                    <div class="d-flex justify-content-around">
+                        <span class="fs-4 fw-bold text-primary" id="uiHomeXga">--</span>
+                        <span class="fs-4 fw-bold text-danger" id="uiAwayXga">--</span>
+                    </div>
                 </div>
             </div>
 
-            <div id="comp-ppda" class="mt-2" title="Passes Allowed Per Defensive Action : Plus c'est bas, plus l'équipe presse haut et agressivement"></div>
-            <div class="text-center small text-muted fst-italic mb-3" style="font-size: 0.7rem;">PPDA : Un score bas indique un pressing agressif (ex: Liverpool = ~9.0)</div>
+            <div id="comp-ppda" class="mt-4" title="Passes Allowed Per Defensive Action"></div>
+            <div class="text-center small text-muted fst-italic mt-2" style="font-size: 0.75rem;">
+                <i class="bi bi-info-circle me-1"></i> PPDA : Un score bas indique un pressing agressif (Ex: Liverpool ~9.0)
+            </div>
 
         </div>
     </div>
 
     <div class="row g-4">
         <div class="col-lg-8">
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-white border-bottom-0 pt-4 px-4">
-                    <h5 class="fw-bold"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Verdict de l'Algorithme</h5>
+            <div class="card border-0 mb-4 h-100">
+                <div class="card-header bg-transparent border-bottom-0 pt-4 px-4">
+                    <h5 class="fw-bold text-white"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Verdict de l'Algorithme</h5>
                 </div>
-                <div class="card-body px-4 pb-4">
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between mb-1 fw-bold">
+                <div class="card-body px-4 pb-4 d-flex flex-column">
+
+                    <div class="mb-5">
+                        <div class="d-flex justify-content-between mb-2 fw-bold" style="font-size: 0.9rem;">
                             <span class="text-primary">1 - Domicile (<span id="prob1">--</span>%)</span>
                             <span class="text-muted">N - Nul (<span id="probN">--</span>%)</span>
                             <span class="text-danger">2 - Extérieur (<span id="prob2">--</span>%)</span>
                         </div>
-                        <div class="progress" style="height: 25px;">
+                        <div class="progress" style="height: 18px; background-color: #334155; border-radius: 9px;">
                             <div id="bar1" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
                             <div id="barN" class="progress-bar bg-secondary" role="progressbar" style="width: 0%"></div>
                             <div id="bar2" class="progress-bar bg-danger" role="progressbar" style="width: 0%"></div>
                         </div>
                     </div>
 
-                    <div class="row text-center g-3 mb-4">
+                    <div class="row text-center g-3 mb-5">
                         <div class="col-md-4">
-                            <div class="p-3 bg-light rounded">
-                                <small class="text-muted d-block text-uppercase fw-bold">Score le + probable</small>
-                                <span class="h3 fw-bold text-dark" id="exactScore">--</span>
+                            <div class="stat-box">
+                                <small class="text-muted d-block text-uppercase fw-bold mb-1">Score le + probable</small>
+                                <span class="h3 fw-bold text-white mb-0" id="exactScore">--</span>
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="p-3 bg-light rounded">
-                                <small class="text-muted d-block text-uppercase fw-bold">Expected Goals (xG)</small>
-                                <span class="h3 fw-bold text-info" id="xgProjected">-- - --</span>
+                            <div class="stat-box">
+                                <small class="text-muted d-block text-uppercase fw-bold mb-1">Expected Goals</small>
+                                <span class="h3 fw-bold text-info mb-0" id="xgProjected">-- - --</span>
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="p-3 bg-light rounded">
-                                <small class="text-muted d-block text-uppercase fw-bold">Indice Confiance</small>
-                                <span class="h3 fw-bold text-success" id="confidenceScore">--%</span>
+                            <div class="stat-box">
+                                <small class="text-muted d-block text-uppercase fw-bold mb-1">Indice Confiance</small>
+                                <span class="h3 fw-bold text-success mb-0" id="confidenceScore">--%</span>
                                 <div class="confidence-meter mt-2"><div id="confidenceBar" class="confidence-fill bg-success" style="width: 0%"></div></div>
                             </div>
                         </div>
                     </div>
 
-                    <h6 class="fw-bold text-muted text-uppercase mb-3"><i class="bi bi-lightbulb-fill text-warning me-2"></i>Faits Marquants (Séries en cours)</h6>
-                    <div class="row g-2" id="insightsContainer">
+                    <h6 class="fw-bold text-muted text-uppercase mb-3"><i class="bi bi-lightbulb-fill text-warning me-2"></i>Insights IA (Tendances)</h6>
+                    <div class="row g-2 mb-4 flex-grow-1" id="insightsContainer">
                     </div>
-                </div>
-            </div>
 
-            <div class="card shadow-sm border-0 bg-dark text-white">
-                <div class="card-header border-secondary bg-transparent pt-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0 fw-bold"><i class="bi bi-robot me-2"></i>Demander un 2ème avis (ChatGPT / Gemini)</h6>
-                        <button class="btn btn-sm btn-light fw-bold" onclick="copyPrompt()">
-                            <i class="bi bi-clipboard me-1"></i> Copier
-                        </button>
+                    <div class="mt-auto">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="fw-bold text-muted"><i class="bi bi-robot me-2"></i>Contre-expertise (Prompt IA)</small>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill py-0 px-3" onclick="copyPrompt()">
+                                <i class="bi bi-clipboard me-1"></i> Copier
+                            </button>
+                        </div>
+                        <textarea id="aiPromptText" class="form-control bg-dark text-success border-secondary font-monospace" rows="3" style="font-size: 0.8rem; resize: none;" readonly></textarea>
                     </div>
-                </div>
-                <div class="card-body">
-                    <p class="small text-muted mb-2">Copiez ce prompt optimisé et collez-le dans votre IA préférée pour obtenir une contre-expertise instantanée.</p>
-                    <textarea id="aiPromptText" class="form-control bg-black text-success border-secondary font-monospace" rows="6" readonly></textarea>
+
                 </div>
             </div>
         </div>
 
         <div class="col-lg-4">
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-white fw-bold border-bottom pb-3 pt-3">
+            <div class="card border-0 mb-4 h-100">
+                <div class="card-header bg-transparent fw-bold border-bottom border-secondary border-opacity-25 pb-3 pt-4 px-4 text-white">
                     <i class="bi bi-bullseye text-primary me-2"></i>Marchés des Buts
                 </div>
-                <div class="card-body">
+                <div class="card-body px-4 pt-4">
+
+                    <div class="alert value-bet-card text-center mb-4" id="valueBetCard" style="display: none;">
+                        <h6 class="fw-bold text-warning mb-1"><i class="bi bi-star-fill me-1"></i>Value Bet Détecté</h6>
+                        <small class="text-white">Avantage algorithmique sur :</small><br>
+                        <strong class="fs-5 text-white" id="valueBetTeam">--</strong>
+                    </div>
 
                     <div class="mb-4">
-                        <div class="d-flex justify-content-between small fw-bold mb-1">
+                        <div class="d-flex justify-content-between small fw-bold mb-2">
                             <span class="text-success">BTTS : Oui (<span id="uiBtts">--</span>%)</span>
                             <span class="text-danger">Non (<span id="uiBttsNo">--</span>%)</span>
                         </div>
-                        <div class="progress shadow-sm" style="height: 12px; border-radius: 6px;">
+                        <div class="progress shadow-sm" style="height: 12px; border-radius: 6px; background-color: #334155;">
                             <div id="barBtts" class="progress-bar bg-success" style="width: 0%"></div>
                             <div id="barBttsNo" class="progress-bar bg-danger" style="width: 0%"></div>
                         </div>
                     </div>
 
                     <div class="mb-4">
-                        <div class="d-flex justify-content-between small fw-bold mb-1">
+                        <div class="d-flex justify-content-between small fw-bold mb-2">
                             <span class="text-primary">+1.5 Buts (<span id="uiOver15">--</span>%)</span>
-                            <span class="text-secondary">-1.5 Buts (<span id="uiUnder15">--</span>%)</span>
+                            <span class="text-muted">-1.5 Buts (<span id="uiUnder15">--</span>%)</span>
                         </div>
-                        <div class="progress shadow-sm" style="height: 12px; border-radius: 6px;">
+                        <div class="progress shadow-sm" style="height: 12px; border-radius: 6px; background-color: #334155;">
                             <div id="barOver15" class="progress-bar bg-primary" style="width: 0%"></div>
                             <div id="barUnder15" class="progress-bar bg-secondary" style="width: 0%"></div>
                         </div>
                     </div>
 
                     <div class="mb-4">
-                        <div class="d-flex justify-content-between small fw-bold mb-1">
+                        <div class="d-flex justify-content-between small fw-bold mb-2">
                             <span class="text-primary">+2.5 Buts (<span id="uiOver25">--</span>%)</span>
-                            <span class="text-secondary">-2.5 Buts (<span id="uiUnder25">--</span>%)</span>
+                            <span class="text-muted">-2.5 Buts (<span id="uiUnder25">--</span>%)</span>
                         </div>
-                        <div class="progress shadow-sm" style="height: 12px; border-radius: 6px;">
+                        <div class="progress shadow-sm" style="height: 12px; border-radius: 6px; background-color: #334155;">
                             <div id="barOver25" class="progress-bar bg-primary" style="width: 0%"></div>
                             <div id="barUnder25" class="progress-bar bg-secondary" style="width: 0%"></div>
                         </div>
                     </div>
 
-                    <div class="mb-2">
-                        <div class="d-flex justify-content-between small fw-bold mb-1">
+                    <div class="mb-4 pt-2 border-top border-secondary border-opacity-25">
+                        <div class="d-flex justify-content-between small fw-bold mb-2">
                             <span class="text-warning">+3.5 Buts (<span id="uiOver35">--</span>%)</span>
                         </div>
-                        <div class="progress shadow-sm" style="height: 8px; border-radius: 4px; background-color: #f8f9fa;">
+                        <div class="progress shadow-sm" style="height: 6px; border-radius: 3px; background-color: #334155;">
                             <div id="barOver35" class="progress-bar bg-warning" style="width: 0%"></div>
                         </div>
-                        <div class="text-center small text-muted mt-2 fst-italic" style="font-size: 0.75rem;">
-                            Indice de Volatilité : <span id="uiVolatility" class="fw-bold">--</span>
-                        </div>
+                    </div>
+
+                    <div class="mt-4 p-3 bg-dark rounded border border-secondary border-opacity-25 text-center">
+                        <div class="small text-muted text-uppercase fw-bold mb-1">Indice de Volatilité (Chaos)</div>
+                        <div id="uiVolatility" class="fs-5 fw-bold">--</div>
                     </div>
 
                 </div>
@@ -214,7 +273,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Récupération ID
     const urlParams = new URLSearchParams(window.location.search);
     const matchId = urlParams.get('id');
 
@@ -225,72 +283,78 @@
             const match = await res.json();
             const pred = match.prediction;
 
-            // Marché BTTS
-            document.getElementById('uiBtts').innerText = pred.bttsProb;
-            document.getElementById('uiBttsNo').innerText = pred.probBTTS_No;
-            document.getElementById('barBtts').style.width = pred.bttsProb + '%';
-            document.getElementById('barBttsNo').style.width = pred.probBTTS_No + '%';
+            // --- INTÉGRATION DES LOGOS ---
+            const homeLogo = document.getElementById('homeTeamLogo');
+            const awayLogo = document.getElementById('awayTeamLogo');
+            const homeInit = document.getElementById('homeTeamInitial');
+            const awayInit = document.getElementById('awayTeamInitial');
 
-// Marché Over/Under 1.5
-            document.getElementById('uiOver15').innerText = pred.probOver1_5;
-            document.getElementById('uiUnder15').innerText = pred.probUnder1_5;
-            document.getElementById('barOver15').style.width = pred.probOver1_5 + '%';
-            document.getElementById('barUnder15').style.width = pred.probUnder1_5 + '%';
-
-// Marché Over/Under 2.5
-            document.getElementById('uiOver25').innerText = pred.over2_5_Prob;
-            document.getElementById('uiUnder25').innerText = pred.under2_5_Prob;
-            document.getElementById('barOver25').style.width = pred.over2_5_Prob + '%';
-            document.getElementById('barUnder25').style.width = pred.under2_5_Prob + '%';
-
-// Marché Over 3.5 & Volatilité
-            document.getElementById('uiOver35').innerText = pred.probOver3_5;
-            document.getElementById('barOver35').style.width = pred.probOver3_5 + '%';
-
-// Affichage de l'indice de Volatilité (Chaos)
-            const volBadge = document.getElementById('uiVolatility');
-            let vol = pred.matchVolatility || 1.0;
-            if(vol > 1.2) {
-                volBadge.innerText = vol + " (Élevée 🔥)";
-                volBadge.className = "fw-bold text-danger";
-            } else if (vol < 0.8) {
-                volBadge.innerText = vol + " (Fermé 🛡️)";
-                volBadge.className = "fw-bold text-secondary";
+            const leagueId = match.homeTeam.league?.id;
+            const btnStandings = document.getElementById('btnStandings');
+            if(leagueId) {
+                btnStandings.href = `/standings.html?leagueId=${leagueId}&matchId=${matchId}`;
+                btnStandings.onmouseover = () => { btnStandings.className = "badge bg-primary border border-primary px-3 py-2 text-decoration-none text-white shadow-lg transition-all"; };
+                btnStandings.onmouseout = () => { btnStandings.className = "badge bg-dark border border-secondary px-3 py-2 text-decoration-none text-white shadow-sm transition-all"; };
             } else {
-                volBadge.innerText = vol + " (Standard)";
-                volBadge.className = "fw-bold text-muted";
+                btnStandings.style.display = 'none'; // Sécurité si la ligue est introuvable
             }
 
-            // Mapping des classements
-            document.getElementById('uiHomeRank').innerText = match.homeStats?.rank ? '#' + match.homeStats.rank : 'N/A';
-            document.getElementById('uiAwayRank').innerText = match.awayStats?.rank ? '#' + match.awayStats.rank : 'N/A';
+            // Réinitialisation de l'affichage (au cas où on recharge la page)
+            homeLogo.style.display = 'block';
+            homeInit.style.display = 'none';
+            awayLogo.style.display = 'block';
+            awayInit.style.display = 'none';
 
-            // 2. Génération des barres de comparaison
-            renderComparisonBar('comp-possession', 'Possession', match.homeStats?.avgPossession, match.awayStats?.avgPossession, true);
-            renderComparisonBar('comp-shots', 'Tirs / match', match.homeStats?.avgShots, match.awayStats?.avgShots);
-            renderComparisonBar('comp-sot', 'Tirs Cadrés / match', match.homeStats?.avgShotsOnTarget, match.awayStats?.avgShotsOnTarget);
-            renderComparisonBar('comp-corners', 'Corners / match', match.homeStats?.avgCorners, match.awayStats?.avgCorners);
+            // Application des URLs (ou d'une image par défaut transparente si non définie)
+            homeLogo.src = match.homeTeam?.logoUrl || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            awayLogo.src = match.awayTeam?.logoUrl || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
-// 3. Stats Avancées
-            document.getElementById('uiHomeXg').innerText = match.homeStats?.xG || '--';
-            document.getElementById('uiAwayXg').innerText = match.awayStats?.xG || '--';
-            document.getElementById('uiHomeXga').innerText = match.homeStats?.xGA || '--';
-            document.getElementById('uiAwayXga').innerText = match.awayStats?.xGA || '--';
+            // Application des initiales pour le fallback
+            homeInit.innerText = match.homeTeam?.name?.charAt(0) || '?';
+            awayInit.innerText = match.awayTeam?.name?.charAt(0) || '?';
 
-// PPDA : Inverse logic = true, car un petit PPDA = meilleur pressing
-            renderComparisonBar('comp-ppda', 'Intensité Pressing (PPDA)', match.homeStats?.ppda, match.awayStats?.ppda, false, true);
-
-            // Header info
+            // Header info (Textes)
             document.getElementById('matchLeague').innerText = match.homeTeam.league?.name || "Championnat inconnu";
-            document.getElementById('homeTeamName').innerText = match.homeTeam.name;
-            document.getElementById('awayTeamName').innerText = match.awayTeam.name;
-            document.getElementById('matchDate').innerText = new Date(match.matchDate).toLocaleString();
+
+            // Mise à jour des noms avec attribut title pour le survol
+            const homeNameEl = document.getElementById('homeTeamName');
+            homeNameEl.innerText = match.homeTeam.name;
+            homeNameEl.title = match.homeTeam.name;
+
+            const awayNameEl = document.getElementById('awayTeamName');
+            awayNameEl.innerText = match.awayTeam.name;
+            awayNameEl.title = match.awayTeam.name;
+
+            // Formatage propre de la date pour le header (Ex: "12 Oct - 20:45")
+            const d = new Date(match.matchDate);
+            const dateOpts = { day: 'numeric', month: 'short' };
+            const timeOpts = { hour: '2-digit', minute: '2-digit' };
+            document.getElementById('matchDate').innerText = `${d.toLocaleDateString('fr-FR', dateOpts)} - ${d.toLocaleTimeString('fr-FR', timeOpts)}`;
 
             // Badges Forme (Utilise Power Score si dispo)
             if(pred) {
                 document.getElementById('homeFormBadge').innerText = `Puissance: ${pred.homePowerScore}`;
                 document.getElementById('awayFormBadge').innerText = `Puissance: ${pred.awayPowerScore}`;
             }
+
+            // Mapping des classements
+            document.getElementById('uiHomeRank').innerText = match.homeStats?.rank ? '#' + match.homeStats.rank : 'N/A';
+            document.getElementById('uiAwayRank').innerText = match.awayStats?.rank ? '#' + match.awayStats.rank : 'N/A';
+
+            // 2. Génération des barres de comparaison miroir
+            renderComparisonBar('comp-possession', 'Possession', match.homeStats?.avgPossession, match.awayStats?.avgPossession, true);
+            renderComparisonBar('comp-shots', 'Tirs / match', match.homeStats?.avgShots, match.awayStats?.avgShots);
+            renderComparisonBar('comp-sot', 'Tirs Cadrés / match', match.homeStats?.avgShotsOnTarget, match.awayStats?.avgShotsOnTarget);
+            renderComparisonBar('comp-corners', 'Corners / match', match.homeStats?.avgCorners, match.awayStats?.avgCorners);
+
+            // 3. Stats Avancées
+            document.getElementById('uiHomeXg').innerText = match.homeStats?.xG || '--';
+            document.getElementById('uiAwayXg').innerText = match.awayStats?.xG || '--';
+            document.getElementById('uiHomeXga').innerText = match.homeStats?.xGA || '--';
+            document.getElementById('uiAwayXga').innerText = match.awayStats?.xGA || '--';
+
+            // PPDA : Inverse logic = true (le plus petit est le meilleur)
+            renderComparisonBar('comp-ppda', 'Pressing (PPDA)', match.homeStats?.ppda, match.awayStats?.ppda, false, true);
 
             if (pred) {
                 // Probabilités Bars
@@ -311,27 +375,37 @@
                 document.getElementById('xgProjected').innerText = `${pred.predictedHomeGoals} - ${pred.predictedAwayGoals}`;
 
                 // Confiance & Volatilité
-                const conf = pred.confidenceScore || 70; // Valeur par défaut si ancien calcul
+                const conf = pred.confidenceScore || 70;
                 document.getElementById('confidenceScore').innerText = conf + '%';
                 document.getElementById('confidenceBar').style.width = conf + '%';
 
-                // Couleur dynamique barre confiance
                 const confBar = document.getElementById('confidenceBar');
                 if(conf < 50) confBar.className = 'confidence-fill bg-danger';
                 else if(conf < 75) confBar.className = 'confidence-fill bg-warning';
                 else confBar.className = 'confidence-fill bg-success';
 
+                // Volatilité
+                const volBadge = document.getElementById('uiVolatility');
+                let vol = pred.matchVolatility || 1.0;
+                if(vol > 1.2) {
+                    volBadge.innerHTML = `<span class="text-danger">${vol} (Élevée 🔥)</span>`;
+                } else if (vol < 0.8) {
+                    volBadge.innerHTML = `<span class="text-secondary">${vol} (Fermé 🛡️)</span>`;
+                } else {
+                    volBadge.innerHTML = `<span class="text-muted">${vol} (Standard)</span>`;
+                }
+
+                // Insights
                 if (pred.keyFacts && pred.keyFacts.length > 0) {
                     const container = document.getElementById('insightsContainer');
                     container.innerHTML = pred.keyFacts.map(fact => {
-                        // Applique un style différent en fonction de l'emoji généré par le backend
-                        let bgClass = "bg-primary bg-opacity-10 text-primary";
-                        if(fact.includes("🔥")) bgClass = "bg-danger bg-opacity-10 text-danger";
-                        if(fact.includes("⚠️")) bgClass = "bg-warning bg-opacity-10 text-dark";
-                        if(fact.includes("🛡️") || fact.includes("🎯")) bgClass = "bg-success bg-opacity-10 text-success";
+                        let bgClass = "bg-primary border-primary text-primary";
+                        if(fact.includes("🔥")) bgClass = "bg-danger border-danger text-danger";
+                        if(fact.includes("⚠️")) bgClass = "bg-warning border-warning text-warning";
+                        if(fact.includes("🛡️") || fact.includes("🎯")) bgClass = "bg-success border-success text-success";
 
                         return `<div class="col-12">
-                   <div class="p-3 rounded border border-light shadow-sm ${bgClass} fw-bold" style="font-size:0.9rem;">
+                   <div class="p-3 rounded bg-opacity-10 border border-opacity-25 shadow-sm ${bgClass}" style="font-size:0.85rem;">
                        ${fact}
                    </div>
                 </div>`;
@@ -346,7 +420,7 @@
                     document.getElementById('aiPromptText').value = pred.aiAnalysisPrompt;
                 }
 
-                // Marchés Alternatifs UI
+                // Marchés Alternatifs
                 document.getElementById('uiBtts').innerText = pred.bttsProb + '%';
                 document.getElementById('barBtts').style.width = pred.bttsProb + '%';
                 document.getElementById('uiBttsNo').innerText = pred.probBTTS_No;
@@ -356,6 +430,9 @@
 
                 document.getElementById('uiOver25').innerText = pred.over2_5_Prob + '%';
                 document.getElementById('barOver25').style.width = pred.over2_5_Prob + '%';
+
+                document.getElementById('uiOver35').innerText = pred.probOver3_5 + '%';
+                document.getElementById('barOver35').style.width = pred.probOver3_5 + '%';
 
                 // Value Bet Display
                 if (pred.valueBetDetected) {
@@ -367,13 +444,13 @@
                     document.getElementById('valueBetTeam').innerText = teamName;
                 }
             }
-
         } catch (e) {
             console.error(e);
             alert("Impossible de charger l'analyse.");
         }
     }
 
+    // NOUVELLE FONCTION : Rendu des barres de comparaison en "Miroir"
     function renderComparisonBar(elementId, label, homeVal, awayVal, isPercentage = false, inverseLogic = false) {
         const hVal = parseFloat(homeVal) || 0;
         const aVal = parseFloat(awayVal) || 0;
@@ -385,34 +462,43 @@
             aPct = (aVal / total) * 100;
         }
 
-        // Gestion de l'affichage (avec ou sans %)
         let hDisplay = isPercentage ? hVal + '%' : hVal;
         let aDisplay = isPercentage ? aVal + '%' : aVal;
 
-        // Pour certaines stats (comme le PPDA, un score FAIBLE est meilleur), on peut inverser les couleurs (Optionnel)
-        let homeColor = inverseLogic && hVal > aVal ? "bg-secondary" : "bg-primary";
-        let awayColor = inverseLogic && aVal > hVal ? "bg-secondary" : "bg-danger";
+        // Logique de surbrillance
+        let homeBold = hVal >= aVal ? 'text-primary fw-bold' : 'text-muted';
+        let awayBold = aVal >= hVal ? 'text-danger fw-bold' : 'text-muted';
+
+        if (inverseLogic) {
+            homeBold = hVal <= aVal ? 'text-primary fw-bold' : 'text-muted';
+            awayBold = aVal <= hVal ? 'text-danger fw-bold' : 'text-muted';
+        }
 
         document.getElementById(elementId).innerHTML = `
-        <div class="mb-3">
-            <div class="d-flex justify-content-between small fw-bold mb-1">
-                <span class="text-primary">${hDisplay}</span>
-                <span class="text-muted text-uppercase" style="font-size:0.75rem;">${label}</span>
-                <span class="text-danger">${aDisplay}</span>
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-end mb-1">
+                <span class="fs-5 ${homeBold}">${hDisplay}</span>
+                <span class="text-muted text-uppercase fw-bold" style="font-size:0.7rem; letter-spacing: 0.05em;">${label}</span>
+                <span class="fs-5 ${awayBold}">${aDisplay}</span>
             </div>
-            <div class="progress shadow-sm" style="height: 10px; border-radius: 5px; background-color:#e9ecef;">
-                <div class="progress-bar ${homeColor}" style="width: ${hPct}%"></div>
-                <div class="progress-bar ${awayColor}" style="width: ${aPct}%"></div>
+            <div class="d-flex justify-content-center align-items-center gap-1">
+                <div class="w-50 d-flex justify-content-end rounded-start" style="height: 6px; background-color: #334155;">
+                    <div class="bg-primary rounded-start" style="width: ${hPct}%; transition: width 1s ease-out;"></div>
+                </div>
+                <div style="width: 2px; height: 12px; background-color: #64748b;"></div>
+                <div class="w-50 d-flex justify-content-start rounded-end" style="height: 6px; background-color: #334155;">
+                    <div class="bg-danger rounded-end" style="width: ${aPct}%; transition: width 1s ease-out;"></div>
+                </div>
             </div>
         </div>
-    `;
+        `;
     }
 
-    // Gestion du Recalcul
+    // Gestion du Recalcul manuel
     document.getElementById('btnRecalculate').addEventListener('click', async function() {
         const btn = this;
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Calcul...';
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Recalcul IA en cours...';
 
         try {
             const res = await fetch(`/api/v1/analyses/${matchId}/recalculate`, { method: 'POST' });
@@ -423,17 +509,19 @@
             }
         } catch(e) { console.error(e); }
         btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i> Actualiser l\'analyse';
+        btn.innerHTML = '<i class="bi bi-arrow-clockwise me-2"></i>Recalculer via IA';
     });
 
+    // Copie du Prompt IA
     function copyPrompt() {
         const copyText = document.getElementById("aiPromptText");
         copyText.select();
         copyText.setSelectionRange(0, 99999);
         navigator.clipboard.writeText(copyText.value);
-        alert("Prompt copié ! Colle-le dans ChatGPT/Gemini.");
+        alert("✅ Prompt copié ! Colle-le dans ChatGPT, Claude ou Gemini.");
     }
 
+    // Initialisation
     loadAnalysis();
 </script>
 

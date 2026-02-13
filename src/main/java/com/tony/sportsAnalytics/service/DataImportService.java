@@ -248,6 +248,23 @@ public class DataImportService {
     }
 
     /**
+     * Transforme un nom d'équipe en nom de fichier standardisé.
+     * Exemples : "Man City" -> "man_city.png" | "Saint-Etienne" -> "saint_etienne.png"
+     */
+    private String generateLogoPath(String teamName) {
+        if (teamName == null) return "/logos/default.png";
+
+        String filename = teamName.toLowerCase()
+                // Remplace les espaces et tirets par des underscores
+                .replace(" ", "_")
+                .replace("-", "_")
+                // Supprime tous les caractères spéciaux restants (accents, apostrophes...)
+                .replaceAll("[^a-z0-9_]", "") + ".png";
+
+        return "/logos/" + filename;
+    }
+
+    /**
      * Importe UNIQUEMENT les matchs à venir depuis fixtures.csv
      */
     @Transactional
@@ -491,25 +508,43 @@ public class DataImportService {
     private Team resolveTeam(String csvName, League league) {
         String cleanName = TEAM_NAME_MAPPING.getOrDefault(csvName, csvName);
 
-        return teamRepository.findByNameAndLeague(cleanName, league)
+        Team team = teamRepository.findByNameAndLeague(cleanName, league)
                 .orElseGet(() -> {
                     Team t = new Team(cleanName, league);
-
-                    // Injection des coordonnées si connues
+                    // Injection des coordonnées GPS pour les nouvelles équipes
                     if (STADIUM_COORDS.containsKey(cleanName)) {
                         double[] gps = STADIUM_COORDS.get(cleanName);
                         t.setLatitude(gps[0]);
                         t.setLongitude(gps[1]);
                     }
-
-                    return teamRepository.save(t);
+                    return t;
                 });
+
+        // PATCH LEAD DEV : Si l'équipe existe déjà mais n'a pas de logo, on le met à jour !
+        if (team.getLogoUrl() == null || team.getLogoUrl().isEmpty()) {
+            team.setLogoUrl(generateLogoPath(cleanName));
+            team = teamRepository.save(team);
+        }
+
+        return team;
     }
 
     private Team resolveTeamFromCache(String csvName, League league, Map<String, Team> cache) {
         String cleanName = TEAM_NAME_MAPPING.getOrDefault(csvName, csvName);
-        if (cache.containsKey(cleanName)) return cache.get(cleanName);
+
+        if (cache.containsKey(cleanName)) {
+            Team existingTeam = cache.get(cleanName);
+            // PATCH : Mise à jour du cache si le logo manquait
+            if (existingTeam.getLogoUrl() == null || existingTeam.getLogoUrl().isEmpty()) {
+                existingTeam.setLogoUrl(generateLogoPath(cleanName));
+                existingTeam = teamRepository.save(existingTeam);
+                cache.put(cleanName, existingTeam);
+            }
+            return existingTeam;
+        }
+
         Team newTeam = new Team(cleanName, league);
+        newTeam.setLogoUrl(generateLogoPath(cleanName));
         newTeam = teamRepository.save(newTeam);
         cache.put(cleanName, newTeam);
         return newTeam;

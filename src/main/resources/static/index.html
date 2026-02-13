@@ -4,116 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Foot Analyst AI - Pro Dashboard</title>
+
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <link href="css/style.css" rel="stylesheet">
 
   <style>
-    :root {
-      --bg-dark: #0f172a;
-      --bg-card: #1e293b;
-      --accent: #3b82f6;
-      --accent-glow: rgba(59, 130, 246, 0.5);
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --success: #10b981;
-    }
+    body { font-family: 'Inter', sans-serif; }
 
-    body {
-      background-color: var(--bg-dark);
-      color: var(--text-main);
-      font-family: 'Inter', sans-serif;
-    }
-
-    /* Navbar */
     .navbar {
-      background: rgba(15, 23, 42, 0.9);
-      backdrop-filter: blur(10px);
+      background: rgba(9, 14, 23, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       border-bottom: 1px solid rgba(255,255,255,0.05);
     }
 
-    /* Hero Section */
-    .hero-stat {
-      background: linear-gradient(145deg, #1e293b, #0f172a);
-      border: 1px solid rgba(255,255,255,0.05);
-      border-radius: 16px;
-      padding: 1.5rem;
-      transition: transform 0.3s ease;
-    }
-    .hero-stat:hover { transform: translateY(-5px); border-color: var(--accent); }
-
-    /* Match Card Design */
-    .match-card {
-      background-color: var(--bg-card);
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.05);
-      overflow: hidden;
-      transition: all 0.3s ease;
-      position: relative;
-    }
-
-    .match-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
-      border-color: rgba(255,255,255,0.1);
-    }
-
-    .league-badge {
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
-
-    .team-name { font-weight: 700; font-size: 1.1rem; margin-top: 0.5rem; }
-    .vs-badge { font-size: 0.8rem; font-weight: 800; color: var(--text-muted); opacity: 0.5; }
-
-    /* AI Probability Badge */
-    .ai-badge {
-      background: rgba(59, 130, 246, 0.1);
-      color: var(--accent);
-      border: 1px solid var(--accent);
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .ai-badge.high-conf {
-      background: rgba(16, 185, 129, 0.1);
-      color: var(--success);
-      border-color: var(--success);
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
-    }
-
-    .btn-analyze {
-      background: var(--accent);
-      border: none;
-      font-weight: 600;
-      width: 100%;
-      padding: 0.8rem;
-      border-radius: 12px;
-      transition: all 0.2s;
-    }
-    .btn-analyze:hover { background: #2563eb; box-shadow: 0 0 15px var(--accent-glow); color: white;}
-
-    /* Loader */
     .loader-container { min-height: 300px; display: flex; align-items: center; justify-content: center; }
+    .w-33 { width: 33.33%; }
+    .z-index-1 { z-index: 1; }
+
+    /* Style pour les selects personnalisés (Dark Theme) */
+    .form-select.bg-dark:focus {
+      border-color: var(--accent-home);
+      box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+    }
   </style>
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg fixed-top">
+<nav class="navbar navbar-expand-lg fixed-top shadow-sm">
   <div class="container">
-    <a class="navbar-brand text-white fw-bold" href="#">
-      <i class="bi bi-cpu-fill text-primary me-2"></i>Foot Analyst <span class="badge bg-primary ms-1" style="font-size: 0.6em;">PRO</span>
+    <a class="navbar-brand text-white fw-bold d-flex align-items-center" href="/">
+      <i class="bi bi-cpu-fill text-primary me-2 fs-4"></i>
+      Foot Analyst
+      <span class="badge bg-primary bg-opacity-25 text-primary border border-primary ms-2 rounded-pill" style="font-size: 0.6em; letter-spacing: 1px;">PRO</span>
     </a>
     <div class="d-flex">
-      <a href="/admin.html" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
-        <i class="bi bi-gear-fill me-2"></i>Admin
+      <a href="/admin.html" class="btn btn-sm btn-outline-light rounded-pill px-4 fw-bold border-secondary">
+        <i class="bi bi-database-fill-gear me-2"></i>Admin Data
       </a>
     </div>
   </div>
@@ -123,40 +52,43 @@
 
   <div class="row g-4 mb-5">
     <div class="col-md-4">
-      <div class="hero-stat">
-        <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.8rem;">Matchs à Venir</h6>
-        <h2 class="fw-bold mb-0 text-white" id="countUpcoming">--</h2>
+      <div class="card p-4 h-100 d-flex flex-column justify-content-center text-center border-0">
+        <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.8rem; letter-spacing: 1px;">Matchs à Venir</h6>
+        <h2 class="display-5 fw-bold mb-0 text-white" id="countUpcoming">--</h2>
       </div>
     </div>
     <div class="col-md-4">
-      <div class="hero-stat">
-        <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.8rem;">Confiance IA Moyenne</h6>
-        <h2 class="fw-bold mb-0 text-info" id="avgConfidence">--%</h2>
+      <div class="card p-4 h-100 d-flex flex-column justify-content-center text-center border-0">
+        <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.8rem; letter-spacing: 1px;">Confiance IA Moyenne</h6>
+        <h2 class="display-5 fw-bold mb-0 text-info" id="avgConfidence">--%</h2>
       </div>
     </div>
     <div class="col-md-4">
-      <div class="hero-stat">
-        <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.8rem;">Value Bets Détectés</h6>
-        <h2 class="fw-bold mb-0 text-success" id="countValueBets">--</h2>
+      <div class="card p-4 h-100 d-flex flex-column justify-content-center text-center border-0" style="background: linear-gradient(145deg, rgba(20, 30, 48, 0.6), rgba(245, 158, 11, 0.1));">
+        <h6 class="text-warning text-uppercase fw-bold mb-2" style="font-size: 0.8rem; letter-spacing: 1px;">Value Bets Détectés</h6>
+        <h2 class="display-5 fw-bold mb-0 text-warning" id="countValueBets">--</h2>
       </div>
     </div>
   </div>
 
-  <div class="d-flex justify-content-between align-items-end mb-4 border-bottom border-secondary pb-3">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 border-bottom border-secondary border-opacity-25 pb-3 gap-3">
     <div>
-      <h3 class="fw-bold mb-1">Prochaines Affiches</h3>
-      <p class="text-muted small mb-0">Analyse IA en temps réel des matchs importés.</p>
+      <h3 class="fw-bold mb-1 text-white"><i class="bi bi-calendar2-week text-primary me-2"></i>Prochaines Affiches</h3>
+      <p class="text-muted small mb-0">Analyse IA algorithmique en temps réel.</p>
     </div>
-    <div class="d-flex gap-2">
-      <button class="btn btn-sm btn-outline-secondary active">Tous</button>
-      <button class="btn btn-sm btn-outline-secondary">Premier League</button>
-      <button class="btn btn-sm btn-outline-secondary">Ligue 1</button>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <select id="dateFilter" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill px-3 shadow-sm fw-bold" style="width: auto; cursor: pointer;">
+        <option value="ALL">🗓️ Toutes les dates</option>
+      </select>
+      <select id="leagueFilter" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill px-3 shadow-sm fw-bold" style="width: auto; cursor: pointer;">
+        <option value="ALL">🏆 Tous les championnats</option>
+      </select>
     </div>
   </div>
 
-  <div id="matchesGrid" class="row g-4">
+  <div id="matchesGrid" class="row g-4 pb-5">
     <div class="col-12 loader-container">
-      <div class="spinner-border text-primary" role="status"></div>
+      <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
     </div>
   </div>
 
@@ -164,17 +96,20 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  // --- UTILS ---
+  // On stocke tous les matchs récupérés pour filtrer sans refaire d'appels API
+  let allMatchesData = [];
+
+  // --- FORMATAGE DATE ---
   const formatDate = (iso) => {
     const d = new Date(iso);
     const today = new Date();
     const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth();
 
-    if(isToday) return `Aujourd'hui à ${d.getHours()}h${d.getMinutes().toString().padStart(2, '0')}`;
-    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' });
+    if(isToday) return `Auj. ${d.getHours()}h${d.getMinutes().toString().padStart(2, '0')}`;
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' });
   };
 
-  // --- LOGIC ---
+  // --- CHARGEMENT API PRINCIPAL ---
   async function loadUpcomingMatches() {
     const grid = document.getElementById('matchesGrid');
 
@@ -182,130 +117,210 @@
       const res = await fetch('/api/v1/analyses/upcoming');
       if (!res.ok) throw new Error("Erreur API");
 
-      const matches = await res.json();
+      allMatchesData = await res.json();
 
-      // Update KPI
-      document.getElementById('countUpcoming').innerText = matches.length;
-      const values = matches.filter(m => m.prediction && m.prediction.valueBetDetected).length;
-      document.getElementById('countValueBets').innerText = values;
+      // Mise à jour des KPIs avec les données globales
+      updateKPIs(allMatchesData);
 
-      // Calcul confiance moyenne
-      let totalConf = 0;
-      let countConf = 0;
-      matches.forEach(m => {
-        if(m.prediction) {
-          const maxP = Math.max(m.prediction.homeWinProbability, m.prediction.drawProbability, m.prediction.awayWinProbability);
-          totalConf += maxP;
-          countConf++;
-        }
-      });
-      document.getElementById('avgConfidence').innerText = countConf > 0 ? Math.round(totalConf/countConf) + '%' : '--';
-
-      // Render Cards
-      if (matches.length === 0) {
+      if (allMatchesData.length === 0) {
         grid.innerHTML = `
           <div class="col-12 text-center py-5">
-            <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
-            <p class="mt-3 text-muted">Aucun match à venir détecté.<br>Allez dans l'Admin pour importer les dernières données.</p>
-            <a href="/admin.html" class="btn btn-primary mt-2">Aller à l'import</a>
+            <div class="card p-5 border-0 text-center">
+                <i class="bi bi-calendar-x text-muted mb-3" style="font-size: 4rem;"></i>
+                <h4 class="text-white fw-bold">Aucun match programmé</h4>
+                <p class="text-muted">La base de données est vide pour les jours à venir.</p>
+                <a href="/admin.html" class="btn btn-primary rounded-pill mt-3 mx-auto px-4 w-auto">Aller au panneau Admin</a>
+            </div>
           </div>`;
         return;
       }
 
-      grid.innerHTML = matches.map(m => createMatchCard(m)).join('');
+      // Initialiser les filtres déroulants puis afficher la grille
+      setupFilters(allMatchesData);
+      applyFilters();
 
     } catch (e) {
       console.error(e);
-      grid.innerHTML = `<div class="col-12 text-center text-danger">Impossible de charger les matchs. Vérifiez le serveur.</div>`;
+      grid.innerHTML = `<div class="col-12 text-center text-danger mt-5"><i class="bi bi-exclamation-triangle-fill fs-1 d-block mb-3"></i>Impossible de contacter le serveur.</div>`;
     }
   }
 
+  // --- MISE A JOUR DES STATS EN HAUT DE PAGE ---
+  function updateKPIs(matches) {
+    document.getElementById('countUpcoming').innerText = matches.length;
+    const values = matches.filter(m => m.prediction && m.prediction.valueBetDetected).length;
+    document.getElementById('countValueBets').innerText = values;
+
+    let totalConf = 0;
+    let countConf = 0;
+    matches.forEach(m => {
+      if(m.prediction) {
+        const maxP = Math.max(m.prediction.homeWinProbability, m.prediction.drawProbability, m.prediction.awayWinProbability);
+        totalConf += maxP;
+        countConf++;
+      }
+    });
+    document.getElementById('avgConfidence').innerText = countConf > 0 ? Math.round(totalConf/countConf) + '%' : '--';
+  }
+
+  // --- INITIALISATION DES SELECTS (Remplissage dynamique) ---
+  function setupFilters(matches) {
+    const dateSelect = document.getElementById('dateFilter');
+    const leagueSelect = document.getElementById('leagueFilter');
+
+    // 1. Extraire les dates uniques (Format YYYY-MM-DD)
+    const uniqueDates = [...new Set(matches.map(m => m.matchDate.split('T')[0]))].sort();
+    uniqueDates.forEach(dateStr => {
+      const dateObj = new Date(dateStr);
+      const label = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+      // Mettre la première lettre en majuscule
+      const formattedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+
+      const opt = document.createElement('option');
+      opt.value = dateStr;
+      opt.textContent = formattedLabel;
+      dateSelect.appendChild(opt);
+    });
+
+    // 2. Extraire les championnats uniques
+    const uniqueLeagues = [...new Set(matches.map(m => m.league?.name || m.homeTeam?.league?.name || 'Autres'))].sort();
+    uniqueLeagues.forEach(league => {
+      const opt = document.createElement('option');
+      opt.value = league;
+      opt.textContent = league;
+      leagueSelect.appendChild(opt);
+    });
+
+    // 3. Ajouter les écouteurs d'événements
+    dateSelect.addEventListener('change', applyFilters);
+    leagueSelect.addEventListener('change', applyFilters);
+  }
+
+  // --- MOTEUR DE FILTRAGE ---
+  function applyFilters() {
+    const selectedDate = document.getElementById('dateFilter').value;
+    const selectedLeague = document.getElementById('leagueFilter').value;
+
+    // Partir de la liste complète
+    let filteredMatches = allMatchesData;
+
+    // Filtrer par date si ce n'est pas "ALL"
+    if (selectedDate !== 'ALL') {
+      filteredMatches = filteredMatches.filter(m => m.matchDate.startsWith(selectedDate));
+    }
+
+    // Filtrer par championnat si ce n'est pas "ALL"
+    if (selectedLeague !== 'ALL') {
+      filteredMatches = filteredMatches.filter(m => {
+        const leagueName = m.league?.name || m.homeTeam?.league?.name || 'Autres';
+        return leagueName === selectedLeague;
+      });
+    }
+
+    renderGrid(filteredMatches);
+  }
+
+  // --- AFFICHAGE DE LA GRILLE ---
+  function renderGrid(matches) {
+    const grid = document.getElementById('matchesGrid');
+
+    if (matches.length === 0) {
+      grid.innerHTML = `
+          <div class="col-12 text-center py-5">
+              <i class="bi bi-funnel text-muted mb-3 d-block" style="font-size: 3rem;"></i>
+              <h5 class="text-white">Aucun match trouvé</h5>
+              <p class="text-muted">Essayez de modifier vos critères de filtrage.</p>
+          </div>`;
+      return;
+    }
+
+    grid.innerHTML = matches.map(m => createMatchCard(m)).join('');
+  }
+
+  // --- GENERATION DE LA CARTE MATCH ---
   function createMatchCard(m) {
     const p = m.prediction;
-
-    // Déterminer la prédiction principale
-    let predBadge = '<span class="badge bg-secondary">En attente</span>';
     let highlightClass = '';
+    let valueBadge = '';
+    let probsDisplay = '';
+
+    const leagueName = m.league?.name || m.homeTeam?.league?.name || 'Championnat';
 
     if (p) {
-      const probs = [
-        { label: '1', val: p.homeWinProbability },
-        { label: 'N', val: p.drawProbability },
-        { label: '2', val: p.awayWinProbability }
-      ];
-      // Trouver la plus haute proba
-      const best = probs.reduce((prev, current) => (prev.val > current.val) ? prev : current);
-
-      const isHighConf = best.val > 60;
-      const colorClass = isHighConf ? 'high-conf' : '';
-      const icon = isHighConf ? '<i class="bi bi-lightning-charge-fill"></i>' : '<i class="bi bi-bar-chart-fill"></i>';
-
-      predBadge = `
-          <div class="ai-badge ${colorClass}">
-            ${icon} ${m.homeTeam.name} (${Math.round(best.val)}%)
-          </div>
-        `;
-
-      if (best.label === '2') {
-        predBadge = `<div class="ai-badge ${colorClass}">${icon} ${m.awayTeam.name} (${Math.round(best.val)}%)</div>`;
-      } else if (best.label === 'N') {
-        predBadge = `<div class="ai-badge ${colorClass}">${icon} Nul (${Math.round(best.val)}%)</div>`;
+      const isValueBet = p.valueBetDetected;
+      if (isValueBet) {
+        highlightClass = 'value-bet-card';
+        valueBadge = `<div class="position-absolute top-0 end-0 mt-3 me-3 z-index-1">
+                        <span class="badge bg-warning text-dark shadow-sm border border-warning px-2 py-1">
+                            <i class="bi bi-star-fill me-1"></i>VALUE
+                        </span>
+                      </div>`;
       }
 
-      let extraBadges = '';
-
-      // Value Bet ?
-      if (p.valueBetDetected) {
-        highlightClass = 'border-warning';
-        extraBadges += `<span class="badge bg-warning text-dark ms-2 mb-1 shadow-sm"><i class="bi bi-star-fill"></i> Value</span>`;
-      }
-
-      // NOUVEAU : Détection automatique des matchs à fort potentiel offensif (Facteur de Chaos)
-      if (p.bttsProb > 65) {
-        extraBadges += `<span class="badge bg-danger text-white ms-1 mb-1 shadow-sm"><i class="bi bi-fire"></i> BTTS (Oui)</span>`;
-      }
-      if (p.over2_5_Prob > 60) {
-        extraBadges += `<span class="badge bg-success text-white ms-1 mb-1 shadow-sm"><i class="bi bi-futbol"></i> +2.5 Buts</span>`;
-      }
-
-      predBadge += `<div class="mt-2 flex-wrap d-flex justify-content-center">${extraBadges}</div>`;
+      probsDisplay = `
+        <div class="d-flex justify-content-between text-center mt-auto pt-4 border-top border-secondary border-opacity-25">
+            <div class="w-33">
+                <small class="text-muted d-block fw-bold mb-1" style="font-size: 0.65rem; letter-spacing: 1px;">DOM</small>
+                <strong class="${p.homeWinProbability > 45 ? 'text-primary' : 'text-white'} fs-5">${Math.round(p.homeWinProbability)}%</strong>
+            </div>
+            <div class="w-33 border-start border-end border-secondary border-opacity-25">
+                <small class="text-muted d-block fw-bold mb-1" style="font-size: 0.65rem; letter-spacing: 1px;">NUL</small>
+                <strong class="text-white fs-5">${Math.round(p.drawProbability)}%</strong>
+            </div>
+            <div class="w-33">
+                <small class="text-muted d-block fw-bold mb-1" style="font-size: 0.65rem; letter-spacing: 1px;">EXT</small>
+                <strong class="${p.awayWinProbability > 45 ? 'text-danger' : 'text-white'} fs-5">${Math.round(p.awayWinProbability)}%</strong>
+            </div>
+        </div>
+      `;
     }
 
     return `
       <div class="col-lg-4 col-md-6">
-        <div class="match-card p-4 ${highlightClass} h-100 d-flex flex-column">
+        <div class="card h-100 p-4 ${highlightClass} d-flex flex-column position-relative border-0 shadow-sm">
+          ${valueBadge}
 
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <span class="league-badge"><i class="bi bi-flag-fill me-1"></i>${m.homeTeam.league ? m.homeTeam.league.name : 'Ligue'}</span>
-            <small class="text-muted" style="font-size: 0.75rem;">${formatDate(m.matchDate)}</small>
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <span class="badge bg-dark border border-secondary text-white fw-bold px-3 py-2 shadow-sm">
+                <i class="bi bi-trophy-fill text-warning me-2"></i>${leagueName}
+            </span>
+            <small class="text-muted fw-bold"><i class="bi bi-clock me-1"></i>${formatDate(m.matchDate)}</small>
           </div>
 
           <div class="d-flex justify-content-between align-items-center mb-4 flex-grow-1">
-            <div class="text-center w-40">
-              <div class="rounded-circle bg-dark d-flex align-items-center justify-content-center mx-auto mb-2 border border-secondary" style="width:50px; height:50px;">
-                <span class="fw-bold fs-5">${m.homeTeam.name.charAt(0)}</span>
+
+            <div class="text-center" style="width: 40%;">
+              <div class="mx-auto mb-2 d-flex align-items-center justify-content-center bg-dark rounded-circle border border-secondary shadow-sm" style="width:55px; height:55px; overflow: hidden;">
+                <img src="${m.homeTeam?.logoUrl || '/logos/default.png'}"
+                     alt="${m.homeTeam?.name}"
+                     style="width: 100%; height: 100%; object-fit: contain; padding: 6px;"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <span class="fw-bold fs-4 text-white" style="display:none;">${m.homeTeam?.name?.charAt(0) || '?'}</span>
               </div>
-              <div class="team-name text-truncate" style="max-width: 120px;" title="${m.homeTeam.name}">${m.homeTeam.name}</div>
+              <div class="fw-bold mb-1 text-white text-truncate" title="${m.homeTeam?.name}">${m.homeTeam?.name || 'Equipe 1'}</div>
             </div>
 
-            <div class="text-center w-20">
-              <span class="vs-badge">VS</span>
+            <div class="text-center px-1">
+              <span class="badge bg-dark text-muted border border-secondary rounded-pill px-2 py-1" style="font-size: 0.7rem;">VS</span>
             </div>
 
-            <div class="text-center w-40">
-              <div class="rounded-circle bg-dark d-flex align-items-center justify-content-center mx-auto mb-2 border border-secondary" style="width:50px; height:50px;">
-                <span class="fw-bold fs-5">${m.awayTeam.name.charAt(0)}</span>
+            <div class="text-center" style="width: 40%;">
+              <div class="mx-auto mb-2 d-flex align-items-center justify-content-center bg-dark rounded-circle border border-secondary shadow-sm" style="width:55px; height:55px; overflow: hidden;">
+                <img src="${m.awayTeam?.logoUrl || '/logos/default.png'}"
+                     alt="${m.awayTeam?.name}"
+                     style="width: 100%; height: 100%; object-fit: contain; padding: 6px;"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <span class="fw-bold fs-4 text-white" style="display:none;">${m.awayTeam?.name?.charAt(0) || '?'}</span>
               </div>
-              <div class="team-name text-truncate" style="max-width: 120px;" title="${m.awayTeam.name}">${m.awayTeam.name}</div>
+              <div class="fw-bold mb-1 text-white text-truncate" title="${m.awayTeam?.name}">${m.awayTeam?.name || 'Equipe 2'}</div>
             </div>
+
           </div>
 
-          <div class="text-center mb-3">
-            ${predBadge}
-          </div>
+          ${probsDisplay}
 
-          <a href="/analysis-details.html?id=${m.id}" class="btn btn-analyze text-white text-decoration-none text-center">
-            <i class="bi bi-eye-fill me-2"></i>Voir l'analyse
+          <a href="/analysis-details.html?id=${m.id}" class="btn btn-outline-light text-decoration-none text-center mt-4 rounded-pill fw-bold w-100 transition-all">
+            <i class="bi bi-graph-up me-2"></i>Voir l'analyse
           </a>
         </div>
       </div>

@@ -1,56 +1,40 @@
-/* --- THEME VARIABLES (DARK PRO) --- */
+/* =========================================
+   1. DESIGN SYSTEM & VARIABLES (A toujours placer en haut)
+   ========================================= */
 :root {
-    --bg-dark: #0f172a;       /* Slate 900 - Fond principal */
-    --bg-card: #1e293b;       /* Slate 800 - Fond des cartes */
-    --text-primary: #f8fafc;  /* Blanc cassé - Texte principal */
-    --text-muted: #94a3b8;    /* Gris bleuté - Texte secondaire */
-    --accent-blue: #3b82f6;   /* Bleu électrique */
-    --accent-green: #10b981;  /* Vert succès */
-    --accent-red: #ef4444;    /* Rouge danger */
-    --accent-warning: #f59e0b; /* Jaune warning */
+    /* --- Couleurs de Fond --- */
+    --bg-dark: #090e17;       /* Bleu nuit très profond pour le body */
+    --bg-card: rgba(20, 30, 48, 0.6); /* Transparence pour le Glassmorphism */
+    --bg-card-hover: rgba(30, 41, 59, 0.8);
+
+    /* --- Typographie --- */
+    --text-primary: #f8fafc;  /* Blanc cassé très lisible */
+    --text-muted: #64748b;    /* Gris bleuté pour les textes secondaires */
+
+    /* --- Couleurs d'Accentuation (DataViz) --- */
+    --accent-home: #3b82f6;   /* Bleu (Domicile) */
+    --accent-away: #ef4444;   /* Rouge (Extérieur) */
+    --accent-draw: #8b5cf6;   /* Violet (Nul) */
+
+    /* --- Couleurs de Statut --- */
+    --accent-green: #10b981;  /* Succès / Win */
+    --accent-warning: #f59e0b; /* Alertes / Value Bets */
+    --accent-red: #ef4444;    /* Défaites / Loss */
+
+    /* --- Effets --- */
+    --glow-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+    --border-glass: rgba(255, 255, 255, 0.08);
 }
 
-/* --- BASE --- */
+/* =========================================
+   2. FONDATIONS & TYPOGRAPHIE
+   ========================================= */
 body {
     background-color: var(--bg-dark);
     color: var(--text-primary);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased; /* Rend les polices plus nettes sur écrans sombres */
 }
 
-/* --- HEADER --- */
-.header-gradient {
-    background: linear-gradient(135deg, #1e293b, #0f172a);
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    padding: 2rem 0;
-}
-
-/* --- CARDS --- */
-.card {
-    background-color: var(--bg-card);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
-    border-radius: 12px;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    color: var(--text-primary);
-}
-
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);
-    border-color: rgba(255, 255, 255, 0.1);
-}
-
-.card-header {
-    background-color: rgba(0, 0, 0, 0.2);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.bg-card-header { /* Alias pour compatibilité */
-    background-color: rgba(0, 0, 0, 0.2);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* --- TEXT & TYPO --- */
 h1, h2, h3, h4, h5, h6, .display-6 {
     color: var(--text-primary);
 }
@@ -59,64 +43,62 @@ h1, h2, h3, h4, h5, h6, .display-6 {
     color: var(--text-muted) !important;
 }
 
-.market-group-title {
-    font-size: 0.85rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    letter-spacing: 0.05em;
-    margin-bottom: 1rem;
+/* =========================================
+   3. ARCHITECTURE COMPOSANTS (Glassmorphism)
+   ========================================= */
+.card, .match-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass);
+    border-radius: 16px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* --- WIDGETS SPECIFIQUES --- */
-
-/* Météo */
-.weather-widget {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    color: white;
+.card:hover, .match-card:hover {
+    transform: translateY(-4px);
+    background: var(--bg-card-hover);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: var(--glow-shadow);
 }
 
-/* Barre de Probabilités (1N2) */
-.prob-bar-container {
-    height: 35px;
-    border-radius: 8px;
+.card-header, .bg-card-header {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--border-glass);
+}
+
+/* =========================================
+   4. COMPOSANTS SPÉCIFIQUES & DATAVIZ
+   ========================================= */
+
+/* --- Alertes Value Bet --- */
+.value-bet, .value-bet-card {
+    background: linear-gradient(145deg, rgba(20, 30, 48, 0.8), rgba(245, 158, 11, 0.05));
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    position: relative;
     overflow: hidden;
-    background-color: #334155; /* Gris foncé pour le fond vide */
+}
+.value-bet::before, .value-bet-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent-warning), transparent);
+}
+
+/* --- Barres Miroir --- */
+.mirrored-bar-container {
     display: flex;
-    font-weight: bold;
-    font-size: 0.9rem;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #334155;
+    margin-top: 5px;
 }
+.mirrored-bar-home { background: var(--accent-home); transition: width 1s ease-out; }
+.mirrored-bar-away { background: var(--accent-away); transition: width 1s ease-out; }
 
-.prob-segment {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: width 1s ease-in-out;
-}
-
-/* Lignes de stats */
-.stat-row {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 12px 0;
-}
-.stat-row:last-child {
-    border-bottom: none;
-}
-
-.stat-val {
-    font-weight: 700;
-    font-size: 1.1rem;
-}
-
-/* Value Bet Alert */
-.value-bet {
-    border: 1px solid var(--accent-warning);
-    background-color: rgba(245, 158, 11, 0.1); /* Jaune transparent */
-    color: var(--accent-warning);
-}
-
-/* --- HISTORIQUE (H2H) --- */
-
+/* --- Indicateurs Historique (H2H) --- */
 .match-row {
     background: rgba(255, 255, 255, 0.03);
     border-radius: 8px;
@@ -125,23 +107,20 @@ h1, h2, h3, h4, h5, h6, .display-6 {
     border-left: 4px solid transparent;
     margin-bottom: 8px;
 }
-
 .match-row:hover {
     background: rgba(255, 255, 255, 0.08);
     transform: translateX(2px);
 }
-
-/* Indicateurs de résultat H2H */
 .res-win { border-left-color: var(--accent-green) !important; }
 .res-draw { border-left-color: var(--text-muted) !important; }
 .res-loss { border-left-color: var(--accent-red) !important; }
 
-/* Badge de Score (Centralisé) */
+/* Badge de Score */
 .score-badge {
     font-family: 'Courier New', monospace;
     font-weight: 800;
-    font-size: 1.5rem; /* Unifié */
-    background: #0f172a; /* Fond très sombre */
+    font-size: 1.5rem;
+    background: #0f172a;
     padding: 8px 16px;
     border-radius: 8px;
     border: 1px solid rgba(255,255,255,0.1);
@@ -152,21 +131,30 @@ h1, h2, h3, h4, h5, h6, .display-6 {
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
 }
 
-/* --- BOOTSTRAP OVERRIDES (DARK MODE) --- */
-.bg-light {
-    background-color: #334155 !important; /* Remplace le gris clair par du gris foncé */
-    color: white !important;
+/* --- Skeleton Loader --- */
+.skeleton {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 8px;
 }
+@keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
+/* =========================================
+   5. SURCHARGES BOOTSTRAP (Clean Overrides)
+   ========================================= */
+
+/* Bordures globales adaptées au thème sombre */
 .border {
-    border-color: rgba(255,255,255,0.1) !important;
+    border-color: var(--border-glass) !important;
 }
 
-/* Nav Pills (Onglets H2H) */
+/* Onglets Bootstrap adaptés */
 .nav-pills .nav-link {
     color: var(--text-muted);
+    font-weight: 600;
 }
 .nav-pills .nav-link.active {
-    background-color: var(--accent-blue);
+    background-color: var(--accent-home);
     color: white;
 }

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -191,6 +192,54 @@ public class TeamStatsService {
 
         log.info("✅ FIN CALCUL - Tirs Moyens: {} (sur {} matchs valides), Possession Moyenne: {}% (sur {} matchs valides)",
                 target.getAvgShots(), countStats, target.getAvgPossession(), countPossession);
+    }
+
+    @Transactional
+    public void updateLeagueRankings(Long leagueId) {
+        List<Team> allTeams = teamRepository.findByLeagueId(leagueId);
+
+        // FILTRAGE : On ne garde que les équipes qui ont réellement joué cette saison
+        List<Team> activeTeams = allTeams.stream()
+                .filter(t -> t.getCurrentStats() != null &&
+                        t.getCurrentStats().getMatchesPlayed() != null &&
+                        t.getCurrentStats().getMatchesPlayed() > 0)
+                .collect(Collectors.toList());
+
+        if (activeTeams.isEmpty()) return;
+
+        // TRI : (Ta logique actuelle est très bonne, on la garde sur les activeTeams)
+        activeTeams.sort((t1, t2) -> {
+            var stats1 = t1.getCurrentStats();
+            var stats2 = t2.getCurrentStats();
+
+            int pts1 = stats1.getPoints() != null ? stats1.getPoints() : 0;
+            int pts2 = stats2.getPoints() != null ? stats2.getPoints() : 0;
+
+            if (pts1 != pts2) return Integer.compare(pts2, pts1);
+
+            int gd1 = (stats1.getGoalsFor() != null ? stats1.getGoalsFor() : 0) - (stats1.getGoalsAgainst() != null ? stats1.getGoalsAgainst() : 0);
+            int gd2 = (stats2.getGoalsFor() != null ? stats2.getGoalsFor() : 0) - (stats2.getGoalsAgainst() != null ? stats2.getGoalsAgainst() : 0);
+
+            if (gd1 != gd2) return Integer.compare(gd2, gd1);
+
+            return Integer.compare(stats2.getGoalsFor(), stats1.getGoalsFor());
+        });
+
+        // ATTRIBUTION DES RANGS
+        int rank = 1;
+        for (Team team : activeTeams) {
+            team.getCurrentStats().setRank(rank++);
+        }
+
+        // RESET DES ANCIENNES ÉQUIPES : Les équipes qui n'ont pas joué n'ont plus de rang
+        allTeams.stream()
+                .filter(t -> !activeTeams.contains(t))
+                .forEach(t -> {
+                    if(t.getCurrentStats() != null) t.getCurrentStats().setRank(null);
+                });
+
+        teamRepository.saveAll(allTeams);
+        log.info("🏆 Classement 2025-2026 mis à jour pour {} équipes actives", activeTeams.size());
     }
 
     private void calculateDynamicForm(Long teamId, TeamStats target) {

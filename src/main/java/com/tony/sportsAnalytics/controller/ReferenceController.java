@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -81,6 +82,19 @@ public class ReferenceController {
         return teamRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/leagues/{leagueId}/standings")
+    public ResponseEntity<List<Team>> getLeagueStandings(@PathVariable Long leagueId) {
+        List<Team> teams = teamRepository.findByLeagueId(leagueId);
+
+        // On ne renvoie que les équipes qui ont un rang (donc classées dans la saison actuelle)
+        List<Team> standings = teams.stream()
+                .filter(t -> t.getCurrentStats() != null && t.getCurrentStats().getRank() != null)
+                .sorted(Comparator.comparing(t -> t.getCurrentStats().getRank()))
+                .toList();
+
+        return ResponseEntity.ok(standings);
     }
 
     // Petit DTO interne pour simplifier la requête JSON de création d'équipe
