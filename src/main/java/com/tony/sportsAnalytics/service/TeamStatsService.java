@@ -183,7 +183,11 @@ public class TeamStatsService {
         target.setAvgShotsOnTarget(countStats > 0 ? (Math.round((totalSOT / countStats) * 10.0) / 10.0) : 0.0);
         target.setAvgCorners(countStats > 0 ? (Math.round((totalCorners / countStats) * 10.0) / 10.0) : 0.0);
         target.setAvgCrosses(countStats > 0 ? (Math.round((totalCrosses / countStats) * 10.0) / 10.0) : 0.0);
-        target.setAvgPossession(countPossession > 0 ? (Math.round((totalPossession / countPossession) * 10.0) / 10.0) : 0.0);
+        if (countPossession > 0) {
+            target.setAvgPossession(Math.round((totalPossession / countPossession) * 10.0) / 10.0);
+        } else if (target.getAvgPossession() == null || target.getAvgPossession() == 0.0) {
+            target.setAvgPossession(50.0); // Valeur neutre de secours plutôt que 0% (qui casse les algos)
+        }
 
         log.info("✅ FIN CALCUL - Tirs Moyens: {} (sur {} matchs valides), Possession Moyenne: {}% (sur {} matchs valides)",
                 target.getAvgShots(), countStats, target.getAvgPossession(), countPossession);

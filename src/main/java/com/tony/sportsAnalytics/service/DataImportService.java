@@ -160,20 +160,19 @@ public class DataImportService {
 
             teamRepository.findByName(cleanName).ifPresent(team -> {
                 TeamStats stats = team.getCurrentStats();
-
-                // Si pas de stats, on en crée une (Clean Code)
                 if (stats == null) {
                     stats = new TeamStats();
                     team.setCurrentStats(stats);
                 }
 
-                // Injection de l'xG réel observé sur FBRef
                 stats.setXG(metrics.xG());
-                // On peut aussi stocker l'xGA (Expected Goals Against) si tu l'as ajouté à TeamStats
-                 stats.setXGA(metrics.xGA());
+                stats.setXGA(metrics.xGA());
+
+                // NOUVEAU : On injecte la possession globale récupérée sur FBRef
+                stats.setAvgPossession(metrics.possession());
 
                 teamRepository.save(team);
-                log.debug("✅ xG mis à jour pour {}", team.getName());
+                log.debug("✅ Stats avancées (xG, Poss) mises à jour pour {}", team.getName());
             });
         });
     }
