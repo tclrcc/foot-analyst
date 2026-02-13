@@ -9,6 +9,7 @@ import com.tony.sportsAnalytics.repository.MatchAnalysisRepository;
 import com.tony.sportsAnalytics.repository.TeamRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MatchAnalysisService {
 
     private final MatchAnalysisRepository matchAnalysisRepository;
@@ -137,14 +139,20 @@ public class MatchAnalysisService {
         return matchAnalysisRepository.findByHomeTeamIdOrAwayTeamIdOrderByMatchDateDesc(teamId, teamId);
     }
 
-    // --- HELPER : Mapping DTO -> Entity ---
+
     private TeamStats mapToTeamStats(MatchAnalysisRequest.TeamStatsRequest dto) {
-        if (dto == null) return new TeamStats(); // Retourne un objet vide pour éviter le null
+        if (dto == null) {
+            log.warn("⚠️ ALERTE : Le DTO TeamStatsRequest reçu est NULL !");
+            return new TeamStats();
+        }
+
+        log.info("🗺️ MAPPING DTO -> ENTITY : Valeurs reçues -> AvgShots: {}, AvgPossession: {}", dto.getAvgShots(), dto.getAvgPossession());
 
         TeamStats stats = new TeamStats();
         stats.setRank(dto.getRank());
         stats.setPoints(dto.getPoints());
         stats.setXG(dto.getXG());
+        stats.setXGA(dto.getXGA()); // Ajouté
         stats.setGoalsFor(dto.getGoalsFor());
         stats.setGoalsAgainst(dto.getGoalsAgainst());
         stats.setLast5MatchesPoints(dto.getLast5MatchesPoints());
@@ -154,6 +162,17 @@ public class MatchAnalysisService {
         stats.setMatchesPlayedHome(dto.getMatchesPlayedHome());
         stats.setMatchesPlayedAway(dto.getMatchesPlayedAway());
         stats.setVenuePoints(dto.getVenuePoints());
+
+        // --- MAPPING DES NOUVELLES STATS ---
+        stats.setAvgShots(dto.getAvgShots());
+        stats.setAvgShotsOnTarget(dto.getAvgShotsOnTarget());
+        stats.setAvgPossession(dto.getAvgPossession());
+        stats.setAvgCorners(dto.getAvgCorners());
+        stats.setAvgCrosses(dto.getAvgCrosses());
+        stats.setPpda(dto.getPpda());
+        stats.setFieldTilt(dto.getFieldTilt());
+        stats.setDeepEntries(dto.getDeepEntries());
+
         return stats;
     }
 
@@ -175,6 +194,13 @@ public class MatchAnalysisService {
         Team homeTeam = match.getHomeTeam();
         Team awayTeam = match.getAwayTeam();
         LocalDateTime limitDate = match.getMatchDate();
+
+        // --- 🚨 NOUVEAUTÉ CRUCIALE : MISE À JOUR DES STATS EMBARQUÉES ---
+        // Avant de recalculer la prédiction, on force la mise à jour de l'objet TeamStats du match
+        // Cela va remplir les fameuses colonnes "avg_shots", "avg_possession", etc. en base de données !
+        log.info("🔄 Mise à jour des statistiques embarquées pour le match {}", matchId);
+        match.setHomeStats(teamStatsService.getSuggestedStats(homeTeam.getId()));
+        match.setAwayStats(teamStatsService.getSuggestedStats(awayTeam.getId()));
 
         // 1. Récupération des historiques à l'instant T
         List<MatchAnalysis> h2h = matchAnalysisRepository.findH2H(homeTeam, awayTeam, match.getMatchDate());

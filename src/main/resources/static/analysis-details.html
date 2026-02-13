@@ -44,56 +44,48 @@
     </div>
 
     <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-white fw-bold border-bottom pb-3 pt-3">
-            <i class="bi bi-bar-chart-fill text-primary me-2"></i>Comparaison Saison (Moyennes par match)
+        <div class="card-header bg-white fw-bold border-bottom pb-3 pt-3 d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-bar-chart-line-fill text-primary me-2"></i>Face-à-Face (Moyennes de la Saison)</span>
         </div>
         <div class="card-body">
 
             <div class="d-flex justify-content-between mb-4 border-bottom pb-3">
-                <div class="text-center">
-                    <span class="d-block small text-muted text-uppercase fw-bold">Classement</span>
+                <div class="text-center w-25">
+                    <span class="d-block small text-muted text-uppercase fw-bold">Rang</span>
                     <span class="fs-4 fw-bold text-primary" id="uiHomeRank">#--</span>
                 </div>
-                <div class="text-center align-self-center">
-                    <span class="badge bg-light text-dark border">Ligue</span>
+                <div class="text-center align-self-center w-50">
+                    <span class="badge bg-dark text-white border px-3 py-2">Ligue</span>
                 </div>
-                <div class="text-center">
-                    <span class="d-block small text-muted text-uppercase fw-bold">Classement</span>
+                <div class="text-center w-25">
+                    <span class="d-block small text-muted text-uppercase fw-bold">Rang</span>
                     <span class="fs-4 fw-bold text-danger" id="uiAwayRank">#--</span>
                 </div>
             </div>
 
-            <div class="mb-3">
-                <div class="d-flex justify-content-between small fw-bold mb-1">
-                    <span id="uiHomePoss" class="text-primary">--%</span>
-                    <span class="text-muted">Possession Balle</span>
-                    <span id="uiAwayPoss" class="text-danger">--%</span>
+            <h6 class="text-muted text-uppercase small fw-bold mb-3 mt-2">📊 Volume de jeu</h6>
+            <div id="comp-possession"></div>
+            <div id="comp-shots"></div>
+            <div id="comp-sot"></div>
+            <div id="comp-corners"></div>
+
+            <h6 class="text-muted text-uppercase small fw-bold mb-3 mt-4">🧠 Analyse Tactique Avancée</h6>
+
+            <div class="row text-center mb-3">
+                <div class="col-6 border-end">
+                    <div class="small text-muted mb-1">xG Moyen (Création)</div>
+                    <div class="fs-5 fw-bold text-success" id="uiHomeXg">--</div>
+                    <div class="fs-5 fw-bold text-danger" id="uiAwayXg">--</div>
+                </div>
+                <div class="col-6">
+                    <div class="small text-muted mb-1">xGA (Solidité Défensive)</div>
+                    <div class="fs-5 fw-bold text-success" id="uiHomeXga">--</div>
+                    <div class="fs-5 fw-bold text-danger" id="uiAwayXga">--</div>
                 </div>
             </div>
 
-            <div class="mb-3">
-                <div class="d-flex justify-content-between small fw-bold mb-1">
-                    <span id="uiHomeShots" class="text-primary">--</span>
-                    <span class="text-muted">Tirs (Cadrés)</span>
-                    <span id="uiAwayShots" class="text-danger">--</span>
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <div class="d-flex justify-content-between small fw-bold mb-1">
-                    <span id="uiHomeCorners" class="text-primary">--</span>
-                    <span class="text-muted">Corners</span>
-                    <span id="uiAwayCorners" class="text-danger">--</span>
-                </div>
-            </div>
-
-            <div class="mb-2">
-                <div class="d-flex justify-content-between small fw-bold mb-1">
-                    <span id="uiHomeCrosses" class="text-primary">--</span>
-                    <span class="text-muted">Centres Tentés</span>
-                    <span id="uiAwayCrosses" class="text-danger">--</span>
-                </div>
-            </div>
+            <div id="comp-ppda" class="mt-2" title="Passes Allowed Per Defensive Action : Plus c'est bas, plus l'équipe presse haut et agressivement"></div>
+            <div class="text-center small text-muted fst-italic mb-3" style="font-size: 0.7rem;">PPDA : Un score bas indique un pressing agressif (ex: Liverpool = ~9.0)</div>
 
         </div>
     </div>
@@ -223,18 +215,20 @@
             document.getElementById('uiHomeRank').innerText = match.homeStats?.rank ? '#' + match.homeStats.rank : 'N/A';
             document.getElementById('uiAwayRank').innerText = match.awayStats?.rank ? '#' + match.awayStats.rank : 'N/A';
 
-            // Mapping des Moyennes Statistiques (avec une condition par sécurité si null)
-            document.getElementById('uiHomePoss').innerText = (match.homeStats?.avgPossession || 0) + '%';
-            document.getElementById('uiAwayPoss').innerText = (match.awayStats?.avgPossession || 0) + '%';
+            // 2. Génération des barres de comparaison
+            renderComparisonBar('comp-possession', 'Possession', match.homeStats?.avgPossession, match.awayStats?.avgPossession, true);
+            renderComparisonBar('comp-shots', 'Tirs / match', match.homeStats?.avgShots, match.awayStats?.avgShots);
+            renderComparisonBar('comp-sot', 'Tirs Cadrés / match', match.homeStats?.avgShotsOnTarget, match.awayStats?.avgShotsOnTarget);
+            renderComparisonBar('comp-corners', 'Corners / match', match.homeStats?.avgCorners, match.awayStats?.avgCorners);
 
-            document.getElementById('uiHomeShots').innerText = `${match.homeStats?.avgShots || 0} (${match.homeStats?.avgShotsOnTarget || 0})`;
-            document.getElementById('uiAwayShots').innerText = `${match.awayStats?.avgShots || 0} (${match.awayStats?.avgShotsOnTarget || 0})`;
+// 3. Stats Avancées
+            document.getElementById('uiHomeXg').innerText = match.homeStats?.xG || '--';
+            document.getElementById('uiAwayXg').innerText = match.awayStats?.xG || '--';
+            document.getElementById('uiHomeXga').innerText = match.homeStats?.xGA || '--';
+            document.getElementById('uiAwayXga').innerText = match.awayStats?.xGA || '--';
 
-            document.getElementById('uiHomeCorners').innerText = match.homeStats?.avgCorners || 0;
-            document.getElementById('uiAwayCorners').innerText = match.awayStats?.avgCorners || 0;
-
-            document.getElementById('uiHomeCrosses').innerText = match.homeStats?.avgCrosses || 0;
-            document.getElementById('uiAwayCrosses').innerText = match.awayStats?.avgCrosses || 0;
+// PPDA : Inverse logic = true, car un petit PPDA = meilleur pressing
+            renderComparisonBar('comp-ppda', 'Intensité Pressing (PPDA)', match.homeStats?.ppda, match.awayStats?.ppda, false, true);
 
             // Header info
             document.getElementById('matchLeague').innerText = match.homeTeam.league?.name || "Championnat inconnu";
@@ -328,6 +322,40 @@
             console.error(e);
             alert("Impossible de charger l'analyse.");
         }
+    }
+
+    function renderComparisonBar(elementId, label, homeVal, awayVal, isPercentage = false, inverseLogic = false) {
+        const hVal = parseFloat(homeVal) || 0;
+        const aVal = parseFloat(awayVal) || 0;
+        const total = hVal + aVal;
+
+        let hPct = 50, aPct = 50;
+        if(total > 0) {
+            hPct = (hVal / total) * 100;
+            aPct = (aVal / total) * 100;
+        }
+
+        // Gestion de l'affichage (avec ou sans %)
+        let hDisplay = isPercentage ? hVal + '%' : hVal;
+        let aDisplay = isPercentage ? aVal + '%' : aVal;
+
+        // Pour certaines stats (comme le PPDA, un score FAIBLE est meilleur), on peut inverser les couleurs (Optionnel)
+        let homeColor = inverseLogic && hVal > aVal ? "bg-secondary" : "bg-primary";
+        let awayColor = inverseLogic && aVal > hVal ? "bg-secondary" : "bg-danger";
+
+        document.getElementById(elementId).innerHTML = `
+        <div class="mb-3">
+            <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span class="text-primary">${hDisplay}</span>
+                <span class="text-muted text-uppercase" style="font-size:0.75rem;">${label}</span>
+                <span class="text-danger">${aDisplay}</span>
+            </div>
+            <div class="progress shadow-sm" style="height: 10px; border-radius: 5px; background-color:#e9ecef;">
+                <div class="progress-bar ${homeColor}" style="width: ${hPct}%"></div>
+                <div class="progress-bar ${awayColor}" style="width: ${aPct}%"></div>
+            </div>
+        </div>
+    `;
     }
 
     // Gestion du Recalcul

@@ -133,19 +133,22 @@ public class TeamStatsService {
     }
 
     private void calculateSeasonAverages(Long teamId, TeamStats target) {
+        log.info("📊 DÉBUT CALCUL MOYENNES - Equipe ID: {}", teamId);
         List<MatchAnalysis> matches = matchRepository.findByHomeTeamIdOrAwayTeamIdOrderByMatchDateDesc(teamId, teamId);
+        log.info("   -> Matchs trouvés dans l'historique : {}", matches.size());
 
         double totalXG = 0.0, totalShots = 0.0, totalSOT = 0.0, totalPossession = 0.0, totalCorners = 0.0, totalCrosses = 0.0;
         int countXg = 0, countStats = 0, countPossession = 0;
 
         for(MatchAnalysis m : matches) {
             if(!"2025-2026".equals(m.getSeason())) continue;
-            if(m.getHomeScore() == null) continue; // On ignore les matchs futurs non joués
+            if(m.getHomeScore() == null || m.getAwayScore() == null) continue; // On ignore les matchs futurs non joués
 
             boolean isHome = m.getHomeTeam().getId().equals(teamId);
             MatchDetailStats myStats = isHome ? m.getHomeMatchStats() : m.getAwayMatchStats();
 
             if(myStats != null) {
+                log.debug("   -> Match analysé (ID: {}) - Tirs: {}, Poss: {}", m.getId(), myStats.getShots(), myStats.getPossession());
                 // xG
                 if (myStats.getXG() != null) {
                     totalXG += myStats.getXG();
@@ -169,6 +172,8 @@ public class TeamStatsService {
                     totalPossession += myStats.getPossession();
                     countPossession++;
                 }
+            } else {
+                log.warn("   -> ⚠️ AVERTISSEMENT : myStats est NULL pour le match ID: {}", m.getId());
             }
         }
 
@@ -179,6 +184,9 @@ public class TeamStatsService {
         target.setAvgCorners(countStats > 0 ? (Math.round((totalCorners / countStats) * 10.0) / 10.0) : 0.0);
         target.setAvgCrosses(countStats > 0 ? (Math.round((totalCrosses / countStats) * 10.0) / 10.0) : 0.0);
         target.setAvgPossession(countPossession > 0 ? (Math.round((totalPossession / countPossession) * 10.0) / 10.0) : 0.0);
+
+        log.info("✅ FIN CALCUL - Tirs Moyens: {} (sur {} matchs valides), Possession Moyenne: {}% (sur {} matchs valides)",
+                target.getAvgShots(), countStats, target.getAvgPossession(), countPossession);
     }
 
     private void calculateDynamicForm(Long teamId, TeamStats target) {
@@ -188,6 +196,13 @@ public class TeamStatsService {
         int ga5 = 0;
 
         for (MatchAnalysis m : last5) {
+            // --- 🛡️ SÉCURITÉ ANTI NULL-POINTER (AUTO-UNBOXING) ---
+            if (m.getHomeScore() == null || m.getAwayScore() == null) {
+                log.warn("⚠️ Match ID {} ignoré pour la forme : Score manquant (Dom: {}, Ext: {})",
+                        m.getId(), m.getHomeScore(), m.getAwayScore());
+                continue; // On passe au match suivant
+            }
+
             boolean isHome = m.getHomeTeam().getId().equals(teamId);
             gf5 += isHome ? m.getHomeScore() : m.getAwayScore();
             ga5 += isHome ? m.getAwayScore() : m.getHomeScore();

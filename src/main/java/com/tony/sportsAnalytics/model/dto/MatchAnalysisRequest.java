@@ -36,6 +36,8 @@ public class MatchAnalysisRequest {
         private Integer rank;
         private Integer points;
         private Double xG;
+        private Double xGA; // Ajouté
+
         private Integer goalsFor;
         private Integer goalsAgainst;
         private Integer last5MatchesPoints;
@@ -45,6 +47,18 @@ public class MatchAnalysisRequest {
         private Integer matchesPlayedHome;
         private Integer matchesPlayedAway;
         private Integer venuePoints;
+
+        // --- NOUVEAUX CHAMPS MOYENNES ---
+        private Double avgShots;
+        private Double avgShotsOnTarget;
+        private Double avgPossession;
+        private Double avgCorners;
+        private Double avgCrosses;
+
+        // --- STATS AVANCÉES ---
+        private Double ppda;
+        private Double fieldTilt;
+        private Double deepEntries;
     }
 
     @Data
