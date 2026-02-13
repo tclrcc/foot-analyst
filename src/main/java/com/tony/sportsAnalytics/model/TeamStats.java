@@ -41,4 +41,11 @@ public class TeamStats {
     // --- STATS CONTEXTUELLES ---
     private Integer venuePoints;   // Points à Dom/Ext
     private Integer venueMatches;  // MJ à Dom/Ext
+
+    // --- MOYENNES STATISTIQUES (SAISON EN COURS) ---
+    private Double avgShots;           // Tirs par match
+    private Double avgShotsOnTarget;   // Tirs cadrés par match
+    private Double avgPossession;      // Possession moyenne (%)
+    private Double avgCorners;         // Corners obtenus par match
+    private Double avgCrosses;         // Centres tentés par match
 }

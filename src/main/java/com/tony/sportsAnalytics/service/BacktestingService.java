@@ -72,8 +72,6 @@ public class BacktestingService {
         }
 
         if (count > 0) {
-            simulateBettingStrategy(testMatches); // Lance la simulation ROI
-
             log.info("📊 --- RÉSULTATS DU BACKTEST ---");
             log.info("🏟️  Matchs analysés : {}", count);
             log.info("🎯 Brier Score moyen : {}", String.format("%.4f", totalBrierScore / count));
@@ -84,66 +82,6 @@ public class BacktestingService {
             log.warn("Aucun match terminé trouvé sur la période demandée.");
         }
     }
-
-    private void simulateBettingStrategy(List<MatchAnalysis> matches) {
-        double bankroll = 1000.0;
-        double maxDrawdown = 0.0;
-        double currentPeak = 1000.0;
-        int betsPlaced = 0;
-        int betsWon = 0;
-
-        log.info("💰 --- SIMULATION FINANCIÈRE (KELLY) ---");
-
-        for (MatchAnalysis m : matches) {
-            // --- CORRECTION CRITIQUE : Protection contre les matchs sans score (futurs) ---
-            if (m.getHomeScore() == null || m.getAwayScore() == null) continue;
-
-            PredictionResult p = m.getPrediction();
-            if (p == null) continue;
-
-            // On parie uniquement si Kelly > 0 (Value détectée)
-            // Domicile
-            if (p.getKellyStakeHome() != null && p.getKellyStakeHome() > 0) {
-                double stake = (p.getKellyStakeHome() / 100.0) * bankroll;
-                // Sécurité : Limiter la mise max (ex: 5% bankroll)
-                if (stake > bankroll * 0.05) stake = bankroll * 0.05;
-
-                bankroll -= stake;
-                if (m.getHomeScore() > m.getAwayScore()) {
-                    bankroll += stake * m.getOdds1();
-                    betsWon++;
-                }
-                betsPlaced++;
-            }
-            // Extérieur
-            if (p.getKellyStakeAway() != null && p.getKellyStakeAway() > 0) {
-                double stake = (p.getKellyStakeAway() / 100.0) * bankroll;
-                if (stake > bankroll * 0.05) stake = bankroll * 0.05;
-
-                bankroll -= stake;
-                if (m.getAwayScore() > m.getHomeScore()) {
-                    bankroll += stake * m.getOdds2();
-                    betsWon++;
-                }
-                betsPlaced++;
-            }
-
-            // Tracking Drawdown
-            if (bankroll > currentPeak) currentPeak = bankroll;
-            double dd = (currentPeak - bankroll) / currentPeak;
-            if (dd > maxDrawdown) maxDrawdown = dd;
-        }
-
-        double roi = (betsPlaced > 0) ? ((bankroll - 1000.0) / 1000.0) * 100 : 0.0;
-        // Remplacez les lignes existantes par celles-ci (syntaxe SLF4J correcte)
-        log.info("🏁 Bankroll Finale : {}€ (Départ 1000€)", String.format("%.2f", bankroll));
-        log.info("📈 ROI Global : {}%", String.format("%.2f", roi));
-        log.info("📉 Max Drawdown : {}%", String.format("%.2f", maxDrawdown * 100));
-        log.info("🎯 Winrate Value : {}% ({}/{})",
-                String.format("%.2f", (betsPlaced > 0 ? (double)betsWon/betsPlaced*100 : 0.0)),
-                betsWon, betsPlaced);
-    }
-
     /**
      * Analyse et affiche le rapport de calibration par tranches de 10%.
      */

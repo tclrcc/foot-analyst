@@ -57,7 +57,7 @@ public class TeamStatsService {
 
         // 4. Calcul xG Moyen sur la saison (Dynamique)
         // Si l'xG n'est pas dans baseStats (car import CSV sans xG), on le calcule
-        calculateAverageXG(teamId, suggested);
+        calculateSeasonAverages(teamId, suggested);
 
         return suggested;
     }
@@ -126,9 +126,59 @@ public class TeamStatsService {
 
         // Stockage Forme dans un champ transitoire ou détourné (ex: Last5MatchesPoints si tu l'as ajouté)
         // Pour l'instant on ne stocke pas la forme dans TeamStats (entité), mais on la calcule à la volée.
+        calculateSeasonAverages(teamId, stats);
 
         teamRepository.save(team);
         log.info("✅ Stats recalculées pour : {} ({} Pts, {} MJ)", team.getName(), points, played);
+    }
+
+    private void calculateSeasonAverages(Long teamId, TeamStats target) {
+        List<MatchAnalysis> matches = matchRepository.findByHomeTeamIdOrAwayTeamIdOrderByMatchDateDesc(teamId, teamId);
+
+        double totalXG = 0.0, totalShots = 0.0, totalSOT = 0.0, totalPossession = 0.0, totalCorners = 0.0, totalCrosses = 0.0;
+        int countXg = 0, countStats = 0, countPossession = 0;
+
+        for(MatchAnalysis m : matches) {
+            if(!"2025-2026".equals(m.getSeason())) continue;
+            if(m.getHomeScore() == null) continue; // On ignore les matchs futurs non joués
+
+            boolean isHome = m.getHomeTeam().getId().equals(teamId);
+            MatchDetailStats myStats = isHome ? m.getHomeMatchStats() : m.getAwayMatchStats();
+
+            if(myStats != null) {
+                // xG
+                if (myStats.getXG() != null) {
+                    totalXG += myStats.getXG();
+                    countXg++;
+                } else if (myStats.getShots() != null) { // Fallback
+                    totalXG += (myStats.getShots() * 0.10);
+                    countXg++;
+                }
+
+                // Volume de jeu offensif
+                if (myStats.getShots() != null) {
+                    totalShots += myStats.getShots();
+                    if (myStats.getShotsOnTarget() != null) totalSOT += myStats.getShotsOnTarget();
+                    if (myStats.getCorners() != null) totalCorners += myStats.getCorners();
+                    if (myStats.getCrosses() != null) totalCrosses += myStats.getCrosses();
+                    countStats++;
+                }
+
+                // Possession
+                if (myStats.getPossession() != null) {
+                    totalPossession += myStats.getPossession();
+                    countPossession++;
+                }
+            }
+        }
+
+        // Assignation avec arrondi à 1 ou 2 décimales
+        target.setXG(countXg > 0 ? (Math.round((totalXG / countXg) * 100.0) / 100.0) : 1.35);
+        target.setAvgShots(countStats > 0 ? (Math.round((totalShots / countStats) * 10.0) / 10.0) : 0.0);
+        target.setAvgShotsOnTarget(countStats > 0 ? (Math.round((totalSOT / countStats) * 10.0) / 10.0) : 0.0);
+        target.setAvgCorners(countStats > 0 ? (Math.round((totalCorners / countStats) * 10.0) / 10.0) : 0.0);
+        target.setAvgCrosses(countStats > 0 ? (Math.round((totalCrosses / countStats) * 10.0) / 10.0) : 0.0);
+        target.setAvgPossession(countPossession > 0 ? (Math.round((totalPossession / countPossession) * 10.0) / 10.0) : 0.0);
     }
 
     private void calculateDynamicForm(Long teamId, TeamStats target) {
@@ -145,34 +195,5 @@ public class TeamStatsService {
 
         target.setGoalsForLast5(gf5);
         target.setGoalsAgainstLast5(ga5);
-    }
-
-    private void calculateAverageXG(Long teamId, TeamStats target) {
-        List<MatchAnalysis> matches = matchRepository.findByHomeTeamIdOrAwayTeamIdOrderByMatchDateDesc(teamId, teamId);
-
-        double totalXG = 0.0;
-        int count = 0;
-
-        for(MatchAnalysis m : matches) {
-            if(!"2025-2026".equals(m.getSeason())) continue;
-            if(m.getHomeScore() == null) continue; // Match futur
-
-            boolean isHome = m.getHomeTeam().getId().equals(teamId);
-            MatchDetailStats myStats = isHome ? m.getHomeMatchStats() : m.getAwayMatchStats();
-
-            // Si xG dispo
-            if(myStats != null && myStats.getXG() != null) {
-                totalXG += myStats.getXG();
-                count++;
-            }
-            // Fallback : Estimation basique si pas d'xG dans le CSV
-            else if (myStats != null && myStats.getShots() != null) {
-                // Formule "pauvre" : 0.10 par tir (moyenne PL)
-                totalXG += (myStats.getShots() * 0.10);
-                count++;
-            }
-        }
-
-        target.setXG(count > 0 ? (Math.round((totalXG / count) * 100.0) / 100.0) : 1.35); // 1.35 défaut
     }
 }

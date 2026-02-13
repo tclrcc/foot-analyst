@@ -99,7 +99,7 @@ public class PredictionEngineService {
         }
 
         // SIMULATION POISSON/WEIBULL PRO
-        PredictionResult poissonResult = simulateMatchPro(homeLambda, awayLambda, homePerf, awayPerf, rho);
+        PredictionResult poissonResult = simulateMatchPro(homeLambda, awayLambda, rho);
 
         // -----------------------------------------------------------
         // 4. HYBRID FUSION (Stats vs Elo)
@@ -133,28 +133,19 @@ public class PredictionEngineService {
             finalProbDraw = 100.0 - finalProbHome - finalProbAway;
         }
 
-        // -----------------------------------------------------------
-        // 7. GESTION DU RISQUE (KELLY AJUSTÉ)
-        // -----------------------------------------------------------
         // Facteur de confiance basé sur la volatilité du match (Chaos)
         double confidenceFactor = calculateConfidenceFactor(homePerf.volatility(), awayPerf.volatility());
-
-        double kellyHome = calculateAdjustedKelly(finalProbHome / 100.0, match.getOdds1(), confidenceFactor);
-        double kellyDraw = calculateAdjustedKelly(finalProbDraw / 100.0, match.getOddsN(), confidenceFactor);
-        double kellyAway = calculateAdjustedKelly(finalProbAway / 100.0, match.getOdds2(), confidenceFactor);
 
         List<String> insights = insightService.generateKeyFacts(home, away, homeHistory, awayHistory);
         // 1. Génération du Prompt IA
         String aiPrompt = generateAiPrompt(
                 match, home, away, homePerf, awayPerf,
                 finalProbHome, finalProbDraw, finalProbAway,
-                kellyHome, kellyAway,
                 poissonResult,
                 round(confidenceFactor * 100.0)
         );
 
         return PredictionResult.builder()
-                .keyFacts(insights)
                 .homeWinProbability(round(finalProbHome))
                 .drawProbability(round(finalProbDraw))
                 .awayWinProbability(round(finalProbAway))
@@ -162,44 +153,29 @@ public class PredictionEngineService {
                 .predictedHomeGoals(round(homeLambda))
                 .predictedAwayGoals(round(awayLambda))
 
-                // Scores de puissance (Attack Strength + Forme récente)
                 .homePowerScore(round(home.getAttackStrength() * 10 + homePerf.attackRating()))
                 .awayPowerScore(round(away.getAttackStrength() * 10 + awayPerf.attackRating()))
 
-                // Probabilités secondaires issues de la simulation
+                // Marchés Alternatifs
+                .probOver1_5(poissonResult.getProbOver1_5())
+                .probUnder1_5(poissonResult.getProbUnder1_5())
                 .over2_5_Prob(poissonResult.getOver2_5_Prob())
-                .under2_5_Prob(poissonResult.getUnder2_5_Prob()) // Ajouté pour complétude
+                .under2_5_Prob(poissonResult.getUnder2_5_Prob())
+                .probOver3_5(poissonResult.getProbOver3_5())
                 .bttsProb(poissonResult.getBttsProb())
                 .probBTTS_No(poissonResult.getProbBTTS_No())
-                .probUnder1_5(poissonResult.getProbUnder1_5())
-                .probOver3_5(poissonResult.getProbOver3_5())
+
                 .exactScore(poissonResult.getExactScore())
                 .exactScoreProb(poissonResult.getExactScoreProb())
 
-                // Stratégie de mise (Kelly)
-                .kellyStakeHome(kellyHome)
-                .kellyStakeDraw(kellyDraw)
-                .kellyStakeAway(kellyAway)
-                .valueBetDetected(detectValueBet(kellyHome, kellyDraw, kellyAway))
-
-                // Champs scores (simulation)
-                .homeScoreOver0_5(poissonResult.getHomeScoreOver0_5())
-                .homeScoreOver1_5(poissonResult.getHomeScoreOver1_5())
-                .awayScoreOver0_5(poissonResult.getAwayScoreOver0_5())
-                .awayScoreOver1_5(poissonResult.getAwayScoreOver1_5())
-
-                // Doubles chances (calculées sur les probas finales calibrées)
                 .doubleChance1N(round(finalProbHome + finalProbDraw))
                 .doubleChanceN2(round(finalProbDraw + finalProbAway))
                 .doubleChance12(round(finalProbHome + finalProbAway))
 
-                // Mises Kelly secondaires (Exemple, à affiner si besoin)
-                .kellyOver2_5(calculateAdjustedKelly(poissonResult.getOver2_5_Prob()/100.0, match.getOddsOver25(), confidenceFactor))
-                .kellyBTTS(calculateAdjustedKelly(poissonResult.getBttsProb()/100.0, match.getOddsBTTSYes(), confidenceFactor))
                 .aiAnalysisPrompt(aiPrompt)
                 .matchVolatility(round((homePerf.volatility() + awayPerf.volatility()) / 2.0))
                 .confidenceScore(round(confidenceFactor * 100.0))
-
+                .keyFacts(insights)
                 .build();
     }
 
@@ -230,76 +206,48 @@ public class PredictionEngineService {
         return Math.max(0.8, Math.min(1.3, ratio)); // Clamp pour éviter les valeurs extrêmes
     }
 
-    private String generateUserLogs(Team h, Team a, double eloDiff, TeamPerformance hp, TeamPerformance ap, PredictionResult sim, double conf) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("<ul>");
-        sb.append(String.format("<li><strong>Analyse de Forme :</strong> %s est à %.0f%% de potentiel offensif, %s à %.0f%%.</li>",
-                h.getName(), hp.attackRating()*100, a.getName(), ap.attackRating()*100));
-
-        sb.append(String.format("<li><strong>Stabilité du Match :</strong> Indice de confiance calculé à <strong>%.0f%%</strong> (Volatilité: %.2f).</li>",
-                conf*100, (hp.volatility() + ap.volatility())/2));
-
-        if (Math.abs(eloDiff) > 100) {
-            sb.append(String.format("<li><strong>Hiérarchie :</strong> %s est nettement supérieur au classement Elo (%+.0f pts).</li>",
-                    eloDiff > 0 ? h.getName() : a.getName(), eloDiff));
-        }
-
-        if (sim.getBttsProb() > 60) {
-            sb.append("<li><strong>Style de Jeu :</strong> Forte probabilité de buts des deux côtés (Défenses perméables détectées).</li>");
-        }
-        sb.append("</ul>");
-        return sb.toString();
-    }
-
     // Modifiez la signature pour accepter les résultats de simulation (simResult) et la confiance (conf)
     private String generateAiPrompt(MatchAnalysis m, Team h, Team a, TeamPerformance hp, TeamPerformance ap,
-            double p1, double pN, double p2, double k1, double k2,
+            double p1, double pN, double p2,
             PredictionResult simResult, double conf) {
-
-        // On n'utilise PLUS m.getPrediction() (qui est l'ancienne valeur ou null)
-        // On utilise simResult qui contient les stats calculées à l'instant T (xG, BTTS, etc.)
 
         String contextAlerts = "";
         if (m.isAwayNewCoach()) contextAlerts += "- ATTENTION : Choc psychologique potentiel (Nouveau Coach Extérieur)\n";
 
-        return String.format(
-                "Agis comme un expert en paris sportifs et modélisation statistique.\n" +
-                        "Analyse ce match de %s en te basant exclusivement sur les données mathématiques fournies.\n\n" +
-
-                        "--- 1. IDENTITÉ DU MATCH ---\n" +
-                        "MATCH : %s (Dom) vs %s (Ext)\n" +
-                        "DATE : %s\n" +
-                        "ARBITRE : %s\n" +
-                        "%s\n" +
-
-                        "--- 2. PROFILS STATISTIQUES (Saison & Forme) ---\n" +
-                        "FORCES INTRINSÈQUES (Alpha/Beta - Dixon Coles) :\n" +
-                        "- %s : Attaque %.2f / Défense %.2f\n" +
-                        "- %s : Attaque %.2f / Défense %.2f\n\n" +
-
-                        "DYNAMIQUE RÉCENTE (Ratio Performance vs Moyenne Ligue) :\n" +
-                        "- %s : %.2f %s\n" +
-                        "- %s : %.2f %s\n" +
-                        "(Note : > 1.0 = Surperforme, < 0.8 = En difficulté offensive)\n\n" +
-
-                        "--- 3. PRÉDICTIONS DE L'ALGORITHME ---\n" +
-                        "PROBABILITÉS PURES : Home %.1f%% | Draw %.1f%% | Away %.1f%%\n" +
-                        "EXPECTED GOALS : %.2f - %.2f\n" +
-                        "SCORE EXACT LE PLUS PROBABLE : %s\n\n" +
-
-                        "INDICATEURS DE RISQUE :\n" +
-                        "- Volatilité du match : %.2f (0.0=Stable, >1.0=Chaotique)\n" +
-                        "- Confiance du modèle : %.0f%%\n" +
-                        "- BTTS (Les 2 marquent) : %.1f%% | Over 2.5 Buts : %.1f%%\n\n" +
-
-                        "--- 4. ANALYSE DE MARCHÉ (VALUE) ---\n" +
-                        "COTES BOOKMAKER : 1@%.2f | N@%.2f | 2@%.2f\n" +
-                        "CONSEIL DE MISE (Kelly Criterion) : Home %.1f%% | Away %.1f%%\n\n" +
-
-                        "--- TA MISSION ---\n" +
-                        "1. Analyse le rapport de force : Est-ce que la forme récente contredit la puissance intrinsèque des équipes ?\n" +
-                        "2. Évalue la 'Value' : Mon algorithme suggère une mise sur %s. Est-ce cohérent avec les statistiques de buts (xG) ?\n" +
-                        "3. Donne ton verdict final : Suivre, Réduire la mise, ou Passer ?",
+        return String.format("""
+                        Agis comme un expert en paris sportifs et modélisation statistique.
+                        Analyse ce match de %s en te basant exclusivement sur les données mathématiques fournies.
+                        
+                        --- 1. IDENTITÉ DU MATCH ---
+                        MATCH : %s (Dom) vs %s (Ext)
+                        DATE : %s
+                        ARBITRE : %s
+                        %s
+                        --- 2. PROFILS STATISTIQUES (Saison & Forme) ---
+                        FORCES INTRINSÈQUES (Alpha/Beta - Dixon Coles) :
+                        - %s : Attaque %.2f / Défense %.2f
+                        - %s : Attaque %.2f / Défense %.2f
+                        
+                        DYNAMIQUE RÉCENTE (Ratio Performance vs Moyenne Ligue) :
+                        - %s : %.2f %s
+                        - %s : %.2f %s
+                        (Note : > 1.0 = Surperforme, < 0.8 = En difficulté offensive)
+                        
+                        --- 3. PRÉDICTIONS DE L'ALGORITHME ---
+                        PROBABILITÉS PURES : Home %.1f%% | Draw %.1f%% | Away %.1f%%
+                        EXPECTED GOALS : %.2f - %.2f
+                        SCORE EXACT LE PLUS PROBABLE : %s
+                        
+                        INDICATEURS DE RISQUE :
+                        - Volatilité du match : %.2f (0.0=Stable, >1.0=Chaotique)
+                        - Confiance du modèle : %.0f%%
+                        - BTTS (Les 2 marquent) : %.1f%% | Over 2.5 Buts : %.1f%%
+                        
+                        --- 4. ANALYSE DE MARCHÉ (VALUE) ---
+                        COTES BOOKMAKER : 1@%.2f | N@%.2f | 2@%.2f
+                        --- TA MISSION ---
+                        1. Analyse le rapport de force : Est-ce que la forme récente contredit la puissance intrinsèque des équipes ?
+                        3. Donne ton verdict final : Suivre, Réduire la mise, ou Passer ?""",
 
                 h.getLeague().getName(),
                 h.getName(), a.getName(),
@@ -321,9 +269,7 @@ public class PredictionEngineService {
                 conf, // Utilisation de la variable passée en paramètre (plus de null possible)
                 simResult.getBttsProb(), simResult.getOver2_5_Prob(),
 
-                m.getOdds1(), m.getOddsN(), m.getOdds2(),
-                k1, k2,
-                (k1 > 0 ? "le DOMICILE" : (k2 > 0 ? "l'EXTÉRIEUR" : "le NUL"))
+                m.getOdds1(), m.getOddsN(), m.getOdds2()
         );
     }
 
@@ -333,22 +279,6 @@ public class PredictionEngineService {
         return t.getCurrentStats() != null && t.getCurrentStats().getXG() != null;
     }
 
-    /**
-     * KELLY FRACTIONNAIRE AJUSTÉ À LA VOLATILITÉ
-     * Si les équipes sont instables (volatilité élevée), on divise la mise conseillée.
-     * C'est la clé pour préserver la bankroll sur le long terme.
-     */
-    private double calculateAdjustedKelly(double prob, Double odds, double confidenceFactor) {
-        if (odds == null || odds <= 1.0) return 0.0;
-        double b = odds - 1.0;
-        double q = 1.0 - prob;
-        double f = ((b * prob) - q) / b;
-
-        // On réduit la fraction à 0.10 (1/10th Kelly) pour survivre à la variance
-        double stake = f * 0.10 * confidenceFactor;
-        return stake > 0 ? round(stake * 100.0) : 0.0;
-    }
-
     private double calculateConfidenceFactor(double volHome, double volAway) {
         double avgVol = (volHome + volAway) / 2.0;
         // Si volatilité normale (0.5), facteur ~1.0. Si chaos (1.5), facteur ~0.6
@@ -356,64 +286,38 @@ public class PredictionEngineService {
         return Math.max(0.3, 1.0 - (avgVol * 0.4));
     }
 
-    private String detectValueBet(double k1, double kN, double k2) {
-        // On monte le seuil à 5.0 pour être encore plus élitiste sur les sélections
-        if (k1 > 5.0) return "HOME";
-        if (k2 > 5.0) return "AWAY";
-        if (kN > 3.5) return "DRAW";
-        return null;
-    }
-
     /**
      * Simulation Dixon-Coles avec correction "Draw Killer"
      */
-    private PredictionResult simulateMatchPro(double lambdaHome, double lambdaAway,
-            TeamPerformance hPerf, TeamPerformance aPerf, double rho) {
+    private PredictionResult simulateMatchPro(double lambdaHome, double lambdaAway, double rho) {
+
         double probHome = 0.0, probDraw = 0.0, probAway = 0.0;
-        double probOver25 = 0.0, probBTTS = 0.0, probBTTS_No = 0.0;
+        double probOver15 = 0.0, probOver25 = 0.0, probBTTS = 0.0, probBTTS_No = 0.0;
         double probUnder1_5 = 0.0, probUnder2_5 = 0.0, probOver3_5 = 0.0;
-        double probHomeOver05 = 0.0, probHomeOver15 = 0.0;
-        double probAwayOver05 = 0.0, probAwayOver15 = 0.0;
 
         double maxProb = -1.0;
         String exactScore = "0-0";
 
-        // Game Chaos : Moyenne de la volatilité des équipes
-        double gameChaos = (hPerf.volatility() + aPerf.volatility()) / 2.0;
-
         for (int h = 0; h <= 9; h++) {
             for (int a = 0; a <= 9; a++) {
-                // Calcul probabilité score exact avec correction de dépendance (Rho)
+                // L'appel ne nécessite que les lambdas et rho
                 double p = advancedPrediction.calculateProbability(h, a, lambdaHome, lambdaAway, rho);
 
-                // AJUSTEMENT DIAGONAL (Le "Draw Killer")
-                // Les modèles Poisson sous-estiment souvent les 0-0 et 1-1 dans les matchs fermés et peu chaotiques
-                if (h == a && (h + a) <= 2 && gameChaos < 0.4) {
-                    p *= 1.10; // Boost Nul si match très stable
-                }
-
-                // Accumulation
                 if (h > a) probHome += p;
                 else if (h == a) probDraw += p;
                 else probAway += p;
 
                 int totalGoals = h + a;
-                if (totalGoals > 2.5) probOver25 += p;
-                else probUnder2_5 += p; // else implicite
-
-                if (totalGoals < 1.5) probUnder1_5 += p;
+                if (totalGoals > 1.5) probOver15 += p; else probUnder1_5 += p;
+                if (totalGoals > 2.5) probOver25 += p; else probUnder2_5 += p;
                 if (totalGoals > 3.5) probOver3_5 += p;
 
                 if (h > 0 && a > 0) probBTTS += p; else probBTTS_No += p;
-
-                if (h > 0) probHomeOver05 += p; if (h > 1) probHomeOver15 += p;
-                if (a > 0) probAwayOver05 += p; if (a > 1) probAwayOver15 += p;
 
                 if (p > maxProb) { maxProb = p; exactScore = h + "-" + a; }
             }
         }
 
-        // Normalisation (au cas où le Draw Killer ait dépassé 1.0, peu probable mais safe)
         double total = probHome + probDraw + probAway;
         if (total == 0) total = 1.0;
 
@@ -421,16 +325,13 @@ public class PredictionEngineService {
                 .homeWinProbability(round((probHome/total)*100))
                 .drawProbability(round((probDraw/total)*100))
                 .awayWinProbability(round((probAway/total)*100))
+                .probOver1_5(round((probOver15/total)*100))
+                .probUnder1_5(round((probUnder1_5/total)*100))
                 .over2_5_Prob(round((probOver25/total)*100))
                 .under2_5_Prob(round((probUnder2_5/total)*100))
+                .probOver3_5(round((probOver3_5/total)*100))
                 .bttsProb(round((probBTTS/total)*100))
                 .probBTTS_No(round((probBTTS_No/total)*100))
-                .probUnder1_5(round((probUnder1_5/total)*100))
-                .probOver3_5(round((probOver3_5/total)*100))
-                .homeScoreOver0_5(round((probHomeOver05/total)*100))
-                .homeScoreOver1_5(round((probHomeOver15/total)*100))
-                .awayScoreOver0_5(round((probAwayOver05/total)*100))
-                .awayScoreOver1_5(round((probAwayOver15/total)*100))
                 .exactScore(exactScore)
                 .exactScoreProb(round((maxProb/total)*100))
                 .build();

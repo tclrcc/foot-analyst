@@ -46,7 +46,12 @@ public class MatchAnalysis {
             @AttributeOverride(name = "goalsForLast5", column = @Column(name = "home_goals_for_l5")),
             @AttributeOverride(name = "goalsAgainstLast5", column = @Column(name = "home_goals_against_l5")),
             @AttributeOverride(name = "venuePoints", column = @Column(name = "home_venue_points")),
-            @AttributeOverride(name = "venueMatches", column = @Column(name = "home_venue_matches"))
+            @AttributeOverride(name = "venueMatches", column = @Column(name = "home_venue_matches")),
+            @AttributeOverride(name = "avgShots", column = @Column(name = "home_avg_shots")),
+            @AttributeOverride(name = "avgShotsOnTarget", column = @Column(name = "home_avg_sot")),
+            @AttributeOverride(name = "avgPossession", column = @Column(name = "home_avg_possession")),
+            @AttributeOverride(name = "avgCorners", column = @Column(name = "home_avg_corners")),
+            @AttributeOverride(name = "avgCrosses", column = @Column(name = "home_avg_crosses"))
     })
     @Valid
     private TeamStats homeStats;
@@ -69,7 +74,12 @@ public class MatchAnalysis {
             @AttributeOverride(name = "goalsForLast5", column = @Column(name = "away_goals_for_l5")),
             @AttributeOverride(name = "goalsAgainstLast5", column = @Column(name = "away_goals_against_l5")),
             @AttributeOverride(name = "venuePoints", column = @Column(name = "away_venue_points")),
-            @AttributeOverride(name = "venueMatches", column = @Column(name = "away_venue_matches"))
+            @AttributeOverride(name = "venueMatches", column = @Column(name = "away_venue_matches")),
+            @AttributeOverride(name = "avgShots", column = @Column(name = "away_avg_shots")),
+            @AttributeOverride(name = "avgShotsOnTarget", column = @Column(name = "away_avg_sot")),
+            @AttributeOverride(name = "avgPossession", column = @Column(name = "away_avg_possession")),
+            @AttributeOverride(name = "avgCorners", column = @Column(name = "away_avg_corners")),
+            @AttributeOverride(name = "avgCrosses", column = @Column(name = "away_avg_crosses"))
     })
     @Valid
     private TeamStats awayStats;

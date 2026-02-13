@@ -43,6 +43,61 @@
         </div>
     </div>
 
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white fw-bold border-bottom pb-3 pt-3">
+            <i class="bi bi-bar-chart-fill text-primary me-2"></i>Comparaison Saison (Moyennes par match)
+        </div>
+        <div class="card-body">
+
+            <div class="d-flex justify-content-between mb-4 border-bottom pb-3">
+                <div class="text-center">
+                    <span class="d-block small text-muted text-uppercase fw-bold">Classement</span>
+                    <span class="fs-4 fw-bold text-primary" id="uiHomeRank">#--</span>
+                </div>
+                <div class="text-center align-self-center">
+                    <span class="badge bg-light text-dark border">Ligue</span>
+                </div>
+                <div class="text-center">
+                    <span class="d-block small text-muted text-uppercase fw-bold">Classement</span>
+                    <span class="fs-4 fw-bold text-danger" id="uiAwayRank">#--</span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="d-flex justify-content-between small fw-bold mb-1">
+                    <span id="uiHomePoss" class="text-primary">--%</span>
+                    <span class="text-muted">Possession Balle</span>
+                    <span id="uiAwayPoss" class="text-danger">--%</span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="d-flex justify-content-between small fw-bold mb-1">
+                    <span id="uiHomeShots" class="text-primary">--</span>
+                    <span class="text-muted">Tirs (Cadrés)</span>
+                    <span id="uiAwayShots" class="text-danger">--</span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="d-flex justify-content-between small fw-bold mb-1">
+                    <span id="uiHomeCorners" class="text-primary">--</span>
+                    <span class="text-muted">Corners</span>
+                    <span id="uiAwayCorners" class="text-danger">--</span>
+                </div>
+            </div>
+
+            <div class="mb-2">
+                <div class="d-flex justify-content-between small fw-bold mb-1">
+                    <span id="uiHomeCrosses" class="text-primary">--</span>
+                    <span class="text-muted">Centres Tentés</span>
+                    <span id="uiAwayCrosses" class="text-danger">--</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="card shadow-sm border-0 mb-4">
@@ -108,37 +163,43 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card shadow-sm border-0 mb-4" id="valueBetCard" style="display:none;">
-                <div class="card-body bg-value-bet rounded text-center text-white">
-                    <h1 class="display-4"><i class="bi bi-stars"></i></h1>
-                    <h4 class="fw-bold">VALUE BET DÉTECTÉE</h4>
-                    <p class="mb-0 fs-5">Misez sur <span id="valueBetTeam" class="fw-bold text-warning">--</span></p>
-                </div>
-            </div>
-
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white fw-bold">
-                    <i class="bi bi-wallet2 text-success me-2"></i>Gestion de Bankroll (Kelly)
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white fw-bold border-bottom pb-3 pt-3">
+                    <i class="bi bi-graph-up-arrow text-primary me-2"></i>Marchés des Buts
                 </div>
                 <div class="card-body">
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>Mise Domicile (1)</span>
-                            <span class="badge bg-primary rounded-pill" id="kellyHome">0%</span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>Mise Nul (N)</span>
-                            <span class="badge bg-secondary rounded-pill" id="kellyDraw">0%</span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>Mise Extérieur (2)</span>
-                            <span class="badge bg-danger rounded-pill" id="kellyAway">0%</span>
-                        </li>
-                    </ul>
-                    <div class="alert alert-info mt-3 small mb-0">
-                        <i class="bi bi-info-circle me-1"></i>
-                        Le critère de Kelly est déjà ajusté selon la volatilité du match. Ne dépassez jamais ces montants.
+
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between small fw-bold mb-1">
+                            <span>Les 2 équipes marquent (BTTS)</span>
+                            <span id="uiBtts" class="text-primary">--%</span>
+                        </div>
+                        <div class="progress" style="height: 10px; border-radius: 5px;">
+                            <div id="barBtts" class="progress-bar bg-primary" style="width: 0%"></div>
+                        </div>
+                        <div class="small text-muted mt-1 text-end">Non: <span id="uiBttsNo">--</span>%</div>
                     </div>
+
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between small fw-bold mb-1">
+                            <span>Plus de 1.5 Buts (+1.5)</span>
+                            <span id="uiOver15" class="text-success">--%</span>
+                        </div>
+                        <div class="progress" style="height: 10px; border-radius: 5px;">
+                            <div id="barOver15" class="progress-bar bg-success" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between small fw-bold mb-1">
+                            <span>Plus de 2.5 Buts (+2.5)</span>
+                            <span id="uiOver25" class="text-warning">--%</span>
+                        </div>
+                        <div class="progress" style="height: 10px; border-radius: 5px;">
+                            <div id="barOver25" class="progress-bar bg-warning" style="width: 0%"></div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -157,6 +218,23 @@
             if (!res.ok) throw new Error("Erreur chargement");
             const match = await res.json();
             const pred = match.prediction;
+
+            // Mapping des classements
+            document.getElementById('uiHomeRank').innerText = match.homeStats?.rank ? '#' + match.homeStats.rank : 'N/A';
+            document.getElementById('uiAwayRank').innerText = match.awayStats?.rank ? '#' + match.awayStats.rank : 'N/A';
+
+            // Mapping des Moyennes Statistiques (avec une condition par sécurité si null)
+            document.getElementById('uiHomePoss').innerText = (match.homeStats?.avgPossession || 0) + '%';
+            document.getElementById('uiAwayPoss').innerText = (match.awayStats?.avgPossession || 0) + '%';
+
+            document.getElementById('uiHomeShots').innerText = `${match.homeStats?.avgShots || 0} (${match.homeStats?.avgShotsOnTarget || 0})`;
+            document.getElementById('uiAwayShots').innerText = `${match.awayStats?.avgShots || 0} (${match.awayStats?.avgShotsOnTarget || 0})`;
+
+            document.getElementById('uiHomeCorners').innerText = match.homeStats?.avgCorners || 0;
+            document.getElementById('uiAwayCorners').innerText = match.awayStats?.avgCorners || 0;
+
+            document.getElementById('uiHomeCrosses').innerText = match.homeStats?.avgCrosses || 0;
+            document.getElementById('uiAwayCrosses').innerText = match.awayStats?.avgCrosses || 0;
 
             // Header info
             document.getElementById('matchLeague').innerText = match.homeTeam.league?.name || "Championnat inconnu";
@@ -224,10 +302,16 @@
                     document.getElementById('aiPromptText').value = pred.aiAnalysisPrompt;
                 }
 
-                // Kelly Stakes
-                document.getElementById('kellyHome').innerText = pred.kellyStakeHome + '%';
-                document.getElementById('kellyDraw').innerText = pred.kellyStakeDraw + '%';
-                document.getElementById('kellyAway').innerText = pred.kellyStakeAway + '%';
+                // Marchés Alternatifs UI
+                document.getElementById('uiBtts').innerText = pred.bttsProb + '%';
+                document.getElementById('barBtts').style.width = pred.bttsProb + '%';
+                document.getElementById('uiBttsNo').innerText = pred.probBTTS_No;
+
+                document.getElementById('uiOver15').innerText = pred.probOver1_5 + '%';
+                document.getElementById('barOver15').style.width = pred.probOver1_5 + '%';
+
+                document.getElementById('uiOver25').innerText = pred.over2_5_Prob + '%';
+                document.getElementById('barOver25').style.width = pred.over2_5_Prob + '%';
 
                 // Value Bet Display
                 if (pred.valueBetDetected) {
