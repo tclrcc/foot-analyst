@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -71,66 +70,104 @@ public class TeamStatsService {
     public void recalculateTeamStats(Long teamId) {
         Team team = teamRepository.findById(teamId).orElseThrow();
 
-        // On récupère tous les matchs JOUÉS (avec score) de la saison
+        // Récupération de tous les matchs (joués et futurs) triés par date décroissante
         List<MatchAnalysis> matches = matchRepository.findByHomeTeamIdOrAwayTeamIdOrderByMatchDateDesc(teamId, teamId);
 
-        int played = 0;
-        int points = 0;
-        int gf = 0;
-        int ga = 0;
+        // Initialisation d'un nouvel objet stats pour repartir de zéro (évite les résidus d'anciens calculs)
+        TeamStats s = new TeamStats();
+        initializeStats(s); // Méthode utilitaire pour mettre tous les compteurs à 0
 
-        // Variables pour la forme (5 derniers)
+        int matchCountForForm = 0;
         int formPoints = 0;
-        int matchCount = 0;
 
         for (MatchAnalysis m : matches) {
-            // Ignorer les matchs futurs (sans score)
+            // 1. Filtre de sécurité : on ne traite que les matchs de la saison actuelle avec un score
             if (m.getHomeScore() == null || m.getAwayScore() == null) continue;
-
-            // Filtre Saison (Optionnel, ici on prend tout, à affiner si besoin)
             if (!"2025-2026".equals(m.getSeason())) continue;
 
-            played++;
             boolean isHome = m.getHomeTeam().getId().equals(teamId);
-
             int myScore = isHome ? m.getHomeScore() : m.getAwayScore();
             int oppScore = isHome ? m.getAwayScore() : m.getHomeScore();
 
-            gf += myScore;
-            ga += oppScore;
+            // --- STATS GLOBALES ---
+            s.setMatchesPlayed(s.getMatchesPlayed() + 1);
+            s.setGoalsFor(s.getGoalsFor() + myScore);
+            s.setGoalsAgainst(s.getGoalsAgainst() + oppScore);
 
-            if (myScore > oppScore) points += 3;
-            else if (myScore == oppScore) points += 1;
-
-            // Calcul Forme (5 derniers matchs)
-            if (matchCount < 5) {
-                if (myScore > oppScore) formPoints += 3;
-                else if (myScore == oppScore) formPoints += 1;
-                matchCount++;
+            // --- STATS PAR LIEU (DOMICILE / EXTÉRIEUR) ---
+            if (isHome) {
+                s.setMatchesPlayedHome(s.getMatchesPlayedHome() + 1);
+                s.setGoalsForHome(s.getGoalsForHome() + myScore);
+                s.setGoalsAgainstHome(s.getGoalsAgainstHome() + oppScore);
+            } else {
+                s.setMatchesPlayedAway(s.getMatchesPlayedAway() + 1);
+                s.setGoalsForAway(s.getGoalsForAway() + myScore);
+                s.setGoalsAgainstAway(s.getGoalsAgainstAway() + oppScore);
             }
+
+            // --- LOGIQUE DES POINTS ET RÉSULTATS (V/N/D) ---
+            if (myScore > oppScore) { // Victoire
+                s.setWins(s.getWins() + 1);
+                s.setPoints(s.getPoints() + 3);
+                if (isHome) {
+                    s.setWinsHome(s.getWinsHome() + 1);
+                    s.setPointsHome(s.getPointsHome() + 3);
+                } else {
+                    s.setWinsAway(s.getWinsAway() + 1);
+                    s.setPointsAway(s.getPointsAway() + 3);
+                }
+                if (matchCountForForm < 5) formPoints += 3;
+            }
+            else if (myScore == oppScore) { // Nul
+                s.setDraws(s.getDraws() + 1);
+                s.setPoints(s.getPoints() + 1);
+                if (isHome) {
+                    s.setDrawsHome(s.getDrawsHome() + 1);
+                    s.setPointsHome(s.getPointsHome() + 1);
+                } else {
+                    s.setDrawsAway(s.getDrawsAway() + 1);
+                    s.setPointsAway(s.getPointsAway() + 1);
+                }
+                if (matchCountForForm < 5) formPoints += 1;
+            }
+            else { // Défaite
+                s.setLosses(s.getLosses() + 1);
+                if (isHome) s.setLossesHome(s.getLossesHome() + 1);
+                else s.setLossesAway(s.getLossesAway() + 1);
+            }
+
+            if (matchCountForForm < 5) matchCountForForm++;
         }
 
-        // Mise à jour ou Création
-        TeamStats stats = team.getCurrentStats();
-        if (stats == null) {
-            stats = new TeamStats();
-            team.setCurrentStats(stats); // On lie les deux
-        }
+        // Mise à jour des points de forme (5 derniers matchs)
+        s.setLast5MatchesPoints(formPoints);
 
-        stats.setMatchesPlayed(played);
-        stats.setPoints(points);
-        stats.setGoalsFor(gf);
-        stats.setGoalsAgainst(ga);
-        // Note: Le "Rank" est dur à calculer sans connaitre les autres équipes.
-        // On le laisse tel quel ou on met 0.
-        // stats.setRank(...);
+        // Calcul des moyennes (xG, possession, corners, etc.)
+        calculateSeasonAverages(teamId, s);
 
-        // Stockage Forme dans un champ transitoire ou détourné (ex: Last5MatchesPoints si tu l'as ajouté)
-        // Pour l'instant on ne stocke pas la forme dans TeamStats (entité), mais on la calcule à la volée.
-        calculateSeasonAverages(teamId, stats);
+        // Calcul de la forme offensive/défensive (buts sur les 5 derniers)
+        calculateDynamicForm(teamId, s);
 
+        // Sauvegarde finale
+        team.setCurrentStats(s);
         teamRepository.save(team);
-        log.info("✅ Stats recalculées pour : {} ({} Pts, {} MJ)", team.getName(), points, played);
+
+        log.info("✅ Stats complètes recalculées pour : {} ({} Pts, {} V - {} N - {} D)",
+                team.getName(), s.getPoints(), s.getWins(), s.getDraws(), s.getLosses());
+    }
+
+    /**
+     * Initialise tous les compteurs à zéro pour éviter les NullPointerException
+     * et garantir la précision des calculs.
+     */
+    private void initializeStats(TeamStats s) {
+        s.setPoints(0); s.setMatchesPlayed(0); s.setWins(0); s.setDraws(0); s.setLosses(0);
+        s.setGoalsFor(0); s.setGoalsAgainst(0);
+        s.setPointsHome(0); s.setMatchesPlayedHome(0); s.setWinsHome(0); s.setDrawsHome(0); s.setLossesHome(0);
+        s.setGoalsForHome(0); s.setGoalsAgainstHome(0);
+        s.setPointsAway(0); s.setMatchesPlayedAway(0); s.setWinsAway(0); s.setDrawsAway(0); s.setLossesAway(0);
+        s.setGoalsForAway(0); s.setGoalsAgainstAway(0);
+        s.setLast5MatchesPoints(0);
     }
 
     private void calculateSeasonAverages(Long teamId, TeamStats target) {
@@ -192,54 +229,6 @@ public class TeamStatsService {
 
         log.info("✅ FIN CALCUL - Tirs Moyens: {} (sur {} matchs valides), Possession Moyenne: {}% (sur {} matchs valides)",
                 target.getAvgShots(), countStats, target.getAvgPossession(), countPossession);
-    }
-
-    @Transactional
-    public void updateLeagueRankings(Long leagueId) {
-        List<Team> allTeams = teamRepository.findByLeagueId(leagueId);
-
-        // FILTRAGE : On ne garde que les équipes qui ont réellement joué cette saison
-        List<Team> activeTeams = allTeams.stream()
-                .filter(t -> t.getCurrentStats() != null &&
-                        t.getCurrentStats().getMatchesPlayed() != null &&
-                        t.getCurrentStats().getMatchesPlayed() > 0)
-                .collect(Collectors.toList());
-
-        if (activeTeams.isEmpty()) return;
-
-        // TRI : (Ta logique actuelle est très bonne, on la garde sur les activeTeams)
-        activeTeams.sort((t1, t2) -> {
-            var stats1 = t1.getCurrentStats();
-            var stats2 = t2.getCurrentStats();
-
-            int pts1 = stats1.getPoints() != null ? stats1.getPoints() : 0;
-            int pts2 = stats2.getPoints() != null ? stats2.getPoints() : 0;
-
-            if (pts1 != pts2) return Integer.compare(pts2, pts1);
-
-            int gd1 = (stats1.getGoalsFor() != null ? stats1.getGoalsFor() : 0) - (stats1.getGoalsAgainst() != null ? stats1.getGoalsAgainst() : 0);
-            int gd2 = (stats2.getGoalsFor() != null ? stats2.getGoalsFor() : 0) - (stats2.getGoalsAgainst() != null ? stats2.getGoalsAgainst() : 0);
-
-            if (gd1 != gd2) return Integer.compare(gd2, gd1);
-
-            return Integer.compare(stats2.getGoalsFor(), stats1.getGoalsFor());
-        });
-
-        // ATTRIBUTION DES RANGS
-        int rank = 1;
-        for (Team team : activeTeams) {
-            team.getCurrentStats().setRank(rank++);
-        }
-
-        // RESET DES ANCIENNES ÉQUIPES : Les équipes qui n'ont pas joué n'ont plus de rang
-        allTeams.stream()
-                .filter(t -> !activeTeams.contains(t))
-                .forEach(t -> {
-                    if(t.getCurrentStats() != null) t.getCurrentStats().setRank(null);
-                });
-
-        teamRepository.saveAll(allTeams);
-        log.info("🏆 Classement 2025-2026 mis à jour pour {} équipes actives", activeTeams.size());
     }
 
     private void calculateDynamicForm(Long teamId, TeamStats target) {

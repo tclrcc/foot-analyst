@@ -13,15 +13,38 @@ import lombok.NoArgsConstructor;
 public class TeamStats {
 
     private Integer rank;
+    private Integer rankHome;
+    private Integer rankAway;
+
     private Integer points;
+    private Integer pointsHome;
+    private Integer pointsAway;
+
+    // Stats Globales
+    private Integer wins = 0;   // V
+    private Integer draws = 0;  // N
+    private Integer losses = 0; // D
+    private Integer goalsFor = 0;
+    private Integer goalsAgainst = 0;
+
+    // Stats Domicile
+    private Integer winsHome = 0;
+    private Integer drawsHome = 0;
+    private Integer lossesHome = 0;
+    private Integer goalsForHome = 0;
+    private Integer goalsAgainstHome = 0;
+
+    // Stats Extérieur
+    private Integer winsAway = 0;
+    private Integer drawsAway = 0;
+    private Integer lossesAway = 0;
+    private Integer goalsForAway = 0;
+    private Integer goalsAgainstAway = 0;
 
     // --- STATS GLOBALES (SAISON) ---
     private Integer matchesPlayed;
     private Integer matchesPlayedHome;
     private Integer matchesPlayedAway;
-
-    private Integer goalsFor;
-    private Integer goalsAgainst;
 
     // --- STATS FORME (5 DERNIERS MATCHS) - ESSENTIEL POUR POINT 4 ---
     private Integer last5MatchesPoints; // Ex: 13 (V-V-N-V-V)

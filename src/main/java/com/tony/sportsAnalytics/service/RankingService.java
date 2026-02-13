@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,57 +23,47 @@ public class RankingService {
      */
     @Transactional
     public void updateLeagueRankings(Long leagueId) {
-        // 1. Récupérer toutes les équipes de la ligue
-        List<Team> teams = teamRepository.findByLeagueId(leagueId);
+        List<Team> teams = teamRepository.findByLeagueId(leagueId)
+                .stream().filter(t -> t.getCurrentStats() != null && t.getCurrentStats().getMatchesPlayed() > 0)
+                .collect(Collectors.toList());
 
         if (teams.isEmpty()) return;
 
-        // 2. Trier selon les règles standards du football :
-        // Points (Desc) -> Différence de buts (Desc) -> Buts marqués (Desc)
-        teams.sort((t1, t2) -> {
-            var stats1 = t1.getCurrentStats();
-            var stats2 = t2.getCurrentStats();
+        // 1. Classement Général
+        sortTeams(teams, "GENERAL");
+        for (int i = 0; i < teams.size(); i++) teams.get(i).getCurrentStats().setRank(i + 1);
 
-            // Sécurité anti-NullPointer
-            if (stats1 == null && stats2 == null) return 0;
-            if (stats1 == null) return 1; // Les équipes sans stats finissent en bas
-            if (stats2 == null) return -1;
+        // 2. Classement Domicile
+        sortTeams(teams, "HOME");
+        for (int i = 0; i < teams.size(); i++) teams.get(i).getCurrentStats().setRankHome(i + 1);
 
-            int pts1 = stats1.getPoints() != null ? stats1.getPoints() : 0;
-            int pts2 = stats2.getPoints() != null ? stats2.getPoints() : 0;
+        // 3. Classement Extérieur
+        sortTeams(teams, "AWAY");
+        for (int i = 0; i < teams.size(); i++) teams.get(i).getCurrentStats().setRankAway(i + 1);
 
-            // Critère 1 : Points
-            if (pts1 != pts2) {
-                return Integer.compare(pts2, pts1); // Ordre décroissant
-            }
-
-            // Critère 2 : Différence de buts (Goal Difference)
-            int gd1 = (stats1.getGoalsFor() != null ? stats1.getGoalsFor() : 0)
-                    - (stats1.getGoalsAgainst() != null ? stats1.getGoalsAgainst() : 0);
-            int gd2 = (stats2.getGoalsFor() != null ? stats2.getGoalsFor() : 0)
-                    - (stats2.getGoalsAgainst() != null ? stats2.getGoalsAgainst() : 0);
-
-            if (gd1 != gd2) {
-                return Integer.compare(gd2, gd1); // Ordre décroissant
-            }
-
-            // Critère 3 : Buts marqués (Goals For)
-            int gf1 = stats1.getGoalsFor() != null ? stats1.getGoalsFor() : 0;
-            int gf2 = stats2.getGoalsFor() != null ? stats2.getGoalsFor() : 0;
-
-            return Integer.compare(gf2, gf1); // Ordre décroissant
-        });
-
-        // 3. Assigner le rang officiel
-        int rank = 1;
-        for (Team team : teams) {
-            if (team.getCurrentStats() != null) {
-                team.getCurrentStats().setRank(rank++);
-            }
-        }
-
-        // 4. Sauvegarder en lot (très performant via Hibernate batching)
         teamRepository.saveAll(teams);
-        log.info("🏆 Classement généré et mis à jour pour la ligue ID {}", leagueId);
+    }
+
+    private void sortTeams(List<Team> teams, String type) {
+        teams.sort((t1, t2) -> {
+            var s1 = t1.getCurrentStats();
+            var s2 = t2.getCurrentStats();
+
+            int p1 = type.equals("HOME") ? s1.getPointsHome() : (type.equals("AWAY") ? s1.getPointsAway() : s1.getPoints());
+            int p2 = type.equals("HOME") ? s2.getPointsHome() : (type.equals("AWAY") ? s2.getPointsAway() : s2.getPoints());
+
+            if (p1 != p2) return Integer.compare(p2, p1);
+
+            int gf1 = type.equals("HOME") ? s1.getGoalsForHome() : (type.equals("AWAY") ? s1.getGoalsForAway() : s1.getGoalsFor());
+            int ga1 = type.equals("HOME") ? s1.getGoalsAgainstHome() : (type.equals("AWAY") ? s1.getGoalsAgainstAway() : s1.getGoalsAgainst());
+            int gf2 = type.equals("HOME") ? s2.getGoalsForHome() : (type.equals("AWAY") ? s2.getGoalsForAway() : s2.getGoalsFor());
+            int ga2 = type.equals("HOME") ? s2.getGoalsAgainstHome() : (type.equals("AWAY") ? s2.getGoalsAgainstAway() : s2.getGoalsAgainst());
+
+            int gd1 = gf1 - ga1;
+            int gd2 = gf2 - ga2;
+
+            if (gd1 != gd2) return Integer.compare(gd2, gd1);
+            return Integer.compare(gf2, gf1);
+        });
     }
 }

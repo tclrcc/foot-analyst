@@ -31,17 +31,34 @@ public class MatchAnalysis {
     @Embedded
     @AttributeOverrides({
             @AttributeOverride(name = "rank", column = @Column(name = "home_rank")),
+            @AttributeOverride(name = "rankHome", column = @Column(name = "home_rank_home")), // Ajout
+            @AttributeOverride(name = "rankAway", column = @Column(name = "home_rank_away")), // Ajout
             @AttributeOverride(name = "points", column = @Column(name = "home_points")),
+            @AttributeOverride(name = "pointsHome", column = @Column(name = "home_points_home")), // Ajout
+            @AttributeOverride(name = "pointsAway", column = @Column(name = "home_points_away")), // Ajout
             @AttributeOverride(name = "matchesPlayed", column = @Column(name = "home_mj_total")),
             @AttributeOverride(name = "matchesPlayedHome", column = @Column(name = "home_mj_home")),
             @AttributeOverride(name = "matchesPlayedAway", column = @Column(name = "home_mj_away")),
+            @AttributeOverride(name = "wins", column = @Column(name = "home_wins")), // Ajout
+            @AttributeOverride(name = "draws", column = @Column(name = "home_draws")), // Ajout
+            @AttributeOverride(name = "losses", column = @Column(name = "home_losses")), // Ajout
+            @AttributeOverride(name = "winsHome", column = @Column(name = "home_wins_home")), // Ajout
+            @AttributeOverride(name = "drawsHome", column = @Column(name = "home_draws_home")), // Ajout
+            @AttributeOverride(name = "lossesHome", column = @Column(name = "home_losses_home")), // Ajout
+            @AttributeOverride(name = "goalsForHome", column = @Column(name = "home_goals_for_home")), // Ajout
+            @AttributeOverride(name = "goalsAgainstHome", column = @Column(name = "home_goals_against_home")), // Ajout
+            @AttributeOverride(name = "winsAway", column = @Column(name = "home_wins_away")), // Ajout
+            @AttributeOverride(name = "drawsAway", column = @Column(name = "home_draws_away")), // Ajout
+            @AttributeOverride(name = "lossesAway", column = @Column(name = "home_losses_away")), // Ajout
+            @AttributeOverride(name = "goalsForAway", column = @Column(name = "home_goals_for_away")), // Ajout
+            @AttributeOverride(name = "goalsAgainstAway", column = @Column(name = "home_goals_against_away")), // Ajout
             @AttributeOverride(name = "goalsFor", column = @Column(name = "home_goals_for")),
             @AttributeOverride(name = "goalsAgainst", column = @Column(name = "home_goals_against")),
             @AttributeOverride(name = "xG", column = @Column(name = "home_xg")),
-            @AttributeOverride(name = "xGA", column = @Column(name = "home_xga")), // Ajout
-            @AttributeOverride(name = "ppda", column = @Column(name = "home_ppda")), // Ajout
-            @AttributeOverride(name = "fieldTilt", column = @Column(name = "home_field_tilt")), // Ajout
-            @AttributeOverride(name = "deepEntries", column = @Column(name = "home_deep_entries")), // Ajout
+            @AttributeOverride(name = "xGA", column = @Column(name = "home_xga")),
+            @AttributeOverride(name = "ppda", column = @Column(name = "home_ppda")),
+            @AttributeOverride(name = "fieldTilt", column = @Column(name = "home_field_tilt")),
+            @AttributeOverride(name = "deepEntries", column = @Column(name = "home_deep_entries")),
             @AttributeOverride(name = "last5MatchesPoints", column = @Column(name = "home_form_l5")),
             @AttributeOverride(name = "goalsForLast5", column = @Column(name = "home_goals_for_l5")),
             @AttributeOverride(name = "goalsAgainstLast5", column = @Column(name = "home_goals_against_l5")),
@@ -59,17 +76,34 @@ public class MatchAnalysis {
     @Embedded
     @AttributeOverrides({
             @AttributeOverride(name = "rank", column = @Column(name = "away_rank")),
+            @AttributeOverride(name = "rankHome", column = @Column(name = "away_rank_home")), // Ajout
+            @AttributeOverride(name = "rankAway", column = @Column(name = "away_rank_away")), // Ajout
             @AttributeOverride(name = "points", column = @Column(name = "away_points")),
+            @AttributeOverride(name = "pointsHome", column = @Column(name = "away_points_home")), // Ajout
+            @AttributeOverride(name = "pointsAway", column = @Column(name = "away_points_away")), // Ajout
             @AttributeOverride(name = "matchesPlayed", column = @Column(name = "away_mj_total")),
             @AttributeOverride(name = "matchesPlayedHome", column = @Column(name = "away_mj_home")),
             @AttributeOverride(name = "matchesPlayedAway", column = @Column(name = "away_mj_away")),
+            @AttributeOverride(name = "wins", column = @Column(name = "away_wins")), // Ajout
+            @AttributeOverride(name = "draws", column = @Column(name = "away_draws")), // Ajout
+            @AttributeOverride(name = "losses", column = @Column(name = "away_losses")), // Ajout
+            @AttributeOverride(name = "winsHome", column = @Column(name = "away_wins_home")), // Ajout
+            @AttributeOverride(name = "drawsHome", column = @Column(name = "away_draws_home")), // Ajout
+            @AttributeOverride(name = "lossesHome", column = @Column(name = "away_losses_home")), // Ajout
+            @AttributeOverride(name = "goalsForHome", column = @Column(name = "away_goals_for_home")), // Ajout
+            @AttributeOverride(name = "goalsAgainstHome", column = @Column(name = "away_goals_against_home")), // Ajout
+            @AttributeOverride(name = "winsAway", column = @Column(name = "away_wins_away")), // Ajout
+            @AttributeOverride(name = "drawsAway", column = @Column(name = "away_draws_away")), // Ajout
+            @AttributeOverride(name = "lossesAway", column = @Column(name = "away_losses_away")), // Ajout
+            @AttributeOverride(name = "goalsForAway", column = @Column(name = "away_goals_for_away")), // Ajout
+            @AttributeOverride(name = "goalsAgainstAway", column = @Column(name = "away_goals_against_away")), // Ajout
             @AttributeOverride(name = "goalsFor", column = @Column(name = "away_goals_for")),
             @AttributeOverride(name = "goalsAgainst", column = @Column(name = "away_goals_against")),
             @AttributeOverride(name = "xG", column = @Column(name = "away_xg")),
-            @AttributeOverride(name = "xGA", column = @Column(name = "away_xga")), // Ajout
-            @AttributeOverride(name = "ppda", column = @Column(name = "away_ppda")), // Ajout
-            @AttributeOverride(name = "fieldTilt", column = @Column(name = "away_field_tilt")), // Ajout
-            @AttributeOverride(name = "deepEntries", column = @Column(name = "away_deep_entries")), // Ajout
+            @AttributeOverride(name = "xGA", column = @Column(name = "away_xga")),
+            @AttributeOverride(name = "ppda", column = @Column(name = "away_ppda")),
+            @AttributeOverride(name = "fieldTilt", column = @Column(name = "away_field_tilt")),
+            @AttributeOverride(name = "deepEntries", column = @Column(name = "away_deep_entries")),
             @AttributeOverride(name = "last5MatchesPoints", column = @Column(name = "away_form_l5")),
             @AttributeOverride(name = "goalsForLast5", column = @Column(name = "away_goals_for_l5")),
             @AttributeOverride(name = "goalsAgainstLast5", column = @Column(name = "away_goals_against_l5")),

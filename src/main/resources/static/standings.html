@@ -82,6 +82,12 @@
         <p class="text-muted">Statistiques mises à jour après chaque analyse algorithmique.</p>
     </div>
 
+    <div class="d-flex justify-content-center gap-2 mb-4">
+        <button class="btn btn-sm btn-outline-primary active" onclick="switchTab('GENERAL', this)">Général</button>
+        <button class="btn btn-sm btn-outline-primary" onclick="switchTab('HOME', this)">Domicile</button>
+        <button class="btn btn-sm btn-outline-primary" onclick="switchTab('AWAY', this)">Extérieur</button>
+    </div>
+
     <div class="card border-0 shadow-lg mb-5 overflow-hidden">
         <div class="table-responsive">
             <table class="table table-glass table-borderless align-middle mb-0" id="standingsTable" style="display: none;">
@@ -110,21 +116,34 @@
 </div>
 
 <script>
-    // 1. Récupération des paramètres de l'URL
+    // 1. Variables globales
     const urlParams = new URLSearchParams(window.location.search);
     const leagueId = urlParams.get('leagueId');
     const matchId = urlParams.get('matchId');
+
+    let currentData = [];
+    let currentMode = 'GENERAL'; // Modes possibles : GENERAL, HOME, AWAY
 
     // 2. Gestion du bouton Retour
     const btnBack = document.getElementById('btnBack');
     if (matchId) {
         btnBack.href = `/analysis-details.html?id=${matchId}`;
     } else {
-        btnBack.href = `/`; // Fallback vers dashboard
+        btnBack.href = `/`;
         btnBack.innerHTML = `<i class="bi bi-house-door-fill me-2"></i> Accueil`;
     }
 
-    // 3. Récupération et Affichage des Données
+    // 3. Changement d'onglet (Filtres)
+    function switchTab(mode, btn) {
+        currentMode = mode;
+        // Met à jour l'état actif des boutons
+        document.querySelectorAll('.btn-outline-primary').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        // Relance l'affichage avec le nouveau mode
+        renderTable();
+    }
+
+    // 4. Appel API Unique
     async function loadStandings() {
         if (!leagueId) {
             document.getElementById('leagueTitle').innerText = "Championnat Introuvable";
@@ -133,94 +152,23 @@
         }
 
         try {
-            // Appel API pour récupérer les équipes de cette ligue
             const res = await fetch(`/api/v1/references/leagues/${leagueId}/standings`);
             if (!res.ok) throw new Error("Erreur serveur");
-            const teams = await res.json();
 
-            if (teams.length === 0) throw new Error("Aucune équipe");
+            // ON LIT LE JSON UNE SEULE FOIS ICI
+            currentData = await res.json();
 
-            // Met à jour le titre avec le nom du championnat (pris sur la 1ère équipe)
-            document.getElementById('leagueTitle').innerText = teams[0].league.name;
+            if (currentData.length === 0) throw new Error("Aucune équipe");
 
-            // Tri algorithmique par Rang (Calculé au préalable par ton RankingService)
-            // Si le rang n'existe pas encore, on le met à la fin (999)
-            teams.sort((a, b) => {
-                const rankA = a.currentStats?.rank || 999;
-                const rankB = b.currentStats?.rank || 999;
-                return rankA - rankB;
-            });
+            // Met à jour le titre
+            document.getElementById('leagueTitle').innerText = currentData[0].league?.name || "Classement";
 
-            // Construction du HTML
-            const tbody = document.getElementById('standingsBody');
-            let html = '';
-
-            teams.forEach((team, index) => {
-                const stats = team.currentStats || {};
-
-                // Récupération sécurisée des variables (0 si non défini)
-                const played = stats.matchesPlayed || 0;
-                const wins = stats.wins || 0;
-                const draws = stats.draws || 0;
-                const losses = stats.losses || 0;
-                const gf = stats.goalsFor || 0;
-                const ga = stats.goalsAgainst || 0;
-                const diff = gf - ga;
-                const points = stats.points || 0;
-                const rank = stats.rank || (index + 1);
-
-                // --- DESIGN LOGIC ---
-                // Badges Or/Argent/Bronze
-                let rankClass = 'rank-badge';
-                if (rank === 1) rankClass += ' rank-1';
-                else if (rank === 2) rankClass += ' rank-2';
-                else if (rank === 3) rankClass += ' rank-3';
-
-                // Liserés de zones (Ex: Top 4 Champions League, 5-6 Europa, 3 derniers Relégation)
-                let rowClass = '';
-                if (rank <= 4) rowClass = 'zone-champions';
-                else if (rank <= 6) rowClass = 'zone-europa';
-                else if (rank >= teams.length - 2) rowClass = 'zone-relegation'; // Les 3 derniers
-
-                // Couleur de la différence de buts
-                let diffClass = diff > 0 ? 'text-success' : (diff < 0 ? 'text-danger' : 'text-muted');
-                let diffStr = diff > 0 ? `+${diff}` : diff;
-
-                html += `
-                    <tr class="${rowClass}">
-                        <td class="text-center"><div class="${rankClass}">${rank}</div></td>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <div class="position-relative me-3" style="width:35px; height:35px;">
-                                    <img src="${team.logoUrl || '/logos/default.png'}"
-                                         alt="${team.name}"
-                                         class="team-logo-mini position-absolute top-0 start-0"
-                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-
-                                    <div class="team-logo-mini bg-dark text-white fw-bold position-absolute top-0 start-0"
-                                         style="display:none; align-items:center; justify-content:center; padding:0;">
-                                        ${team.name.charAt(0)}
-                                    </div>
-                                </div>
-                                <span class="fw-bold fs-6">${team.name}</span>
-                            </div>
-                        </td>
-                        <td class="text-center text-muted fw-bold">${played}</td>
-                        <td class="text-center text-success">${wins}</td>
-                        <td class="text-center text-secondary">${draws}</td>
-                        <td class="text-center text-danger">${losses}</td>
-                        <td class="text-center">${gf}</td>
-                        <td class="text-center">${ga}</td>
-                        <td class="text-center fw-bold ${diffClass}">${diffStr}</td>
-                        <td class="text-center fw-bold text-white fs-5">${points}</td>
-                    </tr>
-                `;
-            });
-
-            // Affichage
+            // Masque le loader et affiche la table
             document.getElementById('loader').style.display = 'none';
-            tbody.innerHTML = html;
             document.getElementById('standingsTable').style.display = 'table';
+
+            // Premier affichage (Mode Général par défaut)
+            renderTable();
 
         } catch (error) {
             console.error(error);
@@ -233,7 +181,92 @@
         }
     }
 
-    // Lancement
+    // 5. Moteur de Rendu Dynamique
+    function renderTable() {
+        // Tri dynamique selon le mode actif
+        const sorted = [...currentData].sort((a, b) => {
+            const rA = currentMode === 'HOME' ? (a.currentStats?.rankHome || 999) :
+                (currentMode === 'AWAY' ? (a.currentStats?.rankAway || 999) :
+                    (a.currentStats?.rank || 999));
+
+            const rB = currentMode === 'HOME' ? (b.currentStats?.rankHome || 999) :
+                (currentMode === 'AWAY' ? (b.currentStats?.rankAway || 999) :
+                    (b.currentStats?.rank || 999));
+            return rA - rB;
+        });
+
+        // Génération du HTML
+        const html = sorted.map((team, index) => {
+            const s = team.currentStats || {};
+
+            // Sélection des variables selon le filtre
+            const p = currentMode === 'HOME' ? (s.matchesPlayedHome || 0) : (currentMode === 'AWAY' ? (s.matchesPlayedAway || 0) : (s.matchesPlayed || 0));
+            const w = currentMode === 'HOME' ? (s.winsHome || 0) : (currentMode === 'AWAY' ? (s.winsAway || 0) : (s.wins || 0));
+            const d = currentMode === 'HOME' ? (s.drawsHome || 0) : (currentMode === 'AWAY' ? (s.drawsAway || 0) : (s.draws || 0));
+            const l = currentMode === 'HOME' ? (s.lossesHome || 0) : (currentMode === 'AWAY' ? (s.lossesAway || 0) : (s.losses || 0));
+            const pts = currentMode === 'HOME' ? (s.pointsHome || 0) : (currentMode === 'AWAY' ? (s.pointsAway || 0) : (s.points || 0));
+
+            // Calculs dynamiques pour les buts
+            const gf = currentMode === 'HOME' ? (s.goalsForHome || 0) : (currentMode === 'AWAY' ? (s.goalsForAway || 0) : (s.goalsFor || 0));
+            const ga = currentMode === 'HOME' ? (s.goalsAgainstHome || 0) : (currentMode === 'AWAY' ? (s.goalsAgainstAway || 0) : (s.goalsAgainst || 0));
+            const diff = gf - ga;
+
+            // Le rang visuel est simplement l'index + 1 du tableau trié
+            const rank = index + 1;
+
+            // Design des Badges Or/Argent/Bronze
+            let rankClass = 'rank-badge';
+            if (rank === 1) rankClass += ' rank-1';
+            else if (rank === 2) rankClass += ' rank-2';
+            else if (rank === 3) rankClass += ' rank-3';
+
+            // Design des zones (Seulement pertinent sur le classement général)
+            let rowClass = '';
+            if (currentMode === 'GENERAL') {
+                if (rank <= 4) rowClass = 'zone-champions';
+                else if (rank <= 6) rowClass = 'zone-europa';
+                else if (rank >= sorted.length - 2) rowClass = 'zone-relegation';
+            }
+
+            // Couleurs Différence de Buts
+            let diffClass = diff > 0 ? 'text-success' : (diff < 0 ? 'text-danger' : 'text-muted');
+            let diffStr = diff > 0 ? `+${diff}` : diff;
+
+            return `
+                <tr class="${rowClass}">
+                    <td class="text-center"><div class="${rankClass}">${rank}</div></td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="position-relative me-3" style="width:35px; height:35px;">
+                                <img src="${team.logoUrl || '/logos/default.png'}"
+                                     alt="${team.name}"
+                                     class="team-logo-mini position-absolute top-0 start-0"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+
+                                <div class="team-logo-mini bg-dark text-white fw-bold position-absolute top-0 start-0"
+                                     style="display:none; align-items:center; justify-content:center; padding:0;">
+                                    ${team.name.charAt(0)}
+                                </div>
+                            </div>
+                            <span class="fw-bold fs-6">${team.name}</span>
+                        </div>
+                    </td>
+                    <td class="text-center text-muted fw-bold">${p}</td>
+                    <td class="text-center text-success">${w}</td>
+                    <td class="text-center text-secondary">${d}</td>
+                    <td class="text-center text-danger">${l}</td>
+                    <td class="text-center">${gf}</td>
+                    <td class="text-center">${ga}</td>
+                    <td class="text-center fw-bold ${diffClass}">${diffStr}</td>
+                    <td class="text-center fw-bold text-white fs-5">${pts}</td>
+                </tr>
+            `;
+        }).join('');
+
+        document.getElementById('standingsBody').innerHTML = html;
+    }
+
+    // 6. Démarrage de l'application
     document.addEventListener('DOMContentLoaded', loadStandings);
 </script>
 
