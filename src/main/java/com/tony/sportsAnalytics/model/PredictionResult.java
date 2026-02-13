@@ -1,11 +1,13 @@
 package com.tony.sportsAnalytics.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Embeddable;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Embeddable
 @Data
@@ -74,4 +76,10 @@ public class PredictionResult {
     private String aiAnalysisPrompt; // Le texte complet pour ChatGPT/Gemini
     private Double matchVolatility;  // Niveau de chaos (0.0 à 2.0)
     private Double confidenceScore;  // Confiance de l'algo (0 à 100%)
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "prediction_insights", joinColumns = @JoinColumn(name = "match_analysis_id"))
+    @Column(name = "insight")
+    @Builder.Default // Indique à Lombok d'utiliser l'ArrayList par défaut lors du build()
+    private List<String> keyFacts = new ArrayList<>();
 }

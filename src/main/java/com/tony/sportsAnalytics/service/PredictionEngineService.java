@@ -17,6 +17,7 @@ public class PredictionEngineService {
     private final WeatherService weatherService;
     private final AdvancedPredictionService advancedPrediction;
     private final CalibrationService calibrationService;
+    private final MatchInsightService insightService;
 
     // --- CONSTANTES DE SECOURS (Fallback) ---
     // Utilisées uniquement si la Ligue n'a pas encore de paramètres personnalisés en base
@@ -142,20 +143,18 @@ public class PredictionEngineService {
         double kellyDraw = calculateAdjustedKelly(finalProbDraw / 100.0, match.getOddsN(), confidenceFactor);
         double kellyAway = calculateAdjustedKelly(finalProbAway / 100.0, match.getOdds2(), confidenceFactor);
 
+        List<String> insights = insightService.generateKeyFacts(home, away, homeHistory, awayHistory);
         // 1. Génération du Prompt IA
         String aiPrompt = generateAiPrompt(
                 match, home, away, homePerf, awayPerf,
                 finalProbHome, finalProbDraw, finalProbAway,
                 kellyHome, kellyAway,
-                poissonResult,              // On passe le résultat de la simulation (contenant xG, BTTS...)
-                round(confidenceFactor * 100.0) // On passe le score de confiance calculé
+                poissonResult,
+                round(confidenceFactor * 100.0)
         );
 
-        // 2. Logs structurés pour l'utilisateur (HTML formatted)
-        String userLogs = generateUserLogs(home, away, eloDiff, homePerf, awayPerf, poissonResult, confidenceFactor);
-        match.setMyNotes(userLogs); // On sauvegarde les logs dans myNotes
-
         return PredictionResult.builder()
+                .keyFacts(insights)
                 .homeWinProbability(round(finalProbHome))
                 .drawProbability(round(finalProbDraw))
                 .awayWinProbability(round(finalProbAway))
