@@ -157,38 +157,52 @@
         <div class="col-lg-4">
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white fw-bold border-bottom pb-3 pt-3">
-                    <i class="bi bi-graph-up-arrow text-primary me-2"></i>Marchés des Buts
+                    <i class="bi bi-bullseye text-primary me-2"></i>Marchés des Buts
                 </div>
                 <div class="card-body">
 
                     <div class="mb-4">
                         <div class="d-flex justify-content-between small fw-bold mb-1">
-                            <span>Les 2 équipes marquent (BTTS)</span>
-                            <span id="uiBtts" class="text-primary">--%</span>
+                            <span class="text-success">BTTS : Oui (<span id="uiBtts">--</span>%)</span>
+                            <span class="text-danger">Non (<span id="uiBttsNo">--</span>%)</span>
                         </div>
-                        <div class="progress" style="height: 10px; border-radius: 5px;">
-                            <div id="barBtts" class="progress-bar bg-primary" style="width: 0%"></div>
+                        <div class="progress shadow-sm" style="height: 12px; border-radius: 6px;">
+                            <div id="barBtts" class="progress-bar bg-success" style="width: 0%"></div>
+                            <div id="barBttsNo" class="progress-bar bg-danger" style="width: 0%"></div>
                         </div>
-                        <div class="small text-muted mt-1 text-end">Non: <span id="uiBttsNo">--</span>%</div>
                     </div>
 
                     <div class="mb-4">
                         <div class="d-flex justify-content-between small fw-bold mb-1">
-                            <span>Plus de 1.5 Buts (+1.5)</span>
-                            <span id="uiOver15" class="text-success">--%</span>
+                            <span class="text-primary">+1.5 Buts (<span id="uiOver15">--</span>%)</span>
+                            <span class="text-secondary">-1.5 Buts (<span id="uiUnder15">--</span>%)</span>
                         </div>
-                        <div class="progress" style="height: 10px; border-radius: 5px;">
-                            <div id="barOver15" class="progress-bar bg-success" style="width: 0%"></div>
+                        <div class="progress shadow-sm" style="height: 12px; border-radius: 6px;">
+                            <div id="barOver15" class="progress-bar bg-primary" style="width: 0%"></div>
+                            <div id="barUnder15" class="progress-bar bg-secondary" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between small fw-bold mb-1">
+                            <span class="text-primary">+2.5 Buts (<span id="uiOver25">--</span>%)</span>
+                            <span class="text-secondary">-2.5 Buts (<span id="uiUnder25">--</span>%)</span>
+                        </div>
+                        <div class="progress shadow-sm" style="height: 12px; border-radius: 6px;">
+                            <div id="barOver25" class="progress-bar bg-primary" style="width: 0%"></div>
+                            <div id="barUnder25" class="progress-bar bg-secondary" style="width: 0%"></div>
                         </div>
                     </div>
 
                     <div class="mb-2">
                         <div class="d-flex justify-content-between small fw-bold mb-1">
-                            <span>Plus de 2.5 Buts (+2.5)</span>
-                            <span id="uiOver25" class="text-warning">--%</span>
+                            <span class="text-warning">+3.5 Buts (<span id="uiOver35">--</span>%)</span>
                         </div>
-                        <div class="progress" style="height: 10px; border-radius: 5px;">
-                            <div id="barOver25" class="progress-bar bg-warning" style="width: 0%"></div>
+                        <div class="progress shadow-sm" style="height: 8px; border-radius: 4px; background-color: #f8f9fa;">
+                            <div id="barOver35" class="progress-bar bg-warning" style="width: 0%"></div>
+                        </div>
+                        <div class="text-center small text-muted mt-2 fst-italic" style="font-size: 0.75rem;">
+                            Indice de Volatilité : <span id="uiVolatility" class="fw-bold">--</span>
                         </div>
                     </div>
 
@@ -210,6 +224,42 @@
             if (!res.ok) throw new Error("Erreur chargement");
             const match = await res.json();
             const pred = match.prediction;
+
+            // Marché BTTS
+            document.getElementById('uiBtts').innerText = pred.bttsProb;
+            document.getElementById('uiBttsNo').innerText = pred.probBTTS_No;
+            document.getElementById('barBtts').style.width = pred.bttsProb + '%';
+            document.getElementById('barBttsNo').style.width = pred.probBTTS_No + '%';
+
+// Marché Over/Under 1.5
+            document.getElementById('uiOver15').innerText = pred.probOver1_5;
+            document.getElementById('uiUnder15').innerText = pred.probUnder1_5;
+            document.getElementById('barOver15').style.width = pred.probOver1_5 + '%';
+            document.getElementById('barUnder15').style.width = pred.probUnder1_5 + '%';
+
+// Marché Over/Under 2.5
+            document.getElementById('uiOver25').innerText = pred.over2_5_Prob;
+            document.getElementById('uiUnder25').innerText = pred.under2_5_Prob;
+            document.getElementById('barOver25').style.width = pred.over2_5_Prob + '%';
+            document.getElementById('barUnder25').style.width = pred.under2_5_Prob + '%';
+
+// Marché Over 3.5 & Volatilité
+            document.getElementById('uiOver35').innerText = pred.probOver3_5;
+            document.getElementById('barOver35').style.width = pred.probOver3_5 + '%';
+
+// Affichage de l'indice de Volatilité (Chaos)
+            const volBadge = document.getElementById('uiVolatility');
+            let vol = pred.matchVolatility || 1.0;
+            if(vol > 1.2) {
+                volBadge.innerText = vol + " (Élevée 🔥)";
+                volBadge.className = "fw-bold text-danger";
+            } else if (vol < 0.8) {
+                volBadge.innerText = vol + " (Fermé 🛡️)";
+                volBadge.className = "fw-bold text-secondary";
+            } else {
+                volBadge.innerText = vol + " (Standard)";
+                volBadge.className = "fw-bold text-muted";
+            }
 
             // Mapping des classements
             document.getElementById('uiHomeRank').innerText = match.homeStats?.rank ? '#' + match.homeStats.rank : 'N/A';

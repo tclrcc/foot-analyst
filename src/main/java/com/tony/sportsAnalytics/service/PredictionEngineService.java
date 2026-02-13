@@ -50,6 +50,7 @@ public class PredictionEngineService {
         double weightPoisson = (league != null && league.getWeightPoisson() != null) ? league.getWeightPoisson() : DEFAULT_WEIGHT_POISSON;
         double weightElo = 1.0 - weightPoisson;
         double marketWeight = (league != null && league.getMarketAnchorWeight() != null) ? league.getMarketAnchorWeight() : DEFAULT_MARKET_WEIGHT;
+
         // Calcul avantage domicile
         double baseHomeAdv = (league != null) ? league.getHomeAdvantageFactor() : 1.15;
         double homeTeamHomeStrength = calculateHomeDominance(home); // Ratio Pts Dom / Pts Ext
@@ -65,22 +66,44 @@ public class PredictionEngineService {
         double eloProbAway = 1.0 / (1.0 + Math.pow(10, (eloDiff + 100.0) / ELO_DIVISOR));
 
         // -----------------------------------------------------------
-        // 3. MODÈLE DIXON-COLES (La Force Instantanée)
+        // 3. MODÈLE DIXON-COLES HYBRIDE (La Force Instantanée)
         // -----------------------------------------------------------
-        double homeLambda = home.getAttackStrength() * away.getDefenseStrength() * finalHomeAdv;
-        double awayLambda = away.getAttackStrength() * home.getDefenseStrength();
+        double expectedHomeGoals = home.getAttackStrength() * away.getDefenseStrength() * finalHomeAdv;
+        double expectedAwayGoals = away.getAttackStrength() * home.getDefenseStrength();
 
-        // Intégration xG (Correction de la "Chance")
-        if (hasXgData(home)) homeLambda = (homeLambda + home.getCurrentStats().getXG()) / 2.0;
-        if (hasXgData(away)) awayLambda = (awayLambda + away.getCurrentStats().getXG()) / 2.0;
+        double homeLambda = expectedHomeGoals;
+        double awayLambda = expectedAwayGoals;
+
+        // Croisement intelligent : On mixe la puissance théorique avec la réalité des datas (xG vs xGA)
+        if (hasXgData(home) && away.getCurrentStats() != null && away.getCurrentStats().getXGA() != null) {
+            double homeOffensiveReality = (home.getCurrentStats().getXG() + away.getCurrentStats().getXGA()) / 2.0;
+            // 60% Modèle long terme, 40% Dynamique Data
+            homeLambda = (expectedHomeGoals * 0.6) + (homeOffensiveReality * 0.4);
+        } else if (hasXgData(home)) {
+            homeLambda = (expectedHomeGoals + home.getCurrentStats().getXG()) / 2.0;
+        }
+
+        if (hasXgData(away) && home.getCurrentStats() != null && home.getCurrentStats().getXGA() != null) {
+            double awayOffensiveReality = (away.getCurrentStats().getXG() + home.getCurrentStats().getXGA()) / 2.0;
+            awayLambda = (expectedAwayGoals * 0.6) + (awayOffensiveReality * 0.4);
+        } else if (hasXgData(away)) {
+            awayLambda = (expectedAwayGoals + away.getCurrentStats().getXG()) / 2.0;
+        }
 
         // Analyse de Forme & Fatigue
         TeamPerformance homePerf = analyzeTeamPerformance(home, homeHistory, leagueAvgGoals, true, match.getMatchDate());
         TeamPerformance awayPerf = analyzeTeamPerformance(away, awayHistory, leagueAvgGoals, false, match.getMatchDate());
 
-        // Application Finition & Tactique
-        homeLambda *= Math.min(homePerf.finishingEfficiency(), MAX_FINISHING_CORRECTION);
-        awayLambda *= Math.min(awayPerf.finishingEfficiency(), MAX_FINISHING_CORRECTION);
+        // Application Finition & Tactique : On amortit pour lisser la variance
+        double homeFinishingFactor = Math.max(0.85, Math.min(homePerf.finishingEfficiency(), 1.15));
+        double awayFinishingFactor = Math.max(0.85, Math.min(awayPerf.finishingEfficiency(), 1.15));
+
+        homeLambda *= homeFinishingFactor;
+        awayLambda *= awayFinishingFactor;
+
+        // Plancher de sécurité de l'espérance de buts
+        homeLambda = Math.max(0.4, homeLambda);
+        awayLambda = Math.max(0.3, awayLambda);
 
         homeLambda = applyTacticalOverlay(homeLambda, home, away, awayPerf.volatility());
         awayLambda = applyTacticalOverlay(awayLambda, away, home, homePerf.volatility());
@@ -98,8 +121,11 @@ public class PredictionEngineService {
             homeLambda *= (1.0 + calculateH2HFactor(home, h2hHistory));
         }
 
-        // SIMULATION POISSON/WEIBULL PRO
-        PredictionResult poissonResult = simulateMatchPro(homeLambda, awayLambda, rho);
+        // Calcul du facteur d'ouverture de match (Gestion du chaos et du style de jeu)
+        double openGameFactor = calculateMatchOpenness(home.getCurrentStats(), away.getCurrentStats());
+
+        // SIMULATION POISSON/WEIBULL PRO (Avec Facteur d'ouverture)
+        PredictionResult poissonResult = simulateMatchPro(homeLambda, awayLambda, rho, openGameFactor);
 
         // -----------------------------------------------------------
         // 4. HYBRID FUSION (Stats vs Elo)
@@ -137,7 +163,8 @@ public class PredictionEngineService {
         double confidenceFactor = calculateConfidenceFactor(homePerf.volatility(), awayPerf.volatility());
 
         List<String> insights = insightService.generateKeyFacts(home, away, homeHistory, awayHistory);
-        // 1. Génération du Prompt IA
+
+        // Génération du Prompt IA
         String aiPrompt = generateAiPrompt(
                 match, home, away, homePerf, awayPerf,
                 finalProbHome, finalProbDraw, finalProbAway,
@@ -177,6 +204,44 @@ public class PredictionEngineService {
                 .confidenceScore(round(confidenceFactor * 100.0))
                 .keyFacts(insights)
                 .build();
+    }
+
+    /**
+     * Analyse la structure tactique du match.
+     * @return Un multiplicateur (ex: 1.20 = +20% de probabilités sur les gros scores)
+     */
+    private double calculateMatchOpenness(TeamStats home, TeamStats away) {
+        if (home == null || away == null) return 1.0;
+
+        double openness = 1.0;
+
+        // 1. Perméabilité Défensive (xGA) : Deux défenses poreuses s'affrontent
+        double xgaHome = home.getXGA() != null ? home.getXGA() : 1.2;
+        double xgaAway = away.getXGA() != null ? away.getXGA() : 1.2;
+        if (xgaHome > 1.4 && xgaAway > 1.4) openness += 0.15;
+
+        // 2. Volume de Tirs Cadrés (Corrélation N°1 avec les buts)
+        double sotHome = home.getAvgShotsOnTarget() != null ? home.getAvgShotsOnTarget() : 4.0;
+        double sotAway = away.getAvgShotsOnTarget() != null ? away.getAvgShotsOnTarget() : 4.0;
+        if ((sotHome + sotAway) >= 10.0) openness += 0.10;
+
+        // 3. Intensité de Pressing (PPDA) : Jeu de transition box-to-box
+        double ppdaHome = home.getPpda() != null ? home.getPpda() : 12.0;
+        double ppdaAway = away.getPpda() != null ? away.getPpda() : 12.0;
+        if (ppdaHome < 11.0 && ppdaAway < 11.0) openness += 0.08;
+
+        // 4. Folie furieuse récente (Goals For + Goals Against sur les 5 derniers matchs)
+        int recentGoals = 0;
+        if (home.getGoalsForLast5() != null && home.getGoalsAgainstLast5() != null)
+            recentGoals += home.getGoalsForLast5() + home.getGoalsAgainstLast5();
+        if (away.getGoalsForLast5() != null && away.getGoalsAgainstLast5() != null)
+            recentGoals += away.getGoalsForLast5() + away.getGoalsAgainstLast5();
+
+        if (recentGoals >= 30) openness += 0.15; // Moyenne de 3 buts par match
+        else if (recentGoals <= 18) openness -= 0.15; // Matchs très fermés (< 1.8 buts)
+
+        // On bride pour éviter les aberrations statistiques (Plafond 1.4, Plancher 0.75)
+        return Math.max(0.75, Math.min(1.40, openness));
     }
 
     private double calculateHomeDominance(Team t) {
@@ -289,11 +354,12 @@ public class PredictionEngineService {
     /**
      * Simulation Dixon-Coles avec correction "Draw Killer"
      */
-    private PredictionResult simulateMatchPro(double lambdaHome, double lambdaAway, double rho) {
+    private PredictionResult simulateMatchPro(double lambdaHome, double lambdaAway, double rho, double openGameFactor) {
 
         double probHome = 0.0, probDraw = 0.0, probAway = 0.0;
-        double probOver15 = 0.0, probOver25 = 0.0, probBTTS = 0.0, probBTTS_No = 0.0;
-        double probUnder1_5 = 0.0, probUnder2_5 = 0.0, probOver3_5 = 0.0;
+
+        // Plus besoin de traquer les "Unders" et le "BTTS_No" ici
+        double probOver15 = 0.0, probOver25 = 0.0, probOver35 = 0.0, probBTTS = 0.0;
 
         double maxProb = -1.0;
         String exactScore = "0-0";
@@ -308,11 +374,13 @@ public class PredictionEngineService {
                 else probAway += p;
 
                 int totalGoals = h + a;
-                if (totalGoals > 1.5) probOver15 += p; else probUnder1_5 += p;
-                if (totalGoals > 2.5) probOver25 += p; else probUnder2_5 += p;
-                if (totalGoals > 3.5) probOver3_5 += p;
 
-                if (h > 0 && a > 0) probBTTS += p; else probBTTS_No += p;
+                // Code allégé : on ne tracke que les occurrences positives
+                if (totalGoals > 1.5) probOver15 += p;
+                if (totalGoals > 2.5) probOver25 += p;
+                if (totalGoals > 3.5) probOver35 += p;
+
+                if (h > 0 && a > 0) probBTTS += p;
 
                 if (p > maxProb) { maxProb = p; exactScore = h + "-" + a; }
             }
@@ -321,17 +389,40 @@ public class PredictionEngineService {
         double total = probHome + probDraw + probAway;
         if (total == 0) total = 1.0;
 
+        // --- CALIBRATION SPÉCIFIQUE DES MARCHÉS DE BUTS ---
+        // On booste les probabilités brutes de buts grâce aux datas avancées
+        double over25Boost = Math.pow(openGameFactor, 1.2);
+
+        // 1. Marché Over/Under 1.5
+        probOver15 = Math.min(total * 0.96, probOver15 * openGameFactor); // Plafond à 96%
+        double probUnder15 = Math.max(total * 0.04, total - probOver15);  // Déduction logique
+
+        // 2. Marché Over/Under 2.5
+        probOver25 = Math.min(total * 0.90, probOver25 * over25Boost);
+        double probUnder25 = Math.max(total * 0.10, total - probOver25);
+
+        // 3. Marché Over 3.5 (On lui applique le boost aussi pour la cohérence)
+        probOver35 = Math.min(total * 0.75, probOver35 * over25Boost);
+
+        // 4. Marché BTTS (Les deux marquent)
+        probBTTS = Math.min(total * 0.90, probBTTS * openGameFactor);
+        double probBttsNo = Math.max(total * 0.10, total - probBTTS);
+
         return PredictionResult.builder()
                 .homeWinProbability(round((probHome/total)*100))
                 .drawProbability(round((probDraw/total)*100))
                 .awayWinProbability(round((probAway/total)*100))
+
+                // Utilisation des probabilités lissées et déduites
                 .probOver1_5(round((probOver15/total)*100))
-                .probUnder1_5(round((probUnder1_5/total)*100))
+                .probUnder1_5(round((probUnder15/total)*100))
                 .over2_5_Prob(round((probOver25/total)*100))
-                .under2_5_Prob(round((probUnder2_5/total)*100))
-                .probOver3_5(round((probOver3_5/total)*100))
+                .under2_5_Prob(round((probUnder25/total)*100))
+                .probOver3_5(round((probOver35/total)*100))
+
                 .bttsProb(round((probBTTS/total)*100))
-                .probBTTS_No(round((probBTTS_No/total)*100))
+                .probBTTS_No(round((probBttsNo/total)*100))
+
                 .exactScore(exactScore)
                 .exactScoreProb(round((maxProb/total)*100))
                 .build();

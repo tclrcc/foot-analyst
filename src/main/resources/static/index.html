@@ -252,11 +252,23 @@
         predBadge = `<div class="ai-badge ${colorClass}">${icon} Nul (${Math.round(best.val)}%)</div>`;
       }
 
+      let extraBadges = '';
+
       // Value Bet ?
-      if(p.valueBetDetected) {
-        highlightClass = 'border-warning'; // Bordure jaune si value bet
-        predBadge += `<span class="badge bg-warning text-dark ms-2"><i class="bi bi-star-fill"></i> Value</span>`;
+      if (p.valueBetDetected) {
+        highlightClass = 'border-warning';
+        extraBadges += `<span class="badge bg-warning text-dark ms-2 mb-1 shadow-sm"><i class="bi bi-star-fill"></i> Value</span>`;
       }
+
+      // NOUVEAU : Détection automatique des matchs à fort potentiel offensif (Facteur de Chaos)
+      if (p.bttsProb > 65) {
+        extraBadges += `<span class="badge bg-danger text-white ms-1 mb-1 shadow-sm"><i class="bi bi-fire"></i> BTTS (Oui)</span>`;
+      }
+      if (p.over2_5_Prob > 60) {
+        extraBadges += `<span class="badge bg-success text-white ms-1 mb-1 shadow-sm"><i class="bi bi-futbol"></i> +2.5 Buts</span>`;
+      }
+
+      predBadge += `<div class="mt-2 flex-wrap d-flex justify-content-center">${extraBadges}</div>`;
     }
 
     return `
