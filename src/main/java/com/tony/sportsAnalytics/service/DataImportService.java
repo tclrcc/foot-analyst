@@ -34,8 +34,8 @@ public class DataImportService {
     private final TeamStatsService teamStatsService;
     private final PredictionEngineService predictionEngineService;
     private final PredictionEvaluationService evaluationService;
+    private final RankingService rankingService;
     private final XgScraperService xgScraperService;
-    private final AnalysisOrchestrator orchestrator;
 
     // --- CONFIGURATION CONSTANTES ---
     private static final String BASE_URL = "https://www.football-data.co.uk/mmz4281/";
@@ -199,9 +199,7 @@ public class DataImportService {
                 enrichTeamsWithAdvancedStats(FBREF_LEAGUE_URLS.get(leagueCode));
             }
 
-            orchestrator.refreshUpcomingPredictions();
-
-            return "Import terminé et prédictions mises à jour.";
+            return "Import terminé et prédictions mises à jour pour " + leagueCode;
         } catch (Exception e) {
             log.error("Erreur Import {}", leagueCode, e);
             return "Erreur : " + e.getMessage();
@@ -228,15 +226,23 @@ public class DataImportService {
         // Matchs existants pour cette saison spécifique
         Map<String, MatchAnalysis> existingMatchesMap = matchRepository.findByHomeTeamLeagueAndSeason(league, seasonLabel)
                 .stream().collect(Collectors.toMap(
-                        m -> generateMatchKey(m.getHomeTeam(), m.getAwayTeam(), m.getMatchDate().toLocalDate()),
-                        m -> m, (a, b) -> a));
+                        // UTILISATION DE LA NOUVELLE CLÉ BASÉE SUR LA SAISON
+                        m -> generateMatchKey(m.getHomeTeam(), m.getAwayTeam(), seasonLabel),
+                        m -> m,
+                        (a, b) -> a)); // Si doublon en BDD, on garde le premier
 
         ImportStats stats = processRows(rows, league, teamCache, existingMatchesMap, forceUpdate, seasonLabel);
 
         // On ne recalcule les stats globales que si c'est la saison en cours (gain de temps)
         if (seasonLabel.equals(CURRENT_SEASON_LABEL)) {
+            // 1. Recalcul individuel (Points, Buts)
             stats.teamsToRecalculate.forEach(teamStatsService::recalculateTeamStats);
+
+            // 2. Stats globales de la ligue (Moyennes)
             updateLeagueStats(league, seasonLabel);
+
+            // 3. NOUVEAU : Recalcul du classement officiel de la ligue !
+            rankingService.updateLeagueRankings(league.getId());
         }
 
         return String.format("%d importés, %d mis à jour.", stats.importedCount, stats.updatedCount);
@@ -346,7 +352,7 @@ public class DataImportService {
 
                 Team home = resolveTeamFromCache(row.getHomeTeam(), league, teamCache);
                 Team away = resolveTeamFromCache(row.getAwayTeam(), league, teamCache);
-                String matchKey = generateMatchKey(home, away, date);
+                String matchKey = generateMatchKey(home, away, seasonLabel);
 
                 MatchAnalysis matchToSave;
 
@@ -526,9 +532,11 @@ public class DataImportService {
             case "SERIEA" -> "Italy"; case "BUNDES" -> "Germany"; default -> "World";
         };
     }
-    private String generateMatchKey(Team h, Team a, LocalDate date) {
-        return h.getId() + "-" + a.getId() + "-" + date;
+
+    private String generateMatchKey(Team h, Team a, String seasonLabel) {
+        return h.getId() + "-" + a.getId() + "-" + seasonLabel;
     }
+
     private double round(double value) { return Math.round(value * 100.0) / 100.0; }
     private static class ImportStats { int importedCount=0; int updatedCount=0; int skippedCount=0; Set<Long> teamsToRecalculate = new HashSet<>(); }
 

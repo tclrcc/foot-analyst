@@ -36,6 +36,7 @@ public class BacktestingService {
         List<CalibrationData> calibrationList = new ArrayList<>();
 
         for (MatchAnalysis m : testMatches) {
+            // On ignore les matchs non joués pour le calcul de précision
             if (m.getHomeScore() == null) continue;
 
             LocalDateTime limit = m.getMatchDate();
@@ -52,14 +53,17 @@ public class BacktestingService {
 
             double leagueAvg = (m.getHomeTeam().getLeague() != null) ? m.getHomeTeam().getLeague().getAverageGoalsPerMatch() : 2.5;
 
-            // Re-simulation
+            // Re-simulation avec le moteur actuel
             PredictionResult pred = predictionEngine.calculateMatchPrediction(m, h2h, homeHist, awayHist, leagueAvg);
+
+            // --- CORRECTION MAJEURE : On met à jour l'objet pour la simulation financière suivante ---
+            m.setPrediction(pred);
 
             // Calcul des scores d'erreur
             totalBrierScore += calculateMatchBrierScore(pred, m.getHomeScore(), m.getAwayScore());
             totalLogLoss += calculateMatchLogLoss(pred, m.getHomeScore(), m.getAwayScore());
 
-            // Collecte des données de calibration (pour les 3 issues : 1, N, 2)
+            // Collecte des données de calibration
             calibrationList.add(new CalibrationData(pred.getHomeWinProbability() / 100.0, m.getHomeScore() > m.getAwayScore() ? 1.0 : 0.0));
             calibrationList.add(new CalibrationData(pred.getDrawProbability() / 100.0, m.getHomeScore().equals(m.getAwayScore()) ? 1.0 : 0.0));
             calibrationList.add(new CalibrationData(pred.getAwayWinProbability() / 100.0, m.getHomeScore() < m.getAwayScore() ? 1.0 : 0.0));
@@ -67,15 +71,17 @@ public class BacktestingService {
             count++;
         }
 
-        simulateBettingStrategy(testMatches);
-
         if (count > 0) {
+            simulateBettingStrategy(testMatches); // Lance la simulation ROI
+
             log.info("📊 --- RÉSULTATS DU BACKTEST ---");
             log.info("🏟️  Matchs analysés : {}", count);
             log.info("🎯 Brier Score moyen : {}", String.format("%.4f", totalBrierScore / count));
             log.info("📉 Log-Loss moyenne   : {}", String.format("%.4f", totalLogLoss / count));
 
             printCalibrationReport(calibrationList);
+        } else {
+            log.warn("Aucun match terminé trouvé sur la période demandée.");
         }
     }
 
@@ -89,13 +95,19 @@ public class BacktestingService {
         log.info("💰 --- SIMULATION FINANCIÈRE (KELLY) ---");
 
         for (MatchAnalysis m : matches) {
+            // --- CORRECTION CRITIQUE : Protection contre les matchs sans score (futurs) ---
+            if (m.getHomeScore() == null || m.getAwayScore() == null) continue;
+
             PredictionResult p = m.getPrediction();
             if (p == null) continue;
 
             // On parie uniquement si Kelly > 0 (Value détectée)
             // Domicile
-            if (p.getKellyStakeHome() > 0) {
+            if (p.getKellyStakeHome() != null && p.getKellyStakeHome() > 0) {
                 double stake = (p.getKellyStakeHome() / 100.0) * bankroll;
+                // Sécurité : Limiter la mise max (ex: 5% bankroll)
+                if (stake > bankroll * 0.05) stake = bankroll * 0.05;
+
                 bankroll -= stake;
                 if (m.getHomeScore() > m.getAwayScore()) {
                     bankroll += stake * m.getOdds1();
@@ -103,9 +115,11 @@ public class BacktestingService {
                 }
                 betsPlaced++;
             }
-            // Extérieur (On peut ajouter le Nul aussi)
-            if (p.getKellyStakeAway() > 0) {
+            // Extérieur
+            if (p.getKellyStakeAway() != null && p.getKellyStakeAway() > 0) {
                 double stake = (p.getKellyStakeAway() / 100.0) * bankroll;
+                if (stake > bankroll * 0.05) stake = bankroll * 0.05;
+
                 bankroll -= stake;
                 if (m.getAwayScore() > m.getHomeScore()) {
                     bankroll += stake * m.getOdds2();
@@ -120,11 +134,14 @@ public class BacktestingService {
             if (dd > maxDrawdown) maxDrawdown = dd;
         }
 
-        double roi = ((bankroll - 1000.0) / 1000.0) * 100;
-        log.info("🏁 Bankroll Finale : {:.2f}€ (Départ 1000€)", bankroll);
-        log.info("📈 ROI Global : {:.2f}%", roi);
-        log.info("📉 Max Drawdown : {:.2f}%", maxDrawdown * 100);
-        log.info("🎯 Winrate Value : {:.2f}% ({}/{})", (double)betsWon/betsPlaced*100, betsWon, betsPlaced);
+        double roi = (betsPlaced > 0) ? ((bankroll - 1000.0) / 1000.0) * 100 : 0.0;
+        // Remplacez les lignes existantes par celles-ci (syntaxe SLF4J correcte)
+        log.info("🏁 Bankroll Finale : {}€ (Départ 1000€)", String.format("%.2f", bankroll));
+        log.info("📈 ROI Global : {}%", String.format("%.2f", roi));
+        log.info("📉 Max Drawdown : {}%", String.format("%.2f", maxDrawdown * 100));
+        log.info("🎯 Winrate Value : {}% ({}/{})",
+                String.format("%.2f", (betsPlaced > 0 ? (double)betsWon/betsPlaced*100 : 0.0)),
+                betsWon, betsPlaced);
     }
 
     /**
@@ -173,7 +190,7 @@ public class BacktestingService {
     @Data
     @AllArgsConstructor
     public static class CalibrationData {
-        double predictedProb; // Probabilité prédite (0.0 à 1.0)
-        double actualOutcome; // Résultat réel (1.0 si l'issue s'est produite, 0.0 sinon)
+        double predictedProb;
+        double actualOutcome;
     }
 }

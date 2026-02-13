@@ -143,7 +143,13 @@ public class PredictionEngineService {
         double kellyAway = calculateAdjustedKelly(finalProbAway / 100.0, match.getOdds2(), confidenceFactor);
 
         // 1. Génération du Prompt IA
-        String aiPrompt = generateAiPrompt(match, home, away, homePerf, awayPerf, finalProbHome, finalProbDraw, finalProbAway, kellyHome, kellyAway);
+        String aiPrompt = generateAiPrompt(
+                match, home, away, homePerf, awayPerf,
+                finalProbHome, finalProbDraw, finalProbAway,
+                kellyHome, kellyAway,
+                poissonResult,              // On passe le résultat de la simulation (contenant xG, BTTS...)
+                round(confidenceFactor * 100.0) // On passe le score de confiance calculé
+        );
 
         // 2. Logs structurés pour l'utilisateur (HTML formatted)
         String userLogs = generateUserLogs(home, away, eloDiff, homePerf, awayPerf, poissonResult, confidenceFactor);
@@ -199,16 +205,30 @@ public class PredictionEngineService {
     }
 
     private double calculateHomeDominance(Team t) {
-        if (t.getCurrentStats() == null || t.getCurrentStats().getMatchesPlayedAway() == 0) return 1.0;
-        double ptsPerGameHome = (double) t.getCurrentStats().getVenuePoints() / t.getCurrentStats().getVenueMatches();
-        double ptsPerGameAway = (double) (t.getCurrentStats().getPoints() - t.getCurrentStats().getVenuePoints())
-                / t.getCurrentStats().getMatchesPlayedAway();
+        // 1. Vérification de base : Stats existantes ?
+        if (t.getCurrentStats() == null) return 1.0;
 
-        if (ptsPerGameAway == 0) return 1.1; // Protection div/0
+        // 2. Extraction sécurisée des valeurs (gestion des nulls)
+        Integer mpHome = t.getCurrentStats().getMatchesPlayedHome();
+        Integer mpAway = t.getCurrentStats().getMatchesPlayedAway();
+        Integer pts = t.getCurrentStats().getPoints();
+        Integer venuePts = t.getCurrentStats().getVenuePoints();
 
-        // On limite le facteur entre 0.9 (ne gagne jamais chez lui) et 1.3 (Intraitable)
-        double ratio = ptsPerGameHome / ptsPerGameAway;
-        return Math.max(0.9, Math.min(1.3, ratio)); // Clamp pour éviter les valeurs folles
+        // Si une donnée essentielle manque ou est à 0, on retourne la valeur neutre
+        if (mpHome == null || mpHome == 0 || mpAway == null || mpAway == 0 ||
+                pts == null || venuePts == null) {
+            return 1.0;
+        }
+
+        // 3. Calculs sécurisés (tout est garanti non-null ici)
+        double ptsHomePerGame = (double) venuePts / mpHome;
+        double ptsAwayPerGame = (double) (pts - venuePts) / mpAway;
+
+        if (ptsAwayPerGame < 0.1) return 1.2; // Cas rare : ne gagne jamais à l'extérieur (éviter division par ~0)
+
+        // 4. Ratio et bornage
+        double ratio = ptsHomePerGame / ptsAwayPerGame;
+        return Math.max(0.8, Math.min(1.3, ratio)); // Clamp pour éviter les valeurs extrêmes
     }
 
     private String generateUserLogs(Team h, Team a, double eloDiff, TeamPerformance hp, TeamPerformance ap, PredictionResult sim, double conf) {
@@ -232,14 +252,16 @@ public class PredictionEngineService {
         return sb.toString();
     }
 
-    private String generateAiPrompt(MatchAnalysis m, Team h, Team a, TeamPerformance hp, TeamPerformance ap, double p1, double pN, double p2, double k1, double k2) {
-        PredictionResult pred = m.getPrediction();
+    // Modifiez la signature pour accepter les résultats de simulation (simResult) et la confiance (conf)
+    private String generateAiPrompt(MatchAnalysis m, Team h, Team a, TeamPerformance hp, TeamPerformance ap,
+            double p1, double pN, double p2, double k1, double k2,
+            PredictionResult simResult, double conf) {
 
-        // On garde uniquement l'info "Nouveau Coach" si elle est avérée, car c'est un facteur critique
+        // On n'utilise PLUS m.getPrediction() (qui est l'ancienne valeur ou null)
+        // On utilise simResult qui contient les stats calculées à l'instant T (xG, BTTS, etc.)
+
         String contextAlerts = "";
         if (m.isAwayNewCoach()) contextAlerts += "- ATTENTION : Choc psychologique potentiel (Nouveau Coach Extérieur)\n";
-
-        // Si aucune alerte structurelle, on ne dit rien pour ne pas induire l'IA en erreur.
 
         return String.format(
                 "Agis comme un expert en paris sportifs et modélisation statistique.\n" +
@@ -249,7 +271,7 @@ public class PredictionEngineService {
                         "MATCH : %s (Dom) vs %s (Ext)\n" +
                         "DATE : %s\n" +
                         "ARBITRE : %s\n" +
-                        "%s\n" + // Insère l'alerte coach si présente, sinon ligne vide
+                        "%s\n" +
 
                         "--- 2. PROFILS STATISTIQUES (Saison & Forme) ---\n" +
                         "FORCES INTRINSÈQUES (Alpha/Beta - Dixon Coles) :\n" +
@@ -293,11 +315,12 @@ public class PredictionEngineService {
                 a.getName(), ap.attackRating(), (ap.attackRating() < 0.8 ? "(⚠️ MÉFORME)" : ""),
 
                 p1, pN, p2,
-                (pred != null ? pred.getPredictedHomeGoals() : 0.0), (pred != null ? pred.getPredictedAwayGoals() : 0.0), (pred != null ? pred.getExactScore() : "?-?"),
+                // Utilisation de simResult au lieu de pred
+                simResult.getPredictedHomeGoals(), simResult.getPredictedAwayGoals(), simResult.getExactScore(),
 
                 (hp.volatility() + ap.volatility())/2.0,
-                (pred != null ? pred.getConfidenceScore() : 50.0),
-                (pred != null ? pred.getBttsProb() : 0.0), (pred != null ? pred.getOver2_5_Prob() : 0.0),
+                conf, // Utilisation de la variable passée en paramètre (plus de null possible)
+                simResult.getBttsProb(), simResult.getOver2_5_Prob(),
 
                 m.getOdds1(), m.getOddsN(), m.getOdds2(),
                 k1, k2,
@@ -322,8 +345,8 @@ public class PredictionEngineService {
         double q = 1.0 - prob;
         double f = ((b * prob) - q) / b;
 
-        // Kelly pur * Fraction (0.25) * Facteur de Confiance (0.3 à 1.0)
-        double stake = f * 0.25 * confidenceFactor;
+        // On réduit la fraction à 0.10 (1/10th Kelly) pour survivre à la variance
+        double stake = f * 0.10 * confidenceFactor;
         return stake > 0 ? round(stake * 100.0) : 0.0;
     }
 
@@ -335,10 +358,10 @@ public class PredictionEngineService {
     }
 
     private String detectValueBet(double k1, double kN, double k2) {
-        // Seuil de 2% de bankroll (après ajustement) pour considérer comme une "vraie" Value
-        if (k1 > 2.0) return "HOME";
-        if (k2 > 2.0) return "AWAY";
-        if (kN > 1.5) return "DRAW";
+        // On monte le seuil à 5.0 pour être encore plus élitiste sur les sélections
+        if (k1 > 5.0) return "HOME";
+        if (k2 > 5.0) return "AWAY";
+        if (kN > 3.5) return "DRAW";
         return null;
     }
 

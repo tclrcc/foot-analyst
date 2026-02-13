@@ -427,6 +427,24 @@
             </div>
           </div>
         </div>
+
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="card border-primary border-opacity-25 shadow-sm">
+              <div class="card-header bg-primary bg-opacity-10 text-primary fw-bold">
+                <i class="bi bi-clock-history me-2"></i>Jobs Quotidiens (Exécution Manuelle)
+              </div>
+              <div class="card-body">
+                <p class="small text-muted">
+                  Force l'exécution immédiate et séquentielle des 3 jobs planifiés : <strong>Mise à jour des résultats de la veille</strong>, <strong>Import des futurs matchs</strong>, et <strong>Recalibrage du modèle mathématique</strong>.
+                </p>
+                <button id="btnForceJobs" class="btn btn-primary">
+                  <i class="bi bi-play-fill me-2"></i>Forcer l'exécution des Jobs
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -505,6 +523,47 @@
         output.innerText = "Erreur technique : " + e.message;
       } finally {
         btnRecalculateAll.disabled = false;
+      }
+    });
+  }
+
+  // Listener pour le bouton de déclenchement manuel des jobs CRON
+  const btnForceJobs = document.getElementById('btnForceJobs');
+  if (btnForceJobs) {
+    btnForceJobs.addEventListener('click', async () => {
+      // 1. Sécurité UX : On demande confirmation
+      if (!confirm("Voulez-vous forcer l'exécution des 3 jobs quotidiens ?\nCela va télécharger les CSV et relancer les calculs (peut prendre 10 à 30 secondes).")) return;
+
+      const output = document.getElementById('importResultOutput');
+      const resultCard = document.getElementById('resultCard');
+
+      // 2. Gestion de l'état (Eviter le double-clic)
+      btnForceJobs.disabled = true;
+      const originalHtml = btnForceJobs.innerHTML;
+      btnForceJobs.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Exécution en cours...';
+
+      resultCard.style.display = 'block';
+      output.innerText = "⏳ Exécution des jobs en cours... Surveillez la console de votre IDE pour les logs détaillés.";
+
+      try {
+        // 3. Appel API
+        const res = await fetch('/api/v1/admin/force-daily-jobs', { method: 'POST' });
+        const text = await res.text();
+
+        if (res.ok) {
+          output.innerText = text;
+          showToast("Jobs exécutés avec succès !");
+        } else {
+          output.innerText = "ERREUR SERVER :\n" + text;
+          showToast("Erreur lors de l'exécution", true);
+        }
+      } catch (e) {
+        output.innerText = "ERREUR TECHNIQUE :\n" + e.message;
+        showToast("Erreur réseau", true);
+      } finally {
+        // 4. Rétablissement de l'état
+        btnForceJobs.disabled = false;
+        btnForceJobs.innerHTML = originalHtml;
       }
     });
   }

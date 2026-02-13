@@ -4,6 +4,7 @@ import com.tony.sportsAnalytics.model.MatchAnalysis;
 import com.tony.sportsAnalytics.model.Team;
 import com.tony.sportsAnalytics.repository.MatchAnalysisRepository;
 import com.tony.sportsAnalytics.repository.TeamRepository;
+import com.tony.sportsAnalytics.service.AnalysisOrchestrator;
 import com.tony.sportsAnalytics.service.DataImportService;
 import com.tony.sportsAnalytics.service.ParameterEstimationService;
 import lombok.RequiredArgsConstructor;
@@ -16,12 +17,14 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class DailyUpdateJob {
+    public class DailyUpdateJob {
 
     private final DataImportService dataImportService;
     private final ParameterEstimationService estimationService;
     private final MatchAnalysisRepository matchRepository;
     private final TeamRepository teamRepository;
+
+    private final AnalysisOrchestrator orchestrator;
 
     /**
      * JOB 1 : Mise à jour des RÉSULTATS (Matchs joués la veille)
@@ -71,12 +74,14 @@ public class DailyUpdateJob {
     public void recalibrateModel() {
         log.info("📊 Recalibrage du modèle Dixon-Coles...");
 
-        // On récupère les 100 derniers matchs pour la précision (ou toute la saison)
         List<MatchAnalysis> historicalMatches = matchRepository.findAll();
         List<Team> allTeams = teamRepository.findAll();
 
-        // Déclenche l'optimisation mathématique (MLE)
         estimationService.estimateParameters(historicalMatches, allTeams);
         log.info("✅ Paramètres Alpha/Beta mis à jour pour toutes les équipes.");
+
+        // ✅ AJOUT : C'est ici qu'on applique les nouveaux calculs mathématiques sur les matchs futurs !
+        log.info("🔄 Lancement du recalcul des prédictions à venir avec le nouveau modèle...");
+        orchestrator.refreshUpcomingPredictions();
     }
 }
