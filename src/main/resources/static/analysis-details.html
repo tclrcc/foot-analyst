@@ -116,6 +116,7 @@
             <div id="comp-shots"></div>
             <div id="comp-sot"></div>
             <div id="comp-corners"></div>
+            <div id="comp-prog-passes"></div>
 
             <h6 class="text-muted text-uppercase small fw-bold mb-4 mt-5">🧠 Analyse Tactique Avancée</h6>
 
@@ -346,6 +347,11 @@
             renderComparisonBar('comp-shots', 'Tirs / match', match.homeStats?.avgShots, match.awayStats?.avgShots);
             renderComparisonBar('comp-sot', 'Tirs Cadrés / match', match.homeStats?.avgShotsOnTarget, match.awayStats?.avgShotsOnTarget);
             renderComparisonBar('comp-corners', 'Corners / match', match.homeStats?.avgCorners, match.awayStats?.avgCorners);
+            // Stats de construction
+            renderComparisonBar('comp-prog-passes', 'Passes Progressives / 90min',
+                match.homeStats?.avgProgressivePasses,
+                match.awayStats?.avgProgressivePasses
+            );
 
             // 3. Stats Avancées
             document.getElementById('uiHomeXg').innerText = match.homeStats?.xG || '--';

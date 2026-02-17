@@ -68,7 +68,8 @@ public class MatchAnalysis {
             @AttributeOverride(name = "avgShotsOnTarget", column = @Column(name = "home_avg_sot")),
             @AttributeOverride(name = "avgPossession", column = @Column(name = "home_avg_possession")),
             @AttributeOverride(name = "avgCorners", column = @Column(name = "home_avg_corners")),
-            @AttributeOverride(name = "avgCrosses", column = @Column(name = "home_avg_crosses"))
+            @AttributeOverride(name = "avgCrosses", column = @Column(name = "home_avg_crosses")),
+            @AttributeOverride(name = "avgProgressivePasses", column = @Column(name = "home_avg_progressive_passes"))
     })
     @Valid
     private TeamStats homeStats;
@@ -113,7 +114,8 @@ public class MatchAnalysis {
             @AttributeOverride(name = "avgShotsOnTarget", column = @Column(name = "away_avg_sot")),
             @AttributeOverride(name = "avgPossession", column = @Column(name = "away_avg_possession")),
             @AttributeOverride(name = "avgCorners", column = @Column(name = "away_avg_corners")),
-            @AttributeOverride(name = "avgCrosses", column = @Column(name = "away_avg_crosses"))
+            @AttributeOverride(name = "avgCrosses", column = @Column(name = "away_avg_crosses")),
+            @AttributeOverride(name = "avgProgressivePasses", column = @Column(name = "away_avg_progressive_passes"))
     })
     @Valid
     private TeamStats awayStats;

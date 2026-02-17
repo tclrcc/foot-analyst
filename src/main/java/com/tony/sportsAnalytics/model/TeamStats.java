@@ -71,4 +71,5 @@ public class TeamStats {
     private Double avgPossession;      // Possession moyenne (%)
     private Double avgCorners;         // Corners obtenus par match
     private Double avgCrosses;         // Centres tentés par match
+    private Double avgProgressivePasses;
 }

@@ -55,7 +55,8 @@ public class DataImportService {
             "L1", "https://fbref.com/en/comps/13/stats/Ligue-1-Stats",
             "LIGA", "https://fbref.com/en/comps/12/stats/La-Liga-Stats",
             "SERIEA", "https://fbref.com/en/comps/11/stats/Serie-A-Stats",
-            "BUNDES", "https://fbref.com/en/comps/20/stats/Bundesliga-Stats"
+            "BUNDES", "https://fbref.com/en/comps/20/stats/Bundesliga-Stats",
+            "UCL", "https://fbref.com/en/comps/8/stats/Champions-League-Stats"
     );
 
     private static final Map<String, String> DIV_TO_LEAGUE_CODE = Map.of(
@@ -167,9 +168,8 @@ public class DataImportService {
 
                 stats.setXG(metrics.xG());
                 stats.setXGA(metrics.xGA());
-
-                // NOUVEAU : On injecte la possession globale récupérée sur FBRef
                 stats.setAvgPossession(metrics.possession());
+                stats.setAvgProgressivePasses(metrics.progressivePasses());
 
                 teamRepository.save(team);
                 log.debug("✅ Stats avancées (xG, Poss) mises à jour pour {}", team.getName());

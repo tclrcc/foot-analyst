@@ -68,12 +68,36 @@ public class XgScraperService {
                 log.warn("⚠️ Table 'Possession' introuvable dans le HTML renvoyé.");
             }
 
+            // 3. Extraction de la table Passing (Passes Progressives)
+            Element passingTable = getTableFromDomOrComment(doc, "stats_squads_passing_for");
+            if (passingTable != null) {
+                extractPassingStats(passingTable, metrics);
+            } else {
+                log.warn("⚠️ Table 'Passing' introuvable.");
+            }
+
             log.info("✅ Scraping réussi : {} équipes récupérées.", metrics.size());
 
         } catch (Exception e) {
             log.error("❌ Échec critique du scraping FBRef pour {}: {}", leagueUrl, e.getMessage());
         }
         return metrics;
+    }
+
+    private void extractPassingStats(Element table, Map<String, TeamXgMetrics> metrics) {
+        Elements rows = table.select("tbody tr");
+        for (Element row : rows) {
+            String teamName = row.select("th[data-stat=team]").text().trim();
+            if (!metrics.containsKey(teamName)) continue; // On ne traite que les équipes déjà identifiées
+
+            // FBRef: Colonne "prog_passes"
+            double progPasses = parseDoubleSafe(row.select("td[data-stat=prog_passes]").text());
+
+            // On met à jour le record (Immuable -> on recrée)
+            metrics.computeIfPresent(teamName, (k, v) ->
+                    new TeamXgMetrics(v.xG(), v.xGA(), v.ppda(), v.fieldTilt(), v.possession(), progPasses)
+            );
+        }
     }
 
     /**
@@ -90,7 +114,7 @@ public class XgScraperService {
             double possession = parseDoubleSafe(row.select("td[data-stat=possession]").text()); // NOUVEAU
 
             // On initialise l'objet avec la possession récupérée
-            metrics.put(teamName, new TeamXgMetrics(xG, xGA, 10.5, 50.0, possession));
+            metrics.put(teamName, new TeamXgMetrics(xG, xGA, 10.5, 50.0, possession, 0.0));
         }
     }
 
@@ -110,7 +134,7 @@ public class XgScraperService {
 
             // Mise à jour de l'objet existant (Java Record étant immuable, on le recrée)
             metrics.computeIfPresent(teamName,
-                    (k, existing) -> new TeamXgMetrics(existing.xG(), existing.xGA(), existing.ppda(), Math.min(100.0, fieldTilt), existing.possession()));        }
+                    (k, existing) -> new TeamXgMetrics(existing.xG(), existing.xGA(), existing.ppda(), Math.min(100.0, fieldTilt), existing.possession(), existing.progressivePasses()));        }
     }
 
     /**
@@ -169,5 +193,5 @@ public class XgScraperService {
         return sc.getSocketFactory();
     }
 
-    public record TeamXgMetrics(double xG, double xGA, double ppda, double fieldTilt, double possession) {}
+    public record TeamXgMetrics(double xG, double xGA, double ppda, double fieldTilt, double possession, double progressivePasses) {}
 }
